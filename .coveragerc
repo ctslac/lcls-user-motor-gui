@@ -1,0 +1,11 @@
+[run]
+source =
+    lcls-user-motor-gui
+[report]
+omit =
+    #versioning
+    .*version.*
+    *_version.py
+    #tests
+    *test*
+    lcls-user-motor-gui/tests/*
