@@ -24,7 +24,7 @@ from qtpy.QtWidgets import (
 )
 
 from discover_pvs import discover_pvs
-from parse_pvs import identify_axis, identify_nc_params
+from parse_pvs import identify_axis, identify_nc_params, identify_drive, identify_coe_drive_params
 
 
 class MyDisplay(Display):
@@ -37,17 +37,27 @@ class MyDisplay(Display):
         if init:
             init = False
             self.axis_list = []
+            self.drives_type = []
+            self.drive_list = []
+            self.coe_drive_list = []
+            self.drives_7047 = []
+            self.drives_7062 = []
+            self.drive_type = []
             self.nc_list_indx = 0
             self.nc_list = []
             self.pvList = []
+            self.nc_list_indx
+            self.flag_7047 = True
+            self.flag_7062 = True
 
         # finding children
         self.ioc_name = self.ui.findChild(QLineEdit, "input_ioc")
         self.axis_selection = self.ui.findChild(PyDMEnumComboBox, "axis_selection")
-        self.nc_param_dropdown = self.ui.findChild(
-            PyDMEnumComboBox, "nc_param_dropdown"
-        )
         self.nc_param_io = self.ui.findChild(PyDMLineEdit, "nc_param_io")
+        self.nc_param_dropdown = self.ui.findChild(PyDMEnumComboBox, "nc_param_dropdown")
+        self.drive_selection = self.ui.findChild(PyDMEnumComboBox, "drive_selection")
+        self.drive_coe_dropdown = self.ui.findChild(PyDMEnumComboBox, "drive_coe_dropdown")
+        self.drive_coe_io = self.ui.findChild(PyDMLineEdit, "drive_coe_io")
 
         # SIGNALS
         # want to update axis every time the ioc is being changed
@@ -55,9 +65,13 @@ class MyDisplay(Display):
 
         # update NC params if axis selection is changed
         self.axis_selection.currentIndexChanged.connect(self.update_nc_dropdown)
+        # update CoE drive params if axis selection is changed
+        self.drive_selection.currentIndexChanged.connect(self.update_coe_dropdown)
 
-        # update nc param index if its changed
-        self.nc_param_dropdown.currentIndexChanged.connect(self.update_nc_index)
+        # update nc param if dropdown is changed
+        self.nc_param_dropdown.currentIndexChanged.connect(self.update_nc_io)
+        # update coe param if dropdown is changed
+        self.drive_coe_dropdown.currentIndexChanged.connect(self.update_drive_coe_io)
 
     def ui_filename(self):
         return "user-motor-gui.ui"
@@ -80,6 +94,8 @@ class MyDisplay(Display):
     def get_pvs_from_input(self):
         print("in get pvs from input")
         print(self.ioc_name.text())
+
+        # use this to pull db from ioc
         # iocpath, dbpath = grep_ioc(
         #     self.ioc_name.text(), "/cds/group/pcds/pyps/config/mec/iocmanager.cfg", "-p"
         # )
@@ -90,6 +106,7 @@ class MyDisplay(Display):
         self.pvList = self.load_test_list()
         print(self.pvList[1])
         self.populate_axis(self.pvList)
+        self.populate_drives(self.pvList)
 
     def populate_axis(self, pvList):
         # update enum with axis pulled from .db file
@@ -107,6 +124,25 @@ class MyDisplay(Display):
         if not self.axis_selection.isEnabled():
             self.axis_selection.setEnabled(True)
         print(self.axis_selection)
+
+    def populate_drives(self, pvList):
+        # update enum with drives pulled from .db file
+        print("in populate drives")
+        self.flag_7047, self.flag_7062 = identify_drive(pvList)
+        if self.flag_7047  and self.flag_7062:
+            self.drive_list = ["EL7047", "EL7062"]
+        elif (self.flag_7047 == True) and (self.flag_7062 == False):
+            self.drive_list = ["EL7047"]
+        elif (self.flag_7047 == False) and (self.flag_7062 == True):
+            self.drive_list = ["EL7062"]
+        else:
+            raise AttributeError("No Drives")
+        self.drive_selection.addItems(self.drive_list)
+        self.drive_selection.setCurrentIndex(0)
+        self.drive_selection.show()
+        if not self.drive_selection.isEnabled():
+            self.drive_selection.setEnabled(True)
+        print(self.drive_selection)
 
     def update_nc_dropdown(self):
         """
@@ -129,16 +165,49 @@ class MyDisplay(Display):
         self.nc_param_dropdown.show()
         if not self.nc_param_dropdown.isEnabled():
             self.nc_param_dropdown.setEnabled(True)
+    
+    def update_coe_dropdown(self):
+        self.coe_drive_list.clear()
+        self.drive_coe_dropdown.clear()
+        if (self.drive_selection.currentText() == "EL7047"):
+            self.coe_drive_list = identify_coe_drive_params(self.axis_list[self.axis_selection.currentIndex()],"EL7047", self.pvList)
+        elif (self.drive_selection.currentText() == "EL7062"):
+            self.coe_drive_list = identify_coe_drive_params(self.axis_list[self.axis_selection.currentIndex()],"EL7062", self.pvList)
+        self.drive_coe_dropdown.addItems(self.coe_drive_list)
+        self.drive_coe_dropdown.setCurrentIndex(0)
+        self.drive_coe_dropdown.show()
+        if not self.drive_coe_dropdown.isEnabled():
+            self.drive_coe_dropdown.setEnabled(True)
+        
 
-        # if the nc param current index is changed update nc io
-        # self.nc_param_dropdown.currentIndexChanged().connect(self.update_nc_io(self.nc_param_dropdown.currentIndex()))
+
 
     def update_nc_io(self, index):
-        self.nc_param_io.set_display(self.nc_list[index])
+        print("in update_nc_io")
+        self.nc_list_indx = self.nc_param_dropdown.currentIndex()
+        nc_pv = self.nc_list[self.nc_list_indx]
+        print(f"nc_pv: {nc_pv}")
+        self.nc_param_io.channel = "ca://" + nc_pv
+        self.nc_param_io.setText("ca://" + nc_pv)
         self.nc_param_io.show()
+        if not self.nc_param_io.isEnabled():
+            self.nc_param_io.setEnabled(True)
+
+    def update_drive_coe_io(self, index):
+        print("in update_drive_coe_io")
+        self.coe_drive_indx = self.drive_coe_dropdown.currentIndex()
+        coe_pv = self.coe_drive_list[self.coe_drive_indx]
+        print(f"coe_pv: {coe_pv}")
+        self.drive_coe_io.channel = "ca://" + coe_pv
+        self.drive_coe_io.setText("ca://" + coe_pv)
+        self.drive_coe_io.show()
+        if not self.nc_param_io.isEnabled():
+            self.nc_param_io.setEnabled(True)
+
 
     def update_nc_index(self):
         self.nc_list_indx = self.nc_param_dropdown.currentIndex()
+        
 
 
 # def gather_plc_pvs_from_file(self):
