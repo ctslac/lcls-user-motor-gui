@@ -35,6 +35,8 @@ from parse_pvs import (
 
 
 class MyDisplay(Display):
+    ui: QWidget
+
     def __init__(self, parent=None, args=None, macros=None):
         print("In init")
         super().__init__(parent=parent, args=args, macros=macros)
@@ -44,9 +46,10 @@ class MyDisplay(Display):
         if init:
             init = False
             self.axis_list = []
-            self.drives_type = []
+            self.enocder_type = []
             self.drive_list = []
             self.enc_list = []
+            self.coe_drive_list = []
             self.coe_drive_list = []
             self.coe_enc_list = []
             self.drives_7047 = []
@@ -61,6 +64,7 @@ class MyDisplay(Display):
             self.flag_5102 = True
             self.flag_5042 = True
             self.coe_enc_indx = 0
+            self.axis_init_flag = 0
 
         # finding children
         self.ioc_name = self.ui.findChild(QLineEdit, "input_ioc")
@@ -87,9 +91,24 @@ class MyDisplay(Display):
         self.ioc_name.returnPressed.connect(self.get_pvs_from_input)
 
         # update NC params if axis selection is changed
-        self.axis_selection.currentIndexChanged.connect(self.update_nc_dropdown)
+        # if not self.axis_init_flag:
+        #     print("gui init")
+        #     self.axis_selection.currentIndexChanged.connect(self.update_nc_dropdown)
+        #     self.axis_init_flag = 1
+
+        if self.axis_selection.currentIndexChanged:
+            print("after init")
+            for slots in [
+                self.update_nc_dropdown,
+                self.populate_drives,
+                self.populate_encoders,
+                self.update_coe_drive_dropdown,
+                self.update_enc_coe_dropdown,
+            ]:
+                self.axis_selection.currentIndexChanged.connect(slots)
+
         # update CoE drive params if axis selection is changed
-        self.drive_selection.currentIndexChanged.connect(self.update_coe_dropdown)
+        self.drive_selection.currentIndexChanged.connect(self.update_coe_drive_dropdown)
         # update CoE encoder params if axis selection is changed
         self.encoder_selection.currentIndexChanged.connect(self.update_enc_coe_dropdown)
 
@@ -132,14 +151,14 @@ class MyDisplay(Display):
         # self.pvList = discover_pvs('', usr_db_path=iocpath)
         self.pvList = self.load_test_list()
         print(self.pvList[1])
-        self.populate_axis(self.pvList)
-        self.populate_drives(self.pvList)
-        self.populate_enc(self.pvList)
+        self.populate_axis()
+        self.populate_drives()
+        self.populate_encoders()
 
-    def populate_axis(self, pvList):
+    def populate_axis(self):
         # update enum with axis pulled from .db file
         print("in populate axis")
-        self.axis_list = identify_axis(pvList)
+        self.axis_list = identify_axis(self.pvList)
         print(f"axis_list: {self.axis_list}")
 
         # if not hasattr(self.axis_selection, self.pvList):
@@ -153,46 +172,30 @@ class MyDisplay(Display):
             self.axis_selection.setEnabled(True)
         print(self.axis_selection)
 
-    def populate_drives(self, pvList):
+    def populate_drives(self):
         # update enum with drives pulled from .db file
         print("in populate drives")
-        self.flag_7047, self.flag_7062 = identify_drive(pvList)
-        if self.flag_7047 and self.flag_7062:
-            self.drive_list = ["EL7047", "EL7062"]
-        elif (self.flag_7047 == True) and (self.flag_7062 == False):
-            self.drive_list = ["EL7047"]
-        elif (self.flag_7047 == False) and (self.flag_7062 == True):
-            self.drive_list = ["EL7062"]
-        else:
-            raise AttributeError("No Drives")
-        self.drive_selection.addItems(self.drive_list)
+        drive = self.axis_selection.currentText()
+        stripped_axis_rbv = ":Axis:Id_RBV"
+        stripped_drive = drive.replace(stripped_axis_rbv, "")
+        print(f"PD: drive: {stripped_drive}")
+        self.drive_type = identify_drive(stripped_drive, self.pvList)
+        self.drive_selection.addItem(self.drive_type)
         self.drive_selection.setCurrentIndex(0)
         self.drive_selection.show()
         if not self.drive_selection.isEnabled():
             self.drive_selection.setEnabled(True)
-        print(self.drive_selection)
 
-    def populate_enc(self, pvList):
+        # print(self.drive_selection)
+
+    def populate_encoders(self):
         # update enum with drives pulled from .db file
         print("in populate enc")
-        self.flag_5102, self.flag_5042 = identify_enc(pvList)
-        case = ""
-
-        if self.flag_5102 and self.flag_5042:
-            self.enc_list = ["EL5102", "EL5042"]
-            case = "case1"
-        elif (self.flag_5102 == True) and (self.flag_5042 == False):
-            self.enc_list = ["EL5102"]
-            case = "case2"
-        elif (self.flag_5042 == False) and (self.flag_5042 == True):
-            self.enc_list = ["EL5042"]
-            case = "case3"
-        else:
-            raise AttributeError("No Drives")
-        print(
-            f"f5102: {self.flag_5102}, f5042: {self.flag_5042}, case: {case}, enc sel: {self.enc_list}"
-        )
-        self.encoder_selection.addItems(self.enc_list)
+        encoder = self.axis_selection.currentText()
+        stripped_axis_rbv = ":Axis:Id_RBV"
+        stripped_encoder = encoder.replace(stripped_axis_rbv, "")
+        self.enocder_type = identify_enc(stripped_encoder, self.pvList)
+        self.encoder_selection.addItem(self.enocder_type)
         self.encoder_selection.setCurrentIndex(0)
         self.encoder_selection.show()
         if not self.encoder_selection.isEnabled():
@@ -212,8 +215,12 @@ class MyDisplay(Display):
         self.nc_list.clear()
         self.nc_param_dropdown.clear()
         axis_num = self.axis_selection.currentIndex()
-        print(f"axis num: {axis_num}, axis ref: {self.axis_list[axis_num]}")
-        self.nc_list = identify_nc_params(self.axis_list[axis_num], pv_list=self.pvList)
+        print(
+            f"UNCDD: axis num: {axis_num}, axis ref: {self.axis_selection.currentText()}"
+        )
+        self.nc_list = identify_nc_params(
+            self.axis_selection.currentText(), pv_list=self.pvList
+        )
         # print(f"sample nc pvs: {self.nc_list[:10]}")
         self.nc_param_dropdown.addItems(self.nc_list)
         self.nc_param_dropdown.setCurrentIndex(0)
@@ -221,18 +228,19 @@ class MyDisplay(Display):
         if not self.nc_param_dropdown.isEnabled():
             self.nc_param_dropdown.setEnabled(True)
 
-    def update_coe_dropdown(self):
+    def update_coe_drive_dropdown(self):
         self.coe_drive_list.clear()
         self.drive_coe_dropdown.clear()
+
         if self.drive_selection.currentText() == "EL7047":
             self.coe_drive_list = identify_coe_drive_params(
-                self.axis_list[self.axis_selection.currentIndex()],
+                self.axis_selection.currentText(),
                 "EL7047",
                 self.pvList,
             )
         elif self.drive_selection.currentText() == "EL7062":
             self.coe_drive_list = identify_coe_drive_params(
-                self.axis_list[self.axis_selection.currentIndex()],
+                self.axis_selection.currentText(),
                 "EL7062",
                 self.pvList,
             )
@@ -243,17 +251,18 @@ class MyDisplay(Display):
             self.drive_coe_dropdown.setEnabled(True)
 
     def update_enc_coe_dropdown(self):
+        print("in update enc coe dropdown")
         self.coe_enc_list.clear()
         self.encoder_coe_dropdown.clear()
         if self.encoder_selection.currentText() == "EL5102":
             self.coe_enc_list = identify_coe_enc_params(
-                self.axis_list[self.axis_selection.currentIndex()],
+                self.axis_selection.currentText(),
                 "EL5102",
                 self.pvList,
             )
         elif self.encoder_selection.currentText() == "EL5042":
             self.coe_enc_list = identify_coe_enc_params(
-                self.axis_list[self.axis_selection.currentIndex()],
+                self.axis_selection.currentText(),
                 "EL5042",
                 self.pvList,
             )
@@ -266,35 +275,35 @@ class MyDisplay(Display):
     def update_nc_io(self, index):
         print("in update_nc_io")
         self.nc_list_indx = self.nc_param_dropdown.currentIndex()
-        nc_pv = self.nc_list[self.nc_list_indx]
+        nc_pv = self.nc_param_dropdown.currentText()
         # print(f"nc_pv: {nc_pv}")
-        self.nc_param_io.channel = "ca://" + nc_pv
+        # self.nc_param_io.channel = "ca://" + nc_pv
         self.nc_param_io.setText("ca://" + nc_pv)
-        self.nc_param_io.show()
         if not self.nc_param_io.isEnabled():
             self.nc_param_io.setEnabled(True)
+        self.nc_param_io.show()
 
     def update_drive_coe_io(self, index):
         print("in update_drive_coe_io")
         self.coe_drive_indx = self.drive_coe_dropdown.currentIndex()
-        coe_pv = self.coe_drive_list[self.coe_drive_indx]
-        print(f"coe_pv: {coe_pv}")
-        self.drive_coe_io.channel = "ca://" + coe_pv
+        coe_pv = self.drive_coe_dropdown.currentText()
+        print(f"UDIO: coe_pv: {coe_pv}")
+        # self.drive_coe_io.channel = "ca://" + coe_pv
         self.drive_coe_io.setText("ca://" + coe_pv)
-        self.drive_coe_io.show()
         if not self.drive_coe_io.isEnabled():
             self.drive_coe_io.setEnabled(True)
+        self.drive_coe_io.show()
 
     def update_enc_coe_io(self, index):
         print("in update_enc_coe_io")
         self.coe_enc_indx = self.encoder_coe_dropdown.currentIndex()
-        coe_pv = self.coe_enc_list[self.coe_enc_indx]
-        print(f"coe_pv: {coe_pv}")
-        self.encoder_coe_io.channel = "ca://" + coe_pv
+        coe_pv = self.encoder_coe_dropdown.currentText()
+        print(f"UEIO: coe_pv: {coe_pv}")
+        # self.encoder_coe_io.channel = "ca://" + coe_pv
         self.encoder_coe_io.setText("ca://" + coe_pv)
-        self.encoder_coe_io.show()
         if not self.encoder_coe_io.isEnabled():
             self.encoder_coe_io.setEnabled(True)
+        self.encoder_coe_io.show()
 
     def update_nc_index(self):
         self.nc_list_indx = self.nc_param_dropdown.currentIndex()

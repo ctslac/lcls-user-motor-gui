@@ -32,9 +32,9 @@ def identify_axis(pv_list):
     return axis_list
 
 
-def identify_drive(pv_list):
+def identify_drive(axis_id, pv_list):
     """
-    Given a list of PVs, find all the unique axis then output a seperate list with only axis that is enumerated
+    Given a list of axis id and a pv list, identify if the axis type
 
 
     Inputs:
@@ -45,33 +45,21 @@ def identify_drive(pv_list):
         List of all axis found
     """
     print("in identify_axis")
-    drive_list = []
-    el7047s = []
-    el7062s = []
-    is7047 = False
-    is7062 = False
+
+    drive_type = ""
+
     for pv in pv_list:
-        if re.search(r"EL7047", pv):
-            el7047s.append(pv.strip())
-        elif re.search(r"EL7062", pv):
-            el7062s.append(pv.strip())
+        if re.search(rf"{axis_id}:EL7047", pv):
+            drive_type = "EL7047"
+        elif re.search(rf"{axis_id}:EL7062", pv):
+            drive_type = "EL7062"
         # else:
         # print("Can't find any drive modules")
 
-    if len(el7062s) > 0:
-        is7062 = True
-    else:
-        is7062 = False
-
-    if len(el7047s) > 0:
-        is7047 = True
-    else:
-        is7047 = False
-
-    return is7062, is7047
+    return drive_type
 
 
-def identify_enc(pv_list):
+def identify_enc(axis_id, pv_list):
     """
     Given a list of PVs, find all the unique axis then output a seperate list with only axis that is enumerated
 
@@ -85,30 +73,17 @@ def identify_enc(pv_list):
     """
 
     print("in identify_enc")
-    drive_list = []
-    el5102s = []
-    el5042s = []
-    is5102 = False
-    is5042 = False
+    encoder_type = ""
     for pv in pv_list:
-        if re.search(r"EL5102", pv):
-            el5102s.append(pv.strip())
-        elif re.search(r"EL5042", pv):
-            el5042s.append(pv.strip())
+        # print(pv)
+        if re.search(rf"{axis_id}:EL5102", pv):
+            encoder_type = "EL5102"
+        elif re.search(rf"{axis_id}:EL5042", pv):
+            encoder_type = "EL5042"
         # else:
         #     print("Can't find any drive modules")
 
-    if len(el5102s) > 0:
-        is5102 = True
-    else:
-        is5102 = False
-
-    if len(el5042s) > 0:
-        is5042 = True
-    else:
-        is5042 = False
-
-    return is5102, is5042
+    return encoder_type
 
 
 def identify_nc_params(prefix, pv_list):
@@ -146,6 +121,7 @@ def identify_coe_drive_params(axis_id, drive_types, pv_list):
     # print(f"search: {axis_id+drive_type}")
     # 7047 = 0, 7062 = 1
     stripped_axis_rbv = "Axis:Id_RBV"
+    print(f"IDP: axis id: {axis_id}")
     axis_id = axis_id.replace(stripped_axis_rbv, "")
     axis_prefix = axis_id + drive_types
 
@@ -170,6 +146,7 @@ def identify_coe_enc_params(axis_id, enc_types, pv_list):
     # print(f"search: {axis_id+drive_type}")
     # 7047 = 0, 7062 = 1
     stripped_axis_rbv = "Axis:Id_RBV"
+    print(f"IDP: axis id: {axis_id}")
     axis_id = axis_id.replace(stripped_axis_rbv, "")
     axis_prefix = axis_id + enc_types
 
