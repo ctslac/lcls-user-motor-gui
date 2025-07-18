@@ -35,8 +35,7 @@ from parse_pvs import (
 
 
 class MyDisplay(Display):
-    ui: QWidget
-
+    # ui: QWidget
     def __init__(self, parent=None, args=None, macros=None):
         print("In init")
         super().__init__(parent=parent, args=args, macros=macros)

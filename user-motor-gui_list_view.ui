@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Form</class>
+ <widget class="QWidget" name="Form">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>985</width>
+    <height>585</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_2">
+     <item>
+      <widget class="QLabel" name="Label">
+       <property name="text">
+        <string>Input IOC Name</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="input_ioc"/>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="PyDMLabel" name="PyDMLabel">
+     <property name="toolTip">
+      <string/>
+     </property>
+     <property name="text">
+      <string>Current Status</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QScrollArea" name="scrollArea">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="widgetResizable">
+      <bool>true</bool>
+     </property>
+     <widget class="QWidget" name="scrollAreaWidgetContents_3">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>965</width>
+        <height>474</height>
+       </rect>
+      </property>
+      <layout class="QHBoxLayout" name="horizontalLayout_7">
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_8">
+         <property name="leftMargin">
+          <number>0</number>
+         </property>
+         <item>
+          <layout class="QVBoxLayout" name="axis_layout">
+           <property name="sizeConstraint">
+            <enum>QLayout::SetDefaultConstraint</enum>
+           </property>
+           <property name="rightMargin">
+            <number>10</number>
+           </property>
+           <item>
+            <widget class="PyDMEnumComboBox" name="axis_selection">
+             <property name="toolTip">
+              <string/>
+             </property>
+             <property name="placeholderText">
+              <string notr="true">--select virtual axis--</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="PyDMEnumComboBox" name="nc_param_dropdown">
+             <property name="toolTip">
+              <string/>
+             </property>
+             <property name="placeholderText">
+              <string>--dropdown containing all NC params--</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="PyDMLineEdit" name="nc_param_io">
+             <property name="toolTip">
+              <string/>
+             </property>
+             <property name="placeholderText">
+              <string>current value that is editable</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <layout class="QVBoxLayout" name="drive_layout">
+           <item>
+            <widget class="PyDMEnumComboBox" name="drive_selection">
+             <property name="toolTip">
+              <string/>
+             </property>
+             <property name="placeholderText">
+              <string>--drive selection--</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="PyDMEnumComboBox" name="drive_coe_dropdown">
+             <property name="toolTip">
+              <string/>
+             </property>
+             <property name="placeholderText">
+              <string>--dropdown of coe params--</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="PyDMLineEdit" name="drive_coe_io">
+             <property name="toolTip">
+              <string/>
+             </property>
+             <property name="placeholderText">
+              <string>current value that is editable</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <layout class="QVBoxLayout" name="encoder_layout">
+           <item>
+            <widget class="PyDMEnumComboBox" name="encoder_selection">
+             <property name="toolTip">
+              <string/>
+             </property>
+             <property name="placeholderText">
+              <string>--encoder selection--</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="PyDMEnumComboBox" name="encoder_coe_dropdown">
+             <property name="toolTip">
+              <string/>
+             </property>
+             <property name="placeholderText">
+              <string>--dropdown down of coe params--</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="PyDMLineEdit" name="encoder_coe_io">
+             <property name="toolTip">
+              <string/>
+             </property>
+             <property name="placeholderText">
+              <string>current value that is editable</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+   <item>
+    <widget class="PyDMPushButton" name="apply_config">
+     <property name="toolTip">
+      <string/>
+     </property>
+     <property name="text">
+      <string>Apply Config</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>PyDMLabel</class>
+   <extends>QLabel</extends>
+   <header>pydm.widgets.label</header>
+  </customwidget>
+  <customwidget>
+   <class>PyDMEnumComboBox</class>
+   <extends>QComboBox</extends>
+   <header>pydm.widgets.enum_combo_box</header>
+  </customwidget>
+  <customwidget>
+   <class>PyDMLineEdit</class>
+   <extends>QLineEdit</extends>
+   <header>pydm.widgets.line_edit</header>
+  </customwidget>
+  <customwidget>
+   <class>PyDMPushButton</class>
+   <extends>QPushButton</extends>
+   <header>pydm.widgets.pushbutton</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>
