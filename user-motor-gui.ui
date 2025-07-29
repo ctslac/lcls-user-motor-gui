@@ -32,7 +32,7 @@
        <item>
         <widget class="QTabWidget" name="tabWidget">
          <property name="currentIndex">
-          <number>2</number>
+          <number>0</number>
          </property>
          <widget class="QWidget" name="map_view">
           <property name="sizePolicy">
@@ -59,7 +59,7 @@
                   </widget>
                  </item>
                  <item>
-                  <widget class="QComboBox" name="comboBox"/>
+                  <widget class="QComboBox" name="plc_ioc_list"/>
                  </item>
                 </layout>
                </item>
@@ -68,14 +68,21 @@
                  <item>
                   <widget class="QLabel" name="label_2">
                    <property name="text">
-                    <string>PLC IOC List</string>
+                    <string>PLC IOC Name</string>
                    </property>
                   </widget>
                  </item>
                  <item>
-                  <widget class="PyDMLabel" name="PyDMLabel">
+                  <widget class="PyDMLabel" name="ioc_label">
                    <property name="toolTip">
                     <string/>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QPushButton" name="load_ioc_pushButton">
+                   <property name="text">
+                    <string>Load IOC</string>
                    </property>
                   </widget>
                  </item>
@@ -99,7 +106,7 @@
                  <item row="0" column="0">
                   <layout class="QGridLayout" name="gridLayout_5">
                    <item row="3" column="0">
-                    <widget class="PyDMPushButton" name="PyDMPushButton_3">
+                    <widget class="PyDMPushButton" name="confirm_mappin_button">
                      <property name="toolTip">
                       <string/>
                      </property>
@@ -109,7 +116,7 @@
                     </widget>
                    </item>
                    <item row="2" column="0">
-                    <widget class="QListWidget" name="listWidget_3"/>
+                    <widget class="QListWidget" name="axis_list_view"/>
                    </item>
                    <item row="0" column="0">
                     <widget class="QLabel" name="label_5">
@@ -128,7 +135,7 @@
                   <number>0</number>
                  </property>
                  <item row="1" column="0">
-                  <widget class="PyDMPushButton" name="PyDMPushButton_4">
+                  <widget class="PyDMPushButton" name="view_logger_button">
                    <property name="toolTip">
                     <string/>
                    </property>
@@ -142,33 +149,33 @@
                    <property name="currentIndex">
                     <number>0</number>
                    </property>
-                   <widget class="QWidget" name="tab_7">
+                   <widget class="QWidget" name="digital_input_tab">
                     <attribute name="title">
                      <string>Digital Inputs</string>
                     </attribute>
                     <layout class="QVBoxLayout" name="verticalLayout_4">
                      <item>
-                      <widget class="QListWidget" name="listWidget_4"/>
+                      <widget class="QListWidget" name="digital_inputs_list_view"/>
                      </item>
                     </layout>
                    </widget>
-                   <widget class="QWidget" name="tab_8">
+                   <widget class="QWidget" name="drives_tab">
                     <attribute name="title">
                      <string>Drives</string>
                     </attribute>
                     <layout class="QVBoxLayout" name="verticalLayout_5">
                      <item>
-                      <widget class="QListWidget" name="listWidget_5"/>
+                      <widget class="QListWidget" name="drives_list_view"/>
                      </item>
                     </layout>
                    </widget>
-                   <widget class="QWidget" name="tab_9">
+                   <widget class="QWidget" name="encoder_tab">
                     <attribute name="title">
                      <string>Encoders</string>
                     </attribute>
                     <layout class="QVBoxLayout" name="verticalLayout_6">
                      <item>
-                      <widget class="QListWidget" name="listWidget_6"/>
+                      <widget class="QListWidget" name="encoders_list_view"/>
                      </item>
                     </layout>
                    </widget>
@@ -312,6 +319,12 @@
                       <layout class="QHBoxLayout" name="horizontalLayout_9">
                        <item>
                         <widget class="PyDMLineEdit" name="PyDMLineEdit_3">
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
+                         </property>
                          <property name="toolTip">
                           <string/>
                          </property>
@@ -319,8 +332,14 @@
                        </item>
                        <item>
                         <widget class="QLabel" name="label_12">
+                         <property name="layoutDirection">
+                          <enum>Qt::RightToLeft</enum>
+                         </property>
                          <property name="text">
                           <string>Phase Resistance</string>
+                         </property>
+                         <property name="alignment">
+                          <set>Qt::AlignCenter</set>
                          </property>
                         </widget>
                        </item>
@@ -330,6 +349,12 @@
                       <layout class="QHBoxLayout" name="horizontalLayout_8">
                        <item>
                         <widget class="PyDMLineEdit" name="PyDMLineEdit_2">
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
+                         </property>
                          <property name="toolTip">
                           <string/>
                          </property>
@@ -340,6 +365,9 @@
                          <property name="text">
                           <string>Winding Inductance</string>
                          </property>
+                         <property name="alignment">
+                          <set>Qt::AlignCenter</set>
+                         </property>
                         </widget>
                        </item>
                       </layout>
@@ -348,6 +376,12 @@
                       <layout class="QHBoxLayout" name="horizontalLayout_12">
                        <item>
                         <widget class="PyDMLineEdit" name="PyDMLineEdit_4">
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
+                         </property>
                          <property name="toolTip">
                           <string/>
                          </property>
@@ -358,6 +392,9 @@
                          <property name="text">
                           <string>Rated Peak Current</string>
                          </property>
+                         <property name="alignment">
+                          <set>Qt::AlignCenter</set>
+                         </property>
                         </widget>
                        </item>
                       </layout>
@@ -366,6 +403,12 @@
                       <layout class="QHBoxLayout" name="horizontalLayout_7">
                        <item>
                         <widget class="PyDMLineEdit" name="PyDMLineEdit">
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
+                         </property>
                          <property name="toolTip">
                           <string/>
                          </property>
@@ -375,6 +418,9 @@
                         <widget class="QLabel" name="label_10">
                          <property name="text">
                           <string>Steps/Rev</string>
+                         </property>
+                         <property name="alignment">
+                          <set>Qt::AlignCenter</set>
                          </property>
                         </widget>
                        </item>
@@ -516,7 +562,7 @@
                  <item row="0" column="0">
                   <widget class="QTabWidget" name="tabWidget_3">
                    <property name="currentIndex">
-                    <number>0</number>
+                    <number>1</number>
                    </property>
                    <widget class="QWidget" name="tab_10">
                     <attribute name="title">

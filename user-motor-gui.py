@@ -6,17 +6,19 @@ from os import path
 from epics import PV, caget, cainfo, caput
 from pydm import Display
 from pydm.widgets.enum_combo_box import PyDMEnumComboBox
-from pydm.widgets.line_edit import (
-    PyDMLineEdit,
-)
+from pydm.widgets.label import PyDMLabel
+from pydm.widgets.line_edit import PyDMLineEdit
+from pydm.widgets.pushbutton import PyDMPushButton
 from qtpy import QtCore
 from qtpy.QtWidgets import (
     QApplication,
+    QComboBox,
     QFrame,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QListWidget,
     QPushButton,
     QScrollArea,
     QVBoxLayout,
@@ -30,12 +32,14 @@ from parse_pvs import (
     identify_coe_enc_params,
     identify_drive,
     identify_enc,
+    identify_inputs,
     identify_nc_params,
 )
 
 
 class MyDisplay(Display):
-    # ui: QWidget
+    ui: QWidget
+
     def __init__(self, parent=None, args=None, macros=None):
         print("In init")
         super().__init__(parent=parent, args=args, macros=macros)
@@ -44,79 +48,33 @@ class MyDisplay(Display):
         init = True
         if init:
             init = False
-            self.axis_list = []
-            self.enocder_type = []
-            self.drive_list = []
-            self.enc_list = []
-            self.coe_drive_list = []
-            self.coe_drive_list = []
-            self.coe_enc_list = []
-            self.drives_7047 = []
-            self.drives_7062 = []
-            self.drive_type = []
-            self.nc_list_indx = 0
-            self.nc_list = []
-            self.pvList = []
-            self.coe_drive_indx = 0
-            self.flag_7047 = True
-            self.flag_7062 = True
-            self.flag_5102 = True
-            self.flag_5042 = True
-            self.coe_enc_indx = 0
-            self.axis_init_flag = 0
+            self.plc_ioc_list = []
+            self.plc_ioc_label = ""
+            self.axis = []
+            self.digital_inputs = []
+            self.drives_list = []
+            self.enocders_list = []
 
         # finding children
-        self.ioc_name = self.ui.findChild(QLineEdit, "input_ioc")
-        self.axis_selection = self.ui.findChild(PyDMEnumComboBox, "axis_selection")
-        self.nc_param_io = self.ui.findChild(PyDMLineEdit, "nc_param_io")
-        self.nc_param_dropdown = self.ui.findChild(
-            PyDMEnumComboBox, "nc_param_dropdown"
+        # Linker Tab
+        self.plc_ioc_list = self.ui.findChild(QComboBox, "plc_ioc_list")
+        self.plc_ioc_label = self.ui.findChild(PyDMLabel, "ioc_label")
+        self.axis_list = self.ui.findChild(QListWidget, "axis_list_view")
+        self.digital_inputs_list = self.ui.findChild(
+            QListWidget, "digital_inputs_list_view"
         )
-        self.drive_selection = self.ui.findChild(PyDMEnumComboBox, "drive_selection")
-        self.drive_coe_dropdown = self.ui.findChild(
-            PyDMEnumComboBox, "drive_coe_dropdown"
+        self.drives_list = self.ui.findChild(QListWidget, "drives_list_view")
+        self.enocders_list = self.ui.findChild(QListWidget, "encoders_list_view")
+        self.confirm_mapping = self.ui.findChild(
+            PyDMPushButton, "confirm_mapping_button"
         )
-        self.drive_coe_io = self.ui.findChild(PyDMLineEdit, "drive_coe_io")
-        self.encoder_selection = self.ui.findChild(
-            PyDMEnumComboBox, "encoder_selection"
-        )
-        self.encoder_coe_dropdown = self.ui.findChild(
-            PyDMEnumComboBox, "encoder_coe_dropdown"
-        )
-        self.encoder_coe_io = self.ui.findChild(PyDMLineEdit, "encoder_coe_io")
+        self.view_logger = self.ui.findChild(PyDMPushButton, "view_logger_button")
+        self.load_ioc = self.ui.findChild(QPushButton, "load_ioc_pushButton")
 
-        # SIGNALS
-        # want to update axis every time the ioc is being changed
-        self.ioc_name.returnPressed.connect(self.get_pvs_from_input)
+        self.load_ioc.clicked.connect(self.update_linker)
 
-        # update NC params if axis selection is changed
-        # if not self.axis_init_flag:
-        #     print("gui init")
-        #     self.axis_selection.currentIndexChanged.connect(self.update_nc_dropdown)
-        #     self.axis_init_flag = 1
-
-        if self.axis_selection.currentIndexChanged:
-            print("after init")
-            for slots in [
-                self.update_nc_dropdown,
-                self.populate_drives,
-                self.populate_encoders,
-                self.update_coe_drive_dropdown,
-                self.update_enc_coe_dropdown,
-            ]:
-                self.axis_selection.currentIndexChanged.connect(slots)
-
-        # update CoE drive params if axis selection is changed
-        self.drive_selection.currentIndexChanged.connect(self.update_coe_drive_dropdown)
-        # update CoE encoder params if axis selection is changed
-        self.encoder_selection.currentIndexChanged.connect(self.update_enc_coe_dropdown)
-
-        # update nc param if dropdown is changed
-        self.nc_param_dropdown.currentIndexChanged.connect(self.update_nc_io)
-        # update coe param if dropdown is changed
-        self.drive_coe_dropdown.currentIndexChanged.connect(self.update_drive_coe_io)
-        # update enc coe param if dropdown is changed
-        self.encoder_coe_dropdown.currentIndexChanged.connect(self.update_enc_coe_io)
+        for slot in [self.populate_di, self.populate_drives]:
+            self.axis_list.currentRowChanged.connect(slot)
 
     def ui_filename(self):
         return "user-motor-gui.ui"
@@ -136,9 +94,9 @@ class MyDisplay(Display):
 
         return pv_list
 
-    def get_pvs_from_input(self):
+    def update_linker(self):
         print("in get pvs from input")
-        print(self.ioc_name.text())
+        # print(self.ioc_name.text())
 
         # use this to pull db from ioc
         # iocpath, dbpath = grep_ioc(
@@ -151,30 +109,41 @@ class MyDisplay(Display):
         self.pvList = self.load_test_list()
         print(self.pvList[1])
         self.populate_axis()
-        self.populate_drives()
-        self.populate_encoders()
+        # self.populate_drives()
+        # self.populate_encoders()
+
+    def populate_di(self):
+        print("in populate_di")
+        self.digital_inputs_list.clear()
+        self.digital_inputs = identify_inputs(
+            self.pvList, self.axis_list.currentItem().text()
+        )
+        for item in self.digital_inputs:
+            self.digital_inputs_list.addItem(item)
+        self.digital_inputs_list.setCurrentRow(0)
+        if not self.digital_inputs_list.isEnabled():
+            self.digital_inputs_list.setEnabled(True)
 
     def populate_axis(self):
         # update enum with axis pulled from .db file
         print("in populate axis")
-        self.axis_list = identify_axis(self.pvList)
-        print(f"axis_list: {self.axis_list}")
+        self.axis = identify_axis(self.pvList)
+        print(f"Populate axis, axis_list: {self.axis_list}")
 
-        # if not hasattr(self.axis_selection, self.pvList):
-        #     raise AttributeError("Provided widget is not a PyDMEnumComboBox or lacks enum vals")
-
-        self.axis_selection.addItems(self.axis_list)
-        self.axis_selection.setCurrentIndex(0)
+        for item in self.axis:
+            self.axis_list.addItem(item)
+        # self.axis_list.setCurrentIndex(0)
         # self.axis_selection.activate()
-        self.axis_selection.show()
-        if not self.axis_selection.isEnabled():
-            self.axis_selection.setEnabled(True)
-        print(self.axis_selection)
+        self.axis_list.setCurrentRow(0)
+        # self.axis_list.setSelectionMode(0)
+        if not self.axis_list.isEnabled():
+            self.axis_list.setEnabled(True)
+        # print(self.axis_selection)
 
     def populate_drives(self):
         # update enum with drives pulled from .db file
         print("in populate drives")
-        drive = self.axis_selection.currentText()
+        drive = self.axis_list.currentItem().text()
         stripped_axis_rbv = ":Axis:Id_RBV"
         stripped_drive = drive.replace(stripped_axis_rbv, "")
         print(f"PD: drive: {stripped_drive}")

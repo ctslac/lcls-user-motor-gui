@@ -32,6 +32,37 @@ def identify_axis(pv_list):
     return axis_list
 
 
+def identify_inputs(pv_list, axis_name):
+    """
+    Given a list of PVs, find all the unique axis then output a seperate list with only axis that is enumerated
+
+
+    Inputs:
+    list: list of pvs
+
+    Outputs:
+    list: enumerated list of axis
+        List of all axis found
+    """
+    print("in identify di")
+    print(f"axis: {axis_name}")
+    di_list = []
+    delimiter = ":Axis:Id_RBV"
+    cleaned_axis = axis_name.replace(delimiter, "")
+    print(f"cleaned axis: {cleaned_axis}")
+    for pv in pv_list:
+        if re.search(rf"{cleaned_axis}:.*:DI:", pv):
+            # print("Found Digital Input in the string.")
+            di_list.append(pv.strip())
+        else:
+            # print("Not an axis")
+            continue
+    # for index, pv in enumerate(axis_list):
+    #     enumerated_list.append(str(index) + " " + pv)
+    # print(enumerated_list)
+    return di_list
+
+
 def identify_drive(axis_id, pv_list):
     """
     Given a list of axis id and a pv list, identify if the axis type
