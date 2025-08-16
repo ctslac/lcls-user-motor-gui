@@ -1,18 +1,21 @@
+import re
 import sys
 import time
 from enum import Enum
 from os import path
 
+import epics
 from epics import PV, caget, cainfo, caput
 from pydm import Display
 from pydm.widgets.enum_combo_box import PyDMEnumComboBox
 from pydm.widgets.label import PyDMLabel
 from pydm.widgets.line_edit import PyDMLineEdit
 from pydm.widgets.pushbutton import PyDMPushButton
-from qtpy import QtCore
+from qtpy import QtCore, uic
 from qtpy.QtWidgets import (
     QApplication,
     QComboBox,
+    QDialog,
     QFrame,
     QGroupBox,
     QHBoxLayout,
@@ -24,6 +27,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from qtpy.uic import loadUi
 
 from discover_pvs import discover_pvs
 from parse_pvs import (
@@ -34,7 +38,14 @@ from parse_pvs import (
     identify_enc,
     identify_inputs,
     identify_nc_params,
+    what_can_i_be,
 )
+
+
+class StageSettings(QDialog):
+    def __init__(self, parent=None):
+        super(StageSettings, self).__init__(parent)
+        loadUi("stage-config.ui", self)  # Load the UI from the .ui file
 
 
 class MyDisplay(Display):
@@ -52,8 +63,10 @@ class MyDisplay(Display):
             self.plc_ioc_label = ""
             self.axis = []
             self.digital_inputs = []
-            self.drives_list = []
+            self.drives = []
+            self.encoders = []
             self.enocders_list = []
+            self.list_WCIB = []
 
         # finding children
         # Linker Tab
@@ -63,6 +76,9 @@ class MyDisplay(Display):
         self.digital_inputs_list = self.ui.findChild(
             QListWidget, "digital_inputs_list_view"
         )
+        self.digital_input_channels = self.ui.findChild(
+            QListWidget, "digital_input_comp"
+        )
         self.drives_list = self.ui.findChild(QListWidget, "drives_list_view")
         self.enocders_list = self.ui.findChild(QListWidget, "encoders_list_view")
         self.confirm_mapping = self.ui.findChild(
@@ -71,10 +87,28 @@ class MyDisplay(Display):
         self.view_logger = self.ui.findChild(PyDMPushButton, "view_logger_button")
         self.load_ioc = self.ui.findChild(QPushButton, "load_ioc_pushButton")
 
-        self.load_ioc.clicked.connect(self.update_linker)
+        """
+        Load IOC pvs from ioc and update the axis list and identify PVs based on this
+        """
+        for slot in [self.load_axis, self.identify_WCIB]:
+            self.load_ioc.clicked.connect(slot)
 
-        for slot in [self.populate_di, self.populate_drives]:
-            self.axis_list.currentRowChanged.connect(slot)
+        # for slot in [self.populate_di, self.populate_drives, self.populate_comp]:
+        #     self.axis_list.currentRowChanged.connect(slot)
+
+        # self.digital_inputs_list.currentRowChanged.connect(self.populate_comp)
+
+        # User Input Tab
+        self.display_axis = self.ui.findChild(QListWidget, "display_axis")
+        self.display_drives = self.ui.findChild(QListWidget, "display_drives")
+        self.display_encoders = self.ui.findChild(QListWidget, "display_encoders")
+        self.stage_settings = self.ui.findChild(QPushButton, "stage_settings")
+
+        self.stage_settings.clicked.connect(self.open_stage_settings)
+
+    def open_stage_settings(self):
+        stageSettings = StageSettings(self)
+        stageSettings.exec_()
 
     def ui_filename(self):
         return "user-motor-gui.ui"
@@ -94,7 +128,28 @@ class MyDisplay(Display):
 
         return pv_list
 
-    def update_linker(self):
+    def identify_WCIB(self):
+        self.list_WCIB = []
+        for pv in self.pvList:
+            if re.search(r".*:WCIB_RBV", pv):
+                self.list_WCIB.append(pv.strip())
+        for pv in self.list_WCIB:
+            # caget output is of type string seperated by comma
+            comp_type = caget(pv)
+            if re.search(r"DI", comp_type):
+                self.drives.append(pv)
+            if re.search(r"DRV", comp_type):
+                self.digital_inputs.append(pv)
+            if re.search(r"ENC", comp_type):
+                self.encoders.append(pv)
+        self.populate_di()
+        self.populate_drives()
+        self.populate_encoders()
+
+    def load_axis(self):
+        """
+        Once the ioc has been identified, find the available axis and load them.
+        """
         print("in get pvs from input")
         # print(self.ioc_name.text())
 
@@ -108,21 +163,8 @@ class MyDisplay(Display):
         # self.pvList = discover_pvs('', usr_db_path=iocpath)
         self.pvList = self.load_test_list()
         print(self.pvList[1])
+        self.axis_list.clear()
         self.populate_axis()
-        # self.populate_drives()
-        # self.populate_encoders()
-
-    def populate_di(self):
-        print("in populate_di")
-        self.digital_inputs_list.clear()
-        self.digital_inputs = identify_inputs(
-            self.pvList, self.axis_list.currentItem().text()
-        )
-        for item in self.digital_inputs:
-            self.digital_inputs_list.addItem(item)
-        self.digital_inputs_list.setCurrentRow(0)
-        if not self.digital_inputs_list.isEnabled():
-            self.digital_inputs_list.setEnabled(True)
 
     def populate_axis(self):
         # update enum with axis pulled from .db file
@@ -140,32 +182,44 @@ class MyDisplay(Display):
             self.axis_list.setEnabled(True)
         # print(self.axis_selection)
 
+    def populate_di(self):
+        print("in populate_di")
+        self.digital_inputs_list.clear()
+        # self.digital_inputs = identify_inputs(
+        #     self.pvList, self.axis_list.currentItem().text()
+        # )
+
+        for modules in self.digital_inputs:
+            val = caget(modules)
+            self.digital_inputs_list.addItem(val)
+        self.digital_inputs_list.setCurrentRow(0)
+        if not self.digital_inputs_list.isEnabled():
+            self.digital_inputs_list.setEnabled(True)
+
     def populate_drives(self):
         # update enum with drives pulled from .db file
         print("in populate drives")
-        drive = self.axis_list.currentItem().text()
-        stripped_axis_rbv = ":Axis:Id_RBV"
-        stripped_drive = drive.replace(stripped_axis_rbv, "")
-        print(f"PD: drive: {stripped_drive}")
-        self.drive_type = identify_drive(stripped_drive, self.pvList)
-        self.drive_selection.addItem(self.drive_type)
-        self.drive_selection.setCurrentIndex(0)
-        self.drive_selection.show()
-        if not self.drive_selection.isEnabled():
-            self.drive_selection.setEnabled(True)
+        self.drives_list.clear()
+        # self.drives = identify_drive(self.pvList, self.axis_list.currentItem().text())
+        for modules in self.drives:
+            val = caget(modules)
+            self.drives_list.addItem(val)
+        self.drives_list.setCurrentRow(0)
+
+        if not self.drives_list.isEnabled():
+            self.drives_list.setEnabled(True)
 
         # print(self.drive_selection)
 
     def populate_encoders(self):
         # update enum with drives pulled from .db file
         print("in populate enc")
-        encoder = self.axis_selection.currentText()
-        stripped_axis_rbv = ":Axis:Id_RBV"
-        stripped_encoder = encoder.replace(stripped_axis_rbv, "")
-        self.enocder_type = identify_enc(stripped_encoder, self.pvList)
-        self.encoder_selection.addItem(self.enocder_type)
-        self.encoder_selection.setCurrentIndex(0)
-        self.encoder_selection.show()
+        # self.enocder_type = identify_enc(self.pvList, self.axis_list.currentItem().text())
+        for modules in self.encoders:
+            val = caget(modules)
+            self.enocders_list.addItem(val)
+        self.enocders_list.setCurrentIndex(0)
+
         if not self.encoder_selection.isEnabled():
             self.encoder_selection.setEnabled(True)
         print(self.encoder_selection)

@@ -3,6 +3,8 @@ import os
 import re
 import sys
 
+from epics import PV, caget
+
 
 def identify_axis(pv_list):
     """
@@ -36,6 +38,7 @@ def identify_inputs(pv_list, axis_name):
     """
     Given a list of PVs, find all the unique axis then output a seperate list with only axis that is enumerated
 
+    NEED TO FIX THIS LOGIC
 
     Inputs:
     list: list of pvs
@@ -51,7 +54,7 @@ def identify_inputs(pv_list, axis_name):
     cleaned_axis = axis_name.replace(delimiter, "")
     print(f"cleaned axis: {cleaned_axis}")
     for pv in pv_list:
-        if re.search(rf"{cleaned_axis}:.*:DI:", pv):
+        if re.search(rf"{axis_name}:NUMDI", pv):
             # print("Found Digital Input in the string.")
             di_list.append(pv.strip())
         else:
@@ -63,7 +66,7 @@ def identify_inputs(pv_list, axis_name):
     return di_list
 
 
-def identify_drive(axis_id, pv_list):
+def identify_drive(pv_list, axis_name):
     """
     Given a list of axis id and a pv list, identify if the axis type
 
@@ -75,22 +78,20 @@ def identify_drive(axis_id, pv_list):
     list: enumerated list of axis
         List of all axis found
     """
-    print("in identify_axis")
-
-    drive_type = ""
+    print("in identify_drive")
+    print(f"axis: {axis_name}")
+    drive_type = []
 
     for pv in pv_list:
-        if re.search(rf"{axis_id}:EL7047", pv):
-            drive_type = "EL7047"
-        elif re.search(rf"{axis_id}:EL7062", pv):
-            drive_type = "EL7062"
+        if re.search(rf"{axis_name}:(EL7047|EL7062):WCIB_RBV", pv):
+            drive_type.append(pv.strip())
         # else:
         # print("Can't find any drive modules")
 
     return drive_type
 
 
-def identify_enc(axis_id, pv_list):
+def identify_enc(pv_list, axis_name):
     """
     Given a list of PVs, find all the unique axis then output a seperate list with only axis that is enumerated
 
@@ -104,15 +105,14 @@ def identify_enc(axis_id, pv_list):
     """
 
     print("in identify_enc")
-    encoder_type = ""
+    print(f"axis: {axis_name}")
+    encoder_type = []
+
     for pv in pv_list:
-        # print(pv)
-        if re.search(rf"{axis_id}:EL5102", pv):
-            encoder_type = "EL5102"
-        elif re.search(rf"{axis_id}:EL5042", pv):
-            encoder_type = "EL5042"
+        if re.search(rf"{axis_name}:(EL5102|EL5042):WCIB_RBV", pv):
+            encoder_type.append(pv.strip())
         # else:
-        #     print("Can't find any drive modules")
+        # print("Can't find any drive modules")
 
     return encoder_type
 
@@ -172,6 +172,7 @@ def identify_coe_drive_params(axis_id, drive_types, pv_list):
 def identify_coe_enc_params(axis_id, enc_types, pv_list):
     """
     Given a list of PVs, find all of the drive params for a given axis prefix
+    Inputs:
     """
     print("in identify_coe_drive_params")
     # print(f"search: {axis_id+drive_type}")
@@ -192,3 +193,17 @@ def identify_coe_enc_params(axis_id, enc_types, pv_list):
             coe_list.append(pv.strip())
 
     return coe_list
+
+
+def what_can_i_be(pv):
+    """
+    This assumes we can caget the selected DI ID PV, a string,
+    and use that to populate the available components
+
+    """
+    print("in what can i be")
+    print(f"I am: {pv}")
+    # comp_type = caget(pv)
+    # if p is "DI":
+    #     pass
+    # print(comp_type)
