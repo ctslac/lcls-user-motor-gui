@@ -1,3 +1,4 @@
+import json
 import re
 import sys
 import time
@@ -5,7 +6,8 @@ from enum import Enum
 from os import path
 
 import epics
-from epics import PV, caget, cainfo, caput
+
+# from epics import PV, fake_caget, cainfo, caput
 from pydm import Display
 from pydm.widgets.enum_combo_box import PyDMEnumComboBox
 from pydm.widgets.label import PyDMLabel
@@ -31,6 +33,7 @@ from qtpy.uic import loadUi
 
 from discover_pvs import discover_pvs
 from parse_pvs import (
+    fake_caget,
     identify_axis,
     identify_coe_drive_params,
     identify_coe_enc_params,
@@ -59,6 +62,7 @@ class MyDisplay(Display):
         init = True
         if init:
             init = False
+            self.pvDict = {}
             self.plc_ioc_list = []
             self.plc_ioc_label = ""
             self.axis = []
@@ -67,6 +71,7 @@ class MyDisplay(Display):
             self.encoders = []
             self.enocders_list = []
             self.list_WCIB = []
+            self.cleaned_di = ""
 
         # finding children
         # Linker Tab
@@ -90,7 +95,7 @@ class MyDisplay(Display):
         """
         Load IOC pvs from ioc and update the axis list and identify PVs based on this
         """
-        for slot in [self.load_axis, self.identify_WCIB]:
+        for slot in [self.load_test_list, self.load_axis, self.identify_WCIB]:
             self.load_ioc.clicked.connect(slot)
 
         # for slot in [self.populate_di, self.populate_drives, self.populate_comp]:
@@ -104,6 +109,7 @@ class MyDisplay(Display):
         self.display_encoders = self.ui.findChild(QListWidget, "display_encoders")
         self.stage_settings = self.ui.findChild(QPushButton, "stage_settings")
 
+        self.digital_inputs_list.currentRowChanged.connect(self.populate_di_channel)
         self.stage_settings.clicked.connect(self.open_stage_settings)
 
     def open_stage_settings(self):
@@ -117,29 +123,34 @@ class MyDisplay(Display):
         return path.join(path.dirname(path.realpath(__file__)), self.ui_filename())
 
     def load_test_list(self):
-        filepath = "./test_output.txt"
+        filepath = "./unit_test_data.json"
         pv_list = []
         try:
-            with open(f"{filepath}", "r") as f:
-                for pvs in f:
-                    pv_list.append(pvs)
+            # with open(f"{filepath}", "r") as f:
+            #     for pvs in f:
+            #         pv_list.append(pvs)
+
+            with open("./unit_test_data.json", "r") as file:
+                self.pvDict = json.load(file)
         except Exception as e:
             print(f"Failed to read {filepath}: {e}")
-
-        return pv_list
+        # for pvs in pv_list:
+        #     print(pvs)
+        # pv_list = json.loads(pv_list)
+        print(f"type: {type(self.pvDict)}")
 
     def identify_WCIB(self):
         self.list_WCIB = []
-        for pv in self.pvList:
+        for pv in self.pvDict:
             if re.search(r".*:WCIB_RBV", pv):
-                self.list_WCIB.append(pv.strip())
+                self.list_WCIB.append(pv)
         for pv in self.list_WCIB:
-            # caget output is of type string seperated by comma
-            comp_type = caget(pv)
+            # fake_caget output is of type string seperated by comma
+            comp_type = fake_caget(self.pvDict, pv)
             if re.search(r"DI", comp_type):
-                self.drives.append(pv)
-            if re.search(r"DRV", comp_type):
                 self.digital_inputs.append(pv)
+            if re.search(r"DRV", comp_type):
+                self.drives.append(pv)
             if re.search(r"ENC", comp_type):
                 self.encoders.append(pv)
         self.populate_di()
@@ -161,16 +172,15 @@ class MyDisplay(Display):
         # iocpath = '/reg/g/pcds/epics-dev/ctsoi/ioc/tst/lcls-plc-hxr-polycap/iocBoot/ioc-lcls-plc-hxr-polycap/lcls_plc_hxr_polycap.db'
 
         # self.pvList = discover_pvs('', usr_db_path=iocpath)
-        self.pvList = self.load_test_list()
-        print(self.pvList[1])
+        # self.pvList = self.load_test_list()
+
         self.axis_list.clear()
         self.populate_axis()
 
     def populate_axis(self):
         # update enum with axis pulled from .db file
         print("in populate axis")
-        self.axis = identify_axis(self.pvList)
-        print(f"Populate axis, axis_list: {self.axis_list}")
+        self.axis = identify_axis(self.pvDict)
 
         for item in self.axis:
             self.axis_list.addItem(item)
@@ -189,20 +199,43 @@ class MyDisplay(Display):
         #     self.pvList, self.axis_list.currentItem().text()
         # )
 
-        for modules in self.digital_inputs:
-            val = caget(modules)
+        delimiter = ":WCIB_RBV"
+        for item in self.digital_inputs:
+            self.cleaned_di = item.replace(delimiter, ":Id_RBV")
+            print(f"cleaned item: {self.cleaned_di}")
+            val = fake_caget(self.pvDict, self.cleaned_di)
             self.digital_inputs_list.addItem(val)
         self.digital_inputs_list.setCurrentRow(0)
         if not self.digital_inputs_list.isEnabled():
             self.digital_inputs_list.setEnabled(True)
+        self.populate_di_channel()
+
+    def populate_di_channel(self):
+        print("in populate_di channel")
+        self.digital_input_channels.clear()
+        print(f"di text: {self.digital_inputs[self.digital_inputs_list.currentRow()]}")
+        val = self.digital_inputs[self.digital_inputs_list.currentRow()]
+        delimiter = ":WCIB_RBV"
+        cleaned_di = val.replace(delimiter, ":NUMDI_RBV")
+        print(f"cleaned axis: {cleaned_di}")
+        nums = fake_caget(self.pvDict, cleaned_di)
+        for i in range(1, int(nums) + 1):
+            self.digital_input_channels.addItem(str(i))
+        self.digital_input_channels.setCurrentRow(0)
+        if not self.digital_input_channels.isEnabled():
+            self.digital_input_channels.setEnabled(True)
 
     def populate_drives(self):
         # update enum with drives pulled from .db file
         print("in populate drives")
         self.drives_list.clear()
         # self.drives = identify_drive(self.pvList, self.axis_list.currentItem().text())
-        for modules in self.drives:
-            val = caget(modules)
+
+        delimiter = ":WCIB_RBV"
+        for item in self.drives:
+            cleaned_item = item.replace(delimiter, ":Id_RBV")
+            print(f"cleaned item: {cleaned_item}")
+            val = fake_caget(self.pvDict, cleaned_item)
             self.drives_list.addItem(val)
         self.drives_list.setCurrentRow(0)
 
@@ -214,15 +247,20 @@ class MyDisplay(Display):
     def populate_encoders(self):
         # update enum with drives pulled from .db file
         print("in populate enc")
+        self.enocders_list.clear()
         # self.enocder_type = identify_enc(self.pvList, self.axis_list.currentItem().text())
-        for modules in self.encoders:
-            val = caget(modules)
+        delimiter = ":WCIB_RBV"
+        # print(f"encoder list size: {len(self.encoders)}")
+        for item in self.encoders:
+            cleaned_item = item.replace(delimiter, ":Id_RBV")
+            print(f"cleaned item: {cleaned_item}")
+            val = fake_caget(self.pvDict, cleaned_item)
             self.enocders_list.addItem(val)
-        self.enocders_list.setCurrentIndex(0)
+        self.enocders_list.setCurrentRow(0)
 
-        if not self.encoder_selection.isEnabled():
-            self.encoder_selection.setEnabled(True)
-        print(self.encoder_selection)
+        if not self.enocders_list.isEnabled():
+            self.enocders_list.setEnabled(True)
+        # print(self.encoder_selection)
 
     def update_nc_dropdown(self):
         """

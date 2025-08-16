@@ -1,12 +1,21 @@
 import glob
+import json
 import os
 import re
 import sys
 
-from epics import PV, caget
+# from epics import PV, fake_caget
 
 
-def identify_axis(pv_list):
+def fake_caget(pv_dict, pv):
+    # with open('./unit_test_data.json', 'r') as file:
+    #     data = json.load(file)
+    value = pv_dict.get(pv)
+    print(f"value: {value}")
+    return value
+
+
+def identify_axis(pv_dict):
     """
     Given a list of PVs, find all the unique axis then output a seperate list with only axis that is enumerated
 
@@ -20,17 +29,22 @@ def identify_axis(pv_list):
     """
     print("in identify_axis")
     axis_list = []
-    enumerated_list = []
-    for pv in pv_list:
-        if re.search(r"Axis:Id_RBV", pv):
-            print("Found 'Axis:Id_RBV' in the string.")
-            axis_list.append(pv.strip())
-        else:
-            # print("Not an axis")
-            continue
-    # for index, pv in enumerate(axis_list):
-    #     enumerated_list.append(str(index) + " " + pv)
-    # print(enumerated_list)
+    """
+    # List implemenation
+
+    # for pv in pv_list:
+    #     if re.search(r"Axis:Id_RBV", pv):
+    #         print("Found 'Axis:Id_RBV' in the string.")
+    #         axis_list.append(pv.strip())
+    #     else:
+    #         # print("Not an axis")
+    #         continue
+    """
+    # dict implementation
+    for key in pv_dict.keys():
+        if re.search(r"Axis:Id_RBV", key):
+            val = fake_caget(pv_dict, key)
+            axis_list.append(val)
     return axis_list
 
 
@@ -197,13 +211,13 @@ def identify_coe_enc_params(axis_id, enc_types, pv_list):
 
 def what_can_i_be(pv):
     """
-    This assumes we can caget the selected DI ID PV, a string,
+    This assumes we can fake_caget the selected DI ID PV, a string,
     and use that to populate the available components
 
     """
     print("in what can i be")
     print(f"I am: {pv}")
-    # comp_type = caget(pv)
+    # comp_type = fake_caget(pv)
     # if p is "DI":
     #     pass
     # print(comp_type)
