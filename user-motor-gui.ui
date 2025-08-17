@@ -407,25 +407,11 @@
              <item>
               <layout class="QVBoxLayout" name="verticalLayout_13">
                <item>
-                <layout class="QHBoxLayout" name="horizontalLayout_14">
-                 <item>
-                  <widget class="QLabel" name="label_14">
-                   <property name="text">
-                    <string>PLC IOC List</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QComboBox" name="comboBox_3"/>
-                 </item>
-                </layout>
-               </item>
-               <item>
                 <layout class="QHBoxLayout" name="horizontalLayout_15">
                  <item>
                   <widget class="QLabel" name="label_15">
                    <property name="text">
-                    <string>PLC IOC List</string>
+                    <string>IOC Status</string>
                    </property>
                   </widget>
                  </item>
@@ -455,25 +441,15 @@
                 <layout class="QGridLayout" name="gridLayout_6">
                  <item row="0" column="0">
                   <layout class="QGridLayout" name="gridLayout_7">
-                   <item row="3" column="0">
-                    <widget class="PyDMPushButton" name="PyDMPushButton_5">
-                     <property name="toolTip">
-                      <string/>
-                     </property>
-                     <property name="text">
-                      <string>Apply Config</string>
-                     </property>
-                    </widget>
-                   </item>
-                   <item row="2" column="0">
-                    <widget class="QListWidget" name="listWidget_8"/>
-                   </item>
                    <item row="0" column="0">
                     <widget class="QLabel" name="label_16">
                      <property name="text">
                       <string>Select Virtual Axis</string>
                      </property>
                     </widget>
+                   </item>
+                   <item row="2" column="0">
+                    <widget class="QListWidget" name="expert_axis"/>
                    </item>
                   </layout>
                  </item>
@@ -505,7 +481,14 @@
                     </attribute>
                     <layout class="QVBoxLayout" name="verticalLayout_19">
                      <item>
-                      <widget class="QListWidget" name="listWidget_9"/>
+                      <widget class="QListWidget" name="expert_nc_list"/>
+                     </item>
+                     <item>
+                      <widget class="PyDMLineEdit" name="PyDMLineEdit_3">
+                       <property name="toolTip">
+                        <string/>
+                       </property>
+                      </widget>
                      </item>
                     </layout>
                    </widget>
@@ -515,7 +498,14 @@
                     </attribute>
                     <layout class="QVBoxLayout" name="verticalLayout_20">
                      <item>
-                      <widget class="QListWidget" name="listWidget_10"/>
+                      <widget class="QListWidget" name="expert_drive_list"/>
+                     </item>
+                     <item>
+                      <widget class="PyDMLineEdit" name="PyDMLineEdit_2">
+                       <property name="toolTip">
+                        <string/>
+                       </property>
+                      </widget>
                      </item>
                     </layout>
                    </widget>
@@ -525,7 +515,14 @@
                     </attribute>
                     <layout class="QVBoxLayout" name="verticalLayout_21">
                      <item>
-                      <widget class="QListWidget" name="listWidget_11"/>
+                      <widget class="QListWidget" name="expert_encoder_list"/>
+                     </item>
+                     <item>
+                      <widget class="PyDMLineEdit" name="PyDMLineEdit">
+                       <property name="toolTip">
+                        <string/>
+                       </property>
+                      </widget>
                      </item>
                     </layout>
                    </widget>
@@ -686,6 +683,11 @@
    <class>PyDMLabel</class>
    <extends>QLabel</extends>
    <header>pydm.widgets.label</header>
+  </customwidget>
+  <customwidget>
+   <class>PyDMLineEdit</class>
+   <extends>QLineEdit</extends>
+   <header>pydm.widgets.line_edit</header>
   </customwidget>
   <customwidget>
    <class>PyDMPushButton</class>

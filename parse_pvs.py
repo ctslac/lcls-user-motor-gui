@@ -131,23 +131,23 @@ def identify_enc(pv_list, axis_name):
     return encoder_type
 
 
-def identify_nc_params(prefix, pv_list):
+def identify_nc_params(axis, dict):
     """
     Given a list of PVs, find all of the NC params for a given axis prefix
     """
     print("in identify_nc_params")
-    print(f"prefix before strip: {prefix}")
-    stripped_axis_rbv = ":Axis:Id_RBV"
-    prefix = prefix.strip()
-    cleaned_prefix = prefix.replace(stripped_axis_rbv, "")
-    print(f"after axis prefix: {cleaned_prefix}")
+    print(f"axis: {axis}")
+    # stripped_axis_rbv = ":Axis:Id_RBV"
+    # prefix = prefix.strip()
+    # cleaned_prefix = prefix.replace(stripped_axis_rbv, "")
+    # print(f"after axis prefix: {cleaned_prefix}")
     nc_list = []
-    nc_param = cleaned_prefix + ":NC:"
+    nc_param = axis + ":NC:"
     print(f"nc_param: {nc_param}")
-    # c_nc_p = 'r'+'"'+nc_param+'"'
-    # print(f"nc p: {c_nc_p}")
-    # print(f"nc_param type: {type(c_nc_p)}, pv_list type: {type(pv_list)}")
-    for pv in pv_list:
+    c_nc_p = "r" + '"' + nc_param + '"'
+    print(f"nc p: {c_nc_p}")
+    print(f"nc_param type: {type(c_nc_p)}, pv_list type: {type(dict)}")
+    for pv in dict:
         # print(f"nc p: {c_nc_p}, pv: {pv}")
         if re.search(nc_param, pv):
             # print(f"Found nc_param in the list, param: {pv}")
@@ -207,6 +207,15 @@ def identify_coe_enc_params(axis_id, enc_types, pv_list):
             coe_list.append(pv.strip())
 
     return coe_list
+
+
+def strip_key(key):
+    key = str(key).replace("'", "")
+    key = key.replace("[", "")
+    key = key.replace("]", "")
+    delimiter = ":Axis:Id_RBV"
+    stripped_key = key.replace(delimiter, "")
+    return stripped_key
 
 
 def what_can_i_be(pv):

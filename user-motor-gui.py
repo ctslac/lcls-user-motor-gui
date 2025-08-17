@@ -41,6 +41,7 @@ from parse_pvs import (
     identify_enc,
     identify_inputs,
     identify_nc_params,
+    strip_key,
     what_can_i_be,
 )
 
@@ -63,6 +64,7 @@ class MyDisplay(Display):
         if init:
             init = False
             self.pvDict = {}
+            self.expertDict = {}
             self.plc_ioc_list = []
             self.plc_ioc_label = ""
             self.axis = []
@@ -104,6 +106,17 @@ class MyDisplay(Display):
         self.display_encoders = self.ui.findChild(QListWidget, "display_encoders_ui")
         self.stage_settings = self.ui.findChild(QPushButton, "stage_settings")
 
+        # Expert Tab
+        self.expert_axis = self.ui.findChild(QListWidget, "expert_axis")
+        self.expert_nc_list = self.ui.findChild(QListWidget, "expert_nc_list")
+        self.expert_drive_list = self.ui.findChild(QListWidget, "expert_drive_list")
+        self.expert_enocder_list = self.ui.findChild(QListWidget, "expert_enocder_list")
+
+        # Signals
+        # for slot in [self.update_nc(self.expert_axis.currentRow())]:
+        #     self.expert_axis.currentRowChanged.connect(slot)
+        # self.expert_axis.currentRowChanged.connect(self.update_nc(self.expert_axis.currentRow()))
+
         self.digital_inputs_list.currentRowChanged.connect(self.populate_di_channel)
         self.stage_settings.clicked.connect(self.open_stage_settings)
         self.confirm_mapping.clicked.connect(self.update_links)
@@ -115,6 +128,8 @@ class MyDisplay(Display):
         self.populate_di_c_ui()
         self.populate_drives_ui()
         self.populate_encoders_ui()
+        self.populate_axis_expert()
+        self.update_nc(self.axis[self.expert_axis.currentRow()])
 
     def open_stage_settings(self):
         stageSettings = StageSettings(self)
@@ -127,17 +142,27 @@ class MyDisplay(Display):
         return path.join(path.dirname(path.realpath(__file__)), self.ui_filename())
 
     def load_test_list(self):
-        filepath = "./unit_test_data.json"
+        filepath1 = "./unit_test_data.json"
+        filepath2 = "./expert_unit_test.json"
         pv_list = []
         try:
             # with open(f"{filepath}", "r") as f:
             #     for pvs in f:
             #         pv_list.append(pvs)
 
-            with open("./unit_test_data.json", "r") as file:
+            with open(filepath1, "r") as file:
                 self.pvDict = json.load(file)
         except Exception as e:
-            print(f"Failed to read {filepath}: {e}")
+            print(f"Failed to read {filepath1}: {e}")
+        try:
+            # with open(f"{filepath}", "r") as f:
+            #     for pvs in f:
+            #         pv_list.append(pvs)
+
+            with open(filepath2, "r") as file:
+                self.expertDict = json.load(file)
+        except Exception as e:
+            print(f"Failed to read {filepath2}: {e}")
         # for pvs in pv_list:
         #     print(pvs)
         # pv_list = json.loads(pv_list)
@@ -342,7 +367,20 @@ class MyDisplay(Display):
             self.display_encoders.setEnabled(True)
         # print(self.encoder_selection)
 
-    def update_nc_dropdown(self):
+    def populate_axis_expert(self):
+        # update enum with axis pulled from .db file
+        print("in populate axis_expert")
+        self.expert_axis.clear()
+        axis_list = self.axis
+        for item in axis_list:
+            self.expert_axis.addItem(item)
+        # idx = self.axis_list
+        self.expert_axis.setCurrentRow(0)
+        if not self.expert_axis.isEnabled():
+            self.expert_axis.setEnabled(True)
+        print(f"caput to: self.axis_selection")
+
+    def update_nc(self, axis):
         """
         if axis selection current index is changed grab index and axis reference to populate NC dropdown
         get currently selected axis
@@ -350,28 +388,27 @@ class MyDisplay(Display):
         clear previous list
         add items
         """
-        print("in update_nc_dropdown")
-        # clear list and enum
-        self.nc_list.clear()
-        self.nc_param_dropdown.clear()
-        axis_num = self.axis_selection.currentIndex()
-        print(
-            f"UNCDD: axis num: {axis_num}, axis ref: {self.axis_selection.currentText()}"
-        )
-        self.nc_list = identify_nc_params(
-            self.axis_selection.currentText(), pv_list=self.pvList
-        )
-        # print(f"sample nc pvs: {self.nc_list[:10]}")
-        self.nc_param_dropdown.addItems(self.nc_list)
-        self.nc_param_dropdown.setCurrentIndex(0)
-        self.nc_param_dropdown.show()
-        if not self.nc_param_dropdown.isEnabled():
-            self.nc_param_dropdown.setEnabled(True)
+        print("in update_nc")
+        print(f"axis: {axis}")
+        self.expert_nc_list.clear()
+        keys_with_value = [key for key, value in self.pvDict.items() if value == axis]
+        print(f"Key: {keys_with_value}")
+        cleaned_axis = strip_key(keys_with_value)
+        print(f"cleaned axis: {cleaned_axis}")
+        items = identify_nc_params(cleaned_axis, self.expertDict)
+        for item in items:
+            self.expert_nc_list.addItem(item)
+        self.expert_nc_list.setCurrentRow(0)
+        if not self.expert_nc_list.isEnabled():
+            self.expert_nc_list.setEnabled(True)
 
-    def update_coe_drive_dropdown(self):
+    def update_coe_drive(self, axis):
+        print("in update coe drive")
         self.coe_drive_list.clear()
-        self.drive_coe_dropdown.clear()
 
+        """Need to coordinate with Nick on how to structure PVs"""
+
+        keys_with_value = [key for key, value in self.pvDict.items() if value == axis]
         if self.drive_selection.currentText() == "EL7047":
             self.coe_drive_list = identify_coe_drive_params(
                 self.axis_selection.currentText(),
@@ -390,8 +427,8 @@ class MyDisplay(Display):
         if not self.drive_coe_dropdown.isEnabled():
             self.drive_coe_dropdown.setEnabled(True)
 
-    def update_enc_coe_dropdown(self):
-        print("in update enc coe dropdown")
+    def update_coe_enc(self):
+        print("in update enc coe")
         self.coe_enc_list.clear()
         self.encoder_coe_dropdown.clear()
         if self.encoder_selection.currentText() == "EL5102":
