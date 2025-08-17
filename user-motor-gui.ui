@@ -105,16 +105,6 @@
                 <layout class="QGridLayout" name="gridLayout_3">
                  <item row="0" column="0">
                   <layout class="QGridLayout" name="gridLayout_5">
-                   <item row="3" column="0">
-                    <widget class="PyDMPushButton" name="confirm_mappin_button">
-                     <property name="toolTip">
-                      <string/>
-                     </property>
-                     <property name="text">
-                      <string>Confirm Mapping</string>
-                     </property>
-                    </widget>
-                   </item>
                    <item row="2" column="0">
                     <widget class="QListWidget" name="axis_list_view"/>
                    </item>
@@ -122,6 +112,13 @@
                     <widget class="QLabel" name="label_5">
                      <property name="text">
                       <string>Select Virtual Axis</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item row="3" column="0">
+                    <widget class="QPushButton" name="confirm_mapping">
+                     <property name="text">
+                      <string>Confirm Mapping</string>
                      </property>
                     </widget>
                    </item>
@@ -284,7 +281,7 @@
                   </widget>
                  </item>
                  <item>
-                  <widget class="QListWidget" name="display_axis"/>
+                  <widget class="QListWidget" name="display_axis_ui"/>
                  </item>
                 </layout>
                </widget>
@@ -298,7 +295,7 @@
                   </widget>
                  </item>
                  <item>
-                  <widget class="QListWidget" name="display_drives"/>
+                  <widget class="QListWidget" name="display_drives_ui"/>
                  </item>
                 </layout>
                </widget>
@@ -312,7 +309,7 @@
                   </widget>
                  </item>
                  <item>
-                  <widget class="QListWidget" name="display_encoders"/>
+                  <widget class="QListWidget" name="display_encoders_ui"/>
                  </item>
                 </layout>
                </widget>
@@ -326,7 +323,7 @@
                   </widget>
                  </item>
                  <item>
-                  <widget class="QListWidget" name="display_axis_2"/>
+                  <widget class="QListWidget" name="display_di_ui"/>
                  </item>
                 </layout>
                </widget>
@@ -340,7 +337,7 @@
                   </widget>
                  </item>
                  <item>
-                  <widget class="QListWidget" name="display_axis_3"/>
+                  <widget class="QListWidget" name="display_di_c_ui"/>
                  </item>
                 </layout>
                </widget>

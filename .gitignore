@@ -1,6 +1,9 @@
 # Ignore the cache dir
 cache/*
 
+# Local Files
+.test_output.txt
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.pyc

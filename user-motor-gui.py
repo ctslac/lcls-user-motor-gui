@@ -86,9 +86,7 @@ class MyDisplay(Display):
         )
         self.drives_list = self.ui.findChild(QListWidget, "drives_list_view")
         self.enocders_list = self.ui.findChild(QListWidget, "encoders_list_view")
-        self.confirm_mapping = self.ui.findChild(
-            PyDMPushButton, "confirm_mapping_button"
-        )
+        self.confirm_mapping = self.ui.findChild(QPushButton, "confirm_mapping")
         self.view_logger = self.ui.findChild(PyDMPushButton, "view_logger_button")
         self.load_ioc = self.ui.findChild(QPushButton, "load_ioc_pushButton")
 
@@ -98,19 +96,25 @@ class MyDisplay(Display):
         for slot in [self.load_test_list, self.load_axis, self.identify_WCIB]:
             self.load_ioc.clicked.connect(slot)
 
-        # for slot in [self.populate_di, self.populate_drives, self.populate_comp]:
-        #     self.axis_list.currentRowChanged.connect(slot)
-
-        # self.digital_inputs_list.currentRowChanged.connect(self.populate_comp)
-
         # User Input Tab
-        self.display_axis = self.ui.findChild(QListWidget, "display_axis")
-        self.display_drives = self.ui.findChild(QListWidget, "display_drives")
-        self.display_encoders = self.ui.findChild(QListWidget, "display_encoders")
+        self.display_axis = self.ui.findChild(QListWidget, "display_axis_ui")
+        self.display_drives = self.ui.findChild(QListWidget, "display_drives_ui")
+        self.display_di = self.ui.findChild(QListWidget, "display_di_ui")
+        self.display_di_c = self.ui.findChild(QListWidget, "display_di_c_ui")
+        self.display_encoders = self.ui.findChild(QListWidget, "display_encoders_ui")
         self.stage_settings = self.ui.findChild(QPushButton, "stage_settings")
 
         self.digital_inputs_list.currentRowChanged.connect(self.populate_di_channel)
         self.stage_settings.clicked.connect(self.open_stage_settings)
+        self.confirm_mapping.clicked.connect(self.update_links)
+
+    def update_links(self):
+        print("in update links")
+        self.populate_axis_ui()
+        self.populate_di_ui()
+        self.populate_di_c_ui()
+        self.populate_drives_ui()
+        self.populate_encoders_ui()
 
     def open_stage_settings(self):
         stageSettings = StageSettings(self)
@@ -184,10 +188,7 @@ class MyDisplay(Display):
 
         for item in self.axis:
             self.axis_list.addItem(item)
-        # self.axis_list.setCurrentIndex(0)
-        # self.axis_selection.activate()
         self.axis_list.setCurrentRow(0)
-        # self.axis_list.setSelectionMode(0)
         if not self.axis_list.isEnabled():
             self.axis_list.setEnabled(True)
         # print(self.axis_selection)
@@ -201,9 +202,9 @@ class MyDisplay(Display):
 
         delimiter = ":WCIB_RBV"
         for item in self.digital_inputs:
-            self.cleaned_di = item.replace(delimiter, ":Id_RBV")
-            print(f"cleaned item: {self.cleaned_di}")
-            val = fake_caget(self.pvDict, self.cleaned_di)
+            cleaned_di = item.replace(delimiter, ":Id_RBV")
+            print(f"cleaned item: {cleaned_di}")
+            val = fake_caget(self.pvDict, cleaned_di)
             self.digital_inputs_list.addItem(val)
         self.digital_inputs_list.setCurrentRow(0)
         if not self.digital_inputs_list.isEnabled():
@@ -260,6 +261,85 @@ class MyDisplay(Display):
 
         if not self.enocders_list.isEnabled():
             self.enocders_list.setEnabled(True)
+        # print(self.encoder_selection)
+
+    def populate_axis_ui(self):
+        # update enum with axis pulled from .db file
+        print("in populate axis_ui")
+        self.display_axis.clear()
+        axis_list = self.axis
+        for item in axis_list:
+            self.display_axis.addItem(item)
+        # idx = self.axis_list
+        self.display_axis.setCurrentRow(self.axis_list.currentRow())
+        if not self.display_axis.isEnabled():
+            self.display_axis.setEnabled(True)
+        print(f"caput to: self.axis_selection")
+
+    def populate_di_ui(self):
+        print("in populate_di_ui")
+        self.display_di.clear()
+        di_list = self.digital_inputs
+        delimiter = ":WCIB_RBV"
+        for item in di_list:
+            cleaned_di = item.replace(delimiter, ":Id_RBV")
+            val = fake_caget(self.pvDict, cleaned_di)
+            self.display_di.addItem(val)
+        self.display_di.setCurrentRow(self.digital_inputs_list.currentRow())
+        if not self.display_di.isEnabled():
+            self.display_di.setEnabled(True)
+        # self.populate_di_channel()
+
+    def populate_di_c_ui(self):
+        print("in populate_di_c_ui")
+        self.display_di_c.clear()
+        print(f"di text: {self.digital_inputs[self.digital_inputs_list.currentRow()]}")
+        val = self.digital_inputs[self.digital_inputs_list.currentRow()]
+        delimiter = ":WCIB_RBV"
+        cleaned_di = val.replace(delimiter, ":NUMDI_RBV")
+        print(f"cleaned axis: {cleaned_di}")
+        nums = fake_caget(self.pvDict, cleaned_di)
+        for i in range(1, int(nums) + 1):
+            self.display_di_c.addItem(str(i))
+        self.display_di_c.setCurrentRow(self.digital_input_channels.currentRow())
+        if not self.display_di_c.isEnabled():
+            self.display_di_c.setEnabled(True)
+
+    def populate_drives_ui(self):
+        # update enum with drives pulled from .db file
+        print("in populate drives_ui")
+        self.display_drives.clear()
+        # self.drives = identify_drive(self.pvList, self.axis_list.currentItem().text())
+
+        delimiter = ":WCIB_RBV"
+        drives = self.drives
+        for item in drives:
+            cleaned_item = item.replace(delimiter, ":Id_RBV")
+            # print(f"cleaned item: {cleaned_item}")
+            val = fake_caget(self.pvDict, cleaned_item)
+            self.display_drives.addItem(val)
+        self.display_drives.setCurrentRow(self.drives_list.currentRow())
+
+        if not self.display_drives.isEnabled():
+            self.display_drives.setEnabled(True)
+
+    def populate_encoders_ui(self):
+        # update enum with drives pulled from .db file
+        print("in populate enc_ui")
+        self.display_encoders.clear()
+        # self.enocder_type = identify_enc(self.pvList, self.axis_list.currentItem().text())
+        delimiter = ":WCIB_RBV"
+        # print(f"encoder list size: {len(self.encoders)}")
+        encoders = self.encoders
+        for item in encoders:
+            cleaned_item = item.replace(delimiter, ":Id_RBV")
+            print(f"cleaned item: {cleaned_item}")
+            val = fake_caget(self.pvDict, cleaned_item)
+            self.display_encoders.addItem(val)
+        self.display_encoders.setCurrentRow(self.enocders_list.currentRow())
+
+        if not self.display_encoders.isEnabled():
+            self.display_encoders.setEnabled(True)
         # print(self.encoder_selection)
 
     def update_nc_dropdown(self):
