@@ -131,7 +131,7 @@
                  <property name="spacing">
                   <number>0</number>
                  </property>
-                 <item row="1" column="0">
+                 <item row="2" column="0">
                   <widget class="PyDMPushButton" name="view_logger_button">
                    <property name="toolTip">
                     <string/>
@@ -141,7 +141,7 @@
                    </property>
                   </widget>
                  </item>
-                 <item row="0" column="0">
+                 <item row="1" column="0">
                   <widget class="QTabWidget" name="tabWidget_2">
                    <property name="currentIndex">
                     <number>0</number>
@@ -156,8 +156,9 @@
                        <property name="orientation">
                         <enum>Qt::Horizontal</enum>
                        </property>
-                       <widget class="QListWidget" name="digital_inputs_list_view"/>
-                       <widget class="QListWidget" name="digital_input_comp"/>
+                       <widget class="QListWidget" name="digital_input_axis"/>
+                       <widget class="QListWidget" name="digital_input_list_view"/>
+                       <widget class="QListWidget" name="digital_input_channel"/>
                       </widget>
                      </item>
                     </layout>

@@ -11,7 +11,7 @@ def fake_caget(pv_dict, pv):
     # with open('./unit_test_data.json', 'r') as file:
     #     data = json.load(file)
     value = pv_dict.get(pv)
-    print(f"value: {value}")
+    print(f"fake caget value: {value}")
     return value
 
 
