@@ -45,7 +45,7 @@
     "HXR:PC:02:SelG:ENC:Id_RBV": "EL5042_1_Ch1",
     "HXR:PC:03:SelG:DI:01:ID_RBV": "EL7047_1",
     "HXR:PC:03:SelG:DI:01:HardChNum_RBV": "2",
-    "HXR:PC:03:SelG:DI:02:ID_RBV": "EL7047_2",
+    "HXR:PC:03:SelG:DI:02:ID_RBV": "EL7047_1",
     "HXR:PC:03:SelG:DI:02:HardChNum_RBV": "1",
     "HXR:PC:03:SelG:DRV:Id_RBV": "",
     "HXR:PC:03:SelG:ENC:Id_RBV": "",

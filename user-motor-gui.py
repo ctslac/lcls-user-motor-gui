@@ -90,7 +90,8 @@ class MyDisplay(Display):
             self.plc_ioc_list = []
             self.plc_ioc_label = ""
             self.axis = []
-            self.digital_inputs = []
+            self.digital_inputs = ["None"]
+            self.digital_inputs_hardware = ["None"]
             self.drives = []
             self.encoders = []
             self.enocders_list = []
@@ -110,8 +111,8 @@ class MyDisplay(Display):
         self.plc_ioc_list = self.ui.findChild(QComboBox, "plc_ioc_list")
         self.plc_ioc_label = self.ui.findChild(PyDMLabel, "ioc_label")
         self.axis_list = self.ui.findChild(QListWidget, "axis_list_view")
-        self.digital_inputs_list = self.ui.findChild(
-            QListWidget, "digital_input_list_view"
+        self.digital_input_hardware = self.ui.findChild(
+            QListWidget, "digital_input_hardware"
         )
         self.digital_input_channels = self.ui.findChild(
             QListWidget, "digital_input_channel"
@@ -151,13 +152,10 @@ class MyDisplay(Display):
 
         for slot in [self.update_nc]:
             self.expert_axis.currentRowChanged.connect(slot)
-        # self.expert_axis.currentRowChanged.connect(self.update_nc(self.expert_axis.currentRow()))
 
         # digitial input handling signals
-        # self.digital_inputs_list.currentRowChanged.connect(self.discover_di_channel)
-        # self.digital_inputs_list.currentRowChanged.connect(self.load_axis_di)
         self.axis_list.currentRowChanged.connect(self.select_axis)
-        self.digital_inputs_list.currentRowChanged.connect(self.load_di_channel)
+        self.digital_input_hardware.currentRowChanged.connect(self.load_di_channel)
         self.digital_input_axis.currentRowChanged.connect(self.select_di_channel)
 
         self.stage_settings.clicked.connect(self.open_stage_settings)
@@ -270,20 +268,6 @@ class MyDisplay(Display):
         """
         # identify WCIB PVs
         self.identify_WCIB()
-
-        # # find all axis dis
-        # for item in self.axis:
-        #     DIs.append(self.identify_di(item))
-        #     DRVs = self.identify_drv(item)
-        #     ENCs = self.identify_enc(item)
-        # print(f"DIs: {DIs}")
-        # flat_di_list = [item for sublist in DIs for item in sublist]
-        # for items in flat_di_list:
-        #     print(f"items: {items}")
-        #     val = fake_caget(self.pvDict, items)
-        #     print(f"di val caget: {val}")
-
-        # self.identify_WCIB
 
     def identify_WCIB(self):
         """
@@ -421,6 +405,7 @@ class MyDisplay(Display):
         """ """
         print("in load_axis_di")
         self.digital_input_axis.clear()
+
         # self.digital_inputs = identify_inputs(
         #     self.pvList, self.axis_list.currentItem().text()
         # )
@@ -442,7 +427,7 @@ class MyDisplay(Display):
         ]
         print(f"val: {self.loaded_unique_di}")
         # if not self.digital_input_axis.isEnabled():
-        #     self.digital_inputs_list.setEnabled(True)
+        #     self.digital_input_hardware.setEnabled(True)
         # self.discover_di_channel()
 
     def load_di(self):
@@ -451,7 +436,8 @@ class MyDisplay(Display):
         needs to publish, and call discover_di_channel
         """
         print("in load_di")
-        self.digital_inputs_list.clear()
+        self.digital_input_hardware.clear()
+        self.digital_input_hardware.addItem("None")
         # self.digital_inputs = identify_inputs(
         #     self.pvList, self.axis_list.currentItem().text()
         # )
@@ -461,10 +447,10 @@ class MyDisplay(Display):
             cleaned_di = item.replace(delimiter, ":Id_RBV")
             print(f"cleaned item: {cleaned_di}")
             val = fake_caget(self.pvDict, cleaned_di)
-            self.digital_inputs_list.addItem(val)
-        # self.digital_inputs_list.setCurrentRow(0)
-        if not self.digital_inputs_list.isEnabled():
-            self.digital_inputs_list.setEnabled(True)
+            self.digital_input_hardware.addItem(val)
+        # self.digital_input_hardware.setCurrentRow(0)
+        if not self.digital_input_hardware.isEnabled():
+            self.digital_input_hardware.setEnabled(True)
         self.discover_di_channel()
 
     def discover_di_channel(self):
@@ -475,8 +461,8 @@ class MyDisplay(Display):
         """
         print("in load_di channel")
         # self.digital_input_channels.clear()
-        # print(f"di text: {self.digital_inputs[self.digital_inputs_list.currentRow()]}")
-        # val = self.digital_inputs[self.digital_inputs_list.currentRow()]
+        # print(f"di text: {self.digital_inputs[self.digital_input_hardware.currentRow()]}")
+        # val = self.digital_inputs[self.digital_input_hardware.currentRow()]
         # delimiter = ":WCIB_RBV"
         # cleaned_di = val.replace(delimiter, ":NUMDI_RBV")
         # print(f"cleaned axis: {cleaned_di}")
@@ -510,15 +496,23 @@ class MyDisplay(Display):
         print(f"DI_hardware: {DI_hardware}")
         DI_hardware_Channel = fake_caget(self.pvDict, detectableDi + ":HardChNum_RBV")
         print(f"DI_hardware_channel: {DI_hardware_Channel}")
-        # returnStatus = self.digital_inputs_list.findItems(value, Qt.MatchCaseSensitive)
+        # returnStatus = self.digital_input_hardware.findItems(value, Qt.MatchCaseSensitive)
         # print(f"returnStatus: {returnStatus.text()}")
 
-        # discovering DI hardware
-        for i in range(0, self.digital_inputs_list.count()):
-            if DI_hardware == self.digital_inputs_list.item(i).text():
-                # print(f"currItem: {self.digital_inputs_list.item(i).text()}")
-                print(f"found hardware: {self.digital_inputs_list.item(i).text()}")
-                self.digital_inputs_list.setCurrentRow(i)
+        print("searching for DI hardware")
+        # detect DI hardware
+        for i in range(0, self.digital_input_hardware.count()):
+            if DI_hardware == self.digital_input_hardware.item(i).text():
+                # print(f"currItem: {self.digital_input_hardware.item(i).text()}")
+                print(f"found hardware: {self.digital_input_hardware.item(i).text()}")
+                self.digital_input_hardware.setCurrentRow(i)
+            elif DI_hardware == None:
+                print("no hardware detected")
+                self.digital_input_hardware.setCurrentRow(0)
+            else:
+                print("something went wrong/thinking")
+
+        print("searching for di hardware channel")
         for i in range(0, self.digital_input_channels.count()):
             if DI_hardware_Channel == self.digital_input_channels.item(i).text():
                 print(f"found channel: {self.digital_input_channels.item(i).text()}")
@@ -526,17 +520,17 @@ class MyDisplay(Display):
 
         if axis_di_idx == 0:
             self.store_di_selection[0] = [
-                self.digital_inputs_list.currentRow(),
+                self.digital_input_hardware.currentRow(),
                 self.digital_input_channels.currentRow(),
             ]
         elif axis_di_idx == 1:
             self.store_di_selection[1] = [
-                self.digital_inputs_list.currentRow(),
+                self.digital_input_hardware.currentRow(),
                 self.digital_input_channels.currentRow(),
             ]
         elif axis_di_idx == 2:
             self.store_di_selection[2] = [
-                self.digital_inputs_list.currentRow(),
+                self.digital_input_hardware.currentRow(),
                 self.digital_input_channels.currentRow(),
             ]
         print(f"stored_di_selection: {self.store_di_selection[0][0]}, {self.store_di_selection[0][1]}\n \
@@ -557,15 +551,18 @@ class MyDisplay(Display):
 
     def load_di_channel(self):
         self.digital_input_channels.clear()
-        currDiIdx = self.digital_inputs_list.currentRow()
+        currDiIdx = self.digital_input_hardware.currentRow()
         currDI = self.digital_inputs[currDiIdx]
         print(f"DI idx: {currDI}")
         delimiter = ":WCIB_RBV"
         cleaned_di = currDI.replace(delimiter, ":NUMDI_RBV")
         print(f"cleaned axis: {cleaned_di}")
         self.di_size = fake_caget(self.pvDict, cleaned_di)
-        for i in range(0, int(self.di_size)):
-            self.digital_input_channels.addItem(str(i + 1))
+        if self.di_size != 0 or self.di_size != None:
+            for i in range(0, int(self.di_size)):
+                self.digital_input_channels.addItem(str(i + 1))
+        else:
+            self.digital_input_channels.clear()
 
     def load_di_slot(self):
         """
@@ -657,7 +654,7 @@ class MyDisplay(Display):
             cleaned_di = item.replace(delimiter, ":Id_RBV")
             val = fake_caget(self.pvDict, cleaned_di)
             self.display_di.addItem(val)
-        self.display_di.setCurrentRow(self.digital_inputs_list.currentRow())
+        self.display_di.setCurrentRow(self.digital_input_hardware.currentRow())
         self.display_di.setSelectionMode(QAbstractItemView.NoSelection)
         if not self.display_di.isEnabled():
             self.display_di.setEnabled(True)
@@ -666,8 +663,10 @@ class MyDisplay(Display):
     def load_di_c_ui(self):
         print("in load_di_c_ui")
         self.display_di_c.clear()
-        print(f"di text: {self.digital_inputs[self.digital_inputs_list.currentRow()]}")
-        val = self.digital_inputs[self.digital_inputs_list.currentRow()]
+        print(
+            f"di text: {self.digital_inputs[self.digital_input_hardware.currentRow()]}"
+        )
+        val = self.digital_inputs[self.digital_input_hardware.currentRow()]
         delimiter = ":WCIB_RBV"
         cleaned_di = val.replace(delimiter, ":NUMDI_RBV")
         print(f"cleaned axis: {cleaned_di}")
