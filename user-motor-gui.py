@@ -48,6 +48,14 @@ from parse_pvs import (
 )
 
 
+class MappingWindow(QDialog):
+    def __init__(self, parent=None):
+        super(MappingWindow, self).__init__(parent)
+        loadUi("mapping-window.ui", self)
+        self.staged_mappings_list = self.findChild(QListWidget, "staged_mappings_list")
+        # for stages in MyDisplay(self.staged_mapping):
+
+
 class StageSettings(QDialog):
     def __init__(self, parent=None):
         super(StageSettings, self).__init__(parent)
@@ -105,6 +113,7 @@ class MyDisplay(Display):
             self.axis_di_idx = 0
             self.axis_di_init = True
             self.di_size = 0
+            self.staged_mapping = []
 
         # finding children
         # Linker Tab
@@ -146,6 +155,11 @@ class MyDisplay(Display):
         self.expert_drive_list = self.ui.findChild(QListWidget, "expert_drive_list")
         self.expert_enocder_list = self.ui.findChild(QListWidget, "expert_enocder_list")
 
+        # Mapping
+        self.stage_mapping = self.ui.findChild(QPushButton, "stage_mapping")
+        self.see_mapping = self.ui.findChild(QPushButton, "see_staged_mapping")
+        self.clear_mapping = self.ui.findChild(QPushButton, "clear_mapping")
+
         """
         Signals
         """
@@ -157,6 +171,9 @@ class MyDisplay(Display):
         self.axis_list.currentRowChanged.connect(self.select_axis)
         self.digital_input_hardware.currentRowChanged.connect(self.load_di_channel)
         self.digital_input_axis.currentRowChanged.connect(self.select_di_channel)
+        self.stage_mapping.clicked.connect(self.save_stage)
+        self.see_mapping.clicked.connect(self.see_stage)
+        self.clear_mapping.clicked.connect(self.clear_stage)
 
         self.stage_settings.clicked.connect(self.open_stage_settings)
         self.confirm_mapping.clicked.connect(self.update_links)
@@ -170,6 +187,41 @@ class MyDisplay(Display):
         self.load_encoders_ui()
         self.publish_axis_expert()
         # self.update_nc(self.axis[self.expert_axis.currentRow()])
+
+    def see_stage(self):
+        print("in see_stage")
+        mapping_window = MappingWindow(self)
+        mapping_window.staged_mappings_list.clear()
+        # for stage in range(0,len(self.staged_mapping)):
+        #     if self.staged_mapping[stage]:
+        #         for di in range(0,len(self.staged_mapping[stage])):
+        #             print(f"axis num: {stage}, di: {di}, di array: {len(self.staged_mapping[stage][di])}")
+        #             for item in range(0, len(self.staged_mapping[stage][di])):
+        #                 mapping_window.staged_mappings_list.addItem(f"{self.staged_mapping[stage][di][item]}, {self.staged_mapping[stage][di][item]}, {self.staged_mapping[stage][di][item]}")
+        #     else:
+        #         print(f"stage was empty")
+
+        for stage in range(len(self.staged_mapping)):
+            if self.staged_mapping[stage]:  # Check if stage is not empty
+                row_output = []  # To gather items in rows of three
+                for di in range(len(self.staged_mapping[stage])):
+                    # Gather each item's corresponding list output
+                    if self.staged_mapping[stage][di]:
+                        # Append the item to the row output
+                        row_output.append(self.staged_mapping[stage][di])
+                    else:
+                        # Append an empty list for empty entries
+                        row_output.append([""])
+
+                # Print the row output in groups of three
+                mapping_window.staged_mappings_list.addItem(
+                    f"{row_output[0]}, {row_output[1]}, {row_output[2]}"
+                )
+                # print(row_output)  # Printing as one complete list containing the sublists
+
+            else:
+                print(f"Stage {stage} was empty")  # Handling completely empty stages
+        mapping_window.exec_()
 
     def open_stage_settings(self):
         stageSettings = StageSettings(self)
@@ -320,6 +372,58 @@ class MyDisplay(Display):
         self.axis = identify_axis(self.pvDict)
         self.publish_axis()
 
+    def save_stage(self):
+        print("in save_stage")
+
+        # setup holder for stagged mapping
+        numStages = self.axis_list.count()
+        print(f"numStages count: {numStages}")
+        # self.staged_mapping= [[] for _ in range(numStages)]
+
+        # saving components
+        currAxis = self.axis_list.currentRow()
+        print(f"currAxis: {currAxis}")
+        currAxisDi = self.digital_input_axis.currentRow() + 1
+        print(f"currAxisDi: {currAxisDi}")
+        currDiHardware = self.digital_input_hardware.currentItem().text()
+        print(f"currDiHardware: {currDiHardware}")
+        currDiHardwareChan = int(self.digital_input_channels.currentItem().text())
+        print(f"currDiHardwareChan: {currDiHardwareChan}")
+
+        if len(self.staged_mapping[currAxis]) and currAxisDi == 1:
+            self.staged_mapping[currAxis][0].clear()
+        elif len(self.staged_mapping[currAxis]) and currAxisDi == 2:
+            self.staged_mapping[currAxis][1].clear()
+        elif len(self.staged_mapping[currAxis]) and currAxisDi == 3:
+            self.staged_mapping[currAxis][2].clear()
+
+        if currAxisDi == 1:
+            self.staged_mapping[currAxis][0].append("0" + str(currAxisDi))
+            self.staged_mapping[currAxis][0].append(currDiHardware)
+            self.staged_mapping[currAxis][0].append(currDiHardwareChan)
+        elif currAxisDi == 2:
+            self.staged_mapping[currAxis][1].append("0" + str(currAxisDi))
+            self.staged_mapping[currAxis][1].append(currDiHardware)
+            self.staged_mapping[currAxis][1].append(currDiHardwareChan)
+        elif currAxisDi == 3:
+            self.staged_mapping[currAxis][2].append("0" + str(currAxisDi))
+            self.staged_mapping[currAxis][2].append(currDiHardware)
+            self.staged_mapping[currAxis][2].append(currDiHardwareChan)
+
+        # self.staged_mapping[currAxis].append('0'+str(currAxisDi))
+        # self.staged_mapping[currAxis].append(currDiHardware)
+        # self.staged_mapping[currAxis].append(currDiHardwareChan)
+
+        # show mapping
+        print(f"staged mapping: {self.staged_mapping}")
+
+    def clear_stage(self):
+        print("in clear_stage")
+        for sublist in self.staged_mapping:
+            for inner_list in sublist:
+                inner_list.clear()
+        print(f"staged mapping: {self.staged_mapping}")
+
     def detect_linked_hardware_di(self):
         print("in detect_linked_hardware_di")
         axis_di_idx = self.digital_input_axis.currentRow()
@@ -369,10 +473,14 @@ class MyDisplay(Display):
         # if self.axis_di_init:
         self.digital_input_axis.clear()
         numDI = 0
-        currAxisIdx = self.axis_list.currentRow()
-        print(f"currAxisIdx: {self.axis[currAxisIdx]}")
-        currAxis = self.val_to_key(self.axis[currAxisIdx])
-        print(f"currAxis: {currAxis}")
+
+        # currAxisIdx = self.axis_list.currentRow()
+        # print(f"currAxisIdx: {self.axis[currAxisIdx]}")
+        # currAxis = self.val_to_key(self.axis[currAxisIdx])
+        # print(f"currAxis: {currAxis}")
+
+        currAxis = self.val_to_key(self.axis_list.currentItem().text())
+
         for items in self.loaded_unique_di:
             if items.startswith(currAxis):
                 numDI = numDI + 1
@@ -394,12 +502,18 @@ class MyDisplay(Display):
         print("in populate axis")
         self.axis_list.clear()
 
-        for item in self.axis:
-            self.axis_list.addItem(item)
-        # self.axis_list.setCurrentRow(0)
+        # for item in self.axis:
+        #     self.axis_list.addItem(item)
+
+        self.axis_list.addItems(self.axis)
+
         if not self.axis_list.isEnabled():
             self.axis_list.setEnabled(True)
         # print(self.axis_selection)
+        # self.staged_mapping= [[] for _ in range(self.axis_list.count())]
+        self.staged_mapping = [
+            [[""] for _ in range(3)] for _ in range(self.axis_list.count())
+        ]
 
     def load_axis_di(self):
         """ """

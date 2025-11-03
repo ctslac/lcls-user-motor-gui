@@ -181,12 +181,23 @@
                     <number>0</number>
                    </property>
                    <item>
-                    <widget class="PyDMPushButton" name="save_mapping_button">
-                     <property name="toolTip">
-                      <string/>
-                     </property>
+                    <widget class="QPushButton" name="stage_mapping">
                      <property name="text">
-                      <string>Save Mapping</string>
+                      <string>Stage Mapping</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="see_staged_mapping">
+                     <property name="text">
+                      <string>See Mapping</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="clear_mapping">
+                     <property name="text">
+                      <string>Clear Mapping</string>
                      </property>
                     </widget>
                    </item>
