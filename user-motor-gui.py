@@ -6,6 +6,10 @@ from enum import Enum
 from os import path
 
 import epics
+import numpy as np
+
+# import epics
+from epics import PV
 
 # from epics import PV, fake_caget, cainfo, caput
 from pydm import Display
@@ -93,15 +97,19 @@ class MyDisplay(Display):
         init = True
         if init:
             init = False
+            self.prefixName = ""
+            self.testList = []
+            self.loadedList = []
             self.pvDict = {}
+            self.pvDict_table = {}
             self.expertDict = {}
             self.plc_ioc_list = []
             self.plc_ioc_label = ""
             self.axis = []
             self.digital_inputs = ["None"]
             self.digital_inputs_hardware = ["None"]
-            self.drives = []
-            self.encoders = []
+            self.drives = ["None"]
+            self.encoders = ["None"]
             self.enocders_list = []
             self.list_WCIB = []
             self.cleaned_di = ""
@@ -114,6 +122,7 @@ class MyDisplay(Display):
             self.axis_di_init = True
             self.di_size = 0
             self.staged_mapping = []
+            self.staged_de = []
 
         # finding children
         # Linker Tab
@@ -171,6 +180,8 @@ class MyDisplay(Display):
         self.axis_list.currentRowChanged.connect(self.select_axis)
         self.digital_input_hardware.currentRowChanged.connect(self.load_di_channel)
         self.digital_input_axis.currentRowChanged.connect(self.select_di_channel)
+
+        # mapping signals
         self.stage_mapping.clicked.connect(self.save_stage)
         self.see_mapping.clicked.connect(self.see_stage)
         self.clear_mapping.clicked.connect(self.clear_stage)
@@ -180,13 +191,16 @@ class MyDisplay(Display):
 
     def update_links(self):
         print("in update links")
-        self.publish_axis_ui()
-        self.load_di_ui()
-        self.load_di_c_ui()
-        self.load_drives_ui()
-        self.load_encoders_ui()
-        self.publish_axis_expert()
-        # self.update_nc(self.axis[self.expert_axis.currentRow()])
+
+        # caput all changes to axis
+        # for i in self.staged_mapping:
+
+        # self.publish_axis_ui()
+        # self.load_di_ui()
+        # self.load_di_c_ui()
+        # self.load_drives_ui()
+        # self.load_encoders_ui()
+        # self.publish_axis_expert()
 
     def see_stage(self):
         print("in see_stage")
@@ -215,7 +229,7 @@ class MyDisplay(Display):
 
                 # Print the row output in groups of three
                 mapping_window.staged_mappings_list.addItem(
-                    f"{row_output[0]}, {row_output[1]}, {row_output[2]}"
+                    f"Axis {stage+1}: DI: {row_output[0]}, {row_output[1]}, {row_output[2]} DRV: {self.staged_de[stage][0]} ENC:{self.staged_de[stage][1]}"
                 )
                 # print(row_output)  # Printing as one complete list containing the sublists
 
@@ -236,14 +250,17 @@ class MyDisplay(Display):
     def load_test_list(self):
         print("in load test list")
         configured = "./unit_test_data.json"
+        integration_test = "/cds/home/c/ctsoi/epics-dev/ioc/user_motors/lcls-plc-template-user-motors/iocBoot/ioc-lcls-plc-template-user-motors/lcls_plc_template_user_motors.db"
         unconfigured = "./unit_test_config.json"
         filepath2 = "./expert_unit_test.json"
         filepath1 = configured
-        pv_list = []
+        pv_caget_list = []
+
+        """
         try:
             # with open(f"{filepath}", "r") as f:
             #     for pvs in f:
-            #         pv_list.append(pvs)
+            #         pv_caget_list.append(pvs)
 
             with open(filepath1, "r") as file:
                 self.pvDict = json.load(file)
@@ -252,20 +269,81 @@ class MyDisplay(Display):
         try:
             # with open(f"{filepath}", "r") as f:
             #     for pvs in f:
-            #         pv_list.append(pvs)
+            #         pv_caget_list.append(pvs)
 
             with open(filepath2, "r") as file:
                 self.expertDict = json.load(file)
         except Exception as e:
             print(f"Failed to read {filepath2}: {e}")
-        # for pvs in pv_list:
+        # for pvs in pv_caget_list:
         #     print(pvs)
-        # pv_list = json.loads(pv_list)
+        # pv_caget_list = json.loads(pv_caget_list)
         print(f"type: {type(self.pvDict)}")
+        """
+        try:
+            # with open(f"{filepath}", "r") as f:
+            #     for pvs in f:
+            #         pv_caget_list.append(pvs)
+
+            with open(filepath1, "r") as file:
+                self.pvDict_table = json.load(file)
+        except Exception as e:
+            print(f"Failed to read {filepath1}: {e}")
+
+        # for pvs in pv_caget_list:
+        #     print(pvs)
+        # pv_caget_list = json.loads(pv_caget_list)
+        print(f"type: {type(self.pvDict_table)}")
+
+        # use this to pull db from ioc
+        # iocpath, dbpath = grep_ioc(
+        #     self.ioc_name.text(), "/cds/group/pcds/pyps/config/mec/iocmanager.cfg", "-p"
+        # )
+        # print(iocpath, dbpath)
+
+        # test path
+        iocpath = integration_test
+
+        # hard code ioc path
+        self.pvList = discover_pvs("", usr_db_path=iocpath, find_makefile=True)
+        # self.pvList = discover_pvs("", usr_db_path=iocpath)
+        # print(self.pvList)
+        self.prefixName = self.pvList[0]
+        print(self.prefixName)
+        self.pvList = self.pvList[1:-1]
+
+        print(f"prefixName: {self.prefixName}")
+
+        # caget whole list
+        pv_caget_list = epics.caget_many(self.pvList, as_string=True)
+
+        # put pvs and cagets into a dictionary
+        self.pvDict = dict(zip(self.pvList, pv_caget_list))
+
+        # try:
+        #     with open("/cds/group/pcds/epics-dev/ctsoi/git/lcls-user-motor-gui/testoutput", "a") as f:
+        #         for i in self.testList:
+        #             f.write(f"{i}\n")
+        # except Exception as e:
+        #         print(f"Failed to read {filepath1}: {e}")
+
+        # for j in self.pvDict_table:
+        # print(f"j: {j}, type: {type(j)}")
+        # if i == j:
+        #     print(f"found match: {i}, {j}")
+
+        #     # value = epics.caget(i, as_string=True)
+        #     # print(f"pv: {i}, value: {value}")
 
     def val_to_key(self, val):
         key = [key for key, value in self.pvDict.items() if value == val]
-        cleaned_axis = strip_key(key)
+        print(f"key: {key}")
+
+        """
+        there may be more than one key for any given value, i might have to change the logic here
+        """
+        cleaned_axis = strip_key(key[0])
+        print(f"val to key, cleaned axis: {cleaned_axis}, key: {key}")
         return str(cleaned_axis)
 
     def find_unique_keys(self, prefix):
@@ -335,7 +413,7 @@ class MyDisplay(Display):
                 self.list_WCIB.append(pv)
         for pv in self.list_WCIB:
             # fake_caget output is of type string seperated by comma
-            comp_type = fake_caget(self.pvDict, pv)
+            comp_type = epics.caget(pv, as_string=True)
             if re.search(r"DI", comp_type):
                 self.digital_inputs.append(pv)
             if re.search(r"DRV", comp_type):
@@ -359,16 +437,6 @@ class MyDisplay(Display):
         print("in get pvs from input")
         # print(self.ioc_name.text())
 
-        # use this to pull db from ioc
-        # iocpath, dbpath = grep_ioc(
-        #     self.ioc_name.text(), "/cds/group/pcds/pyps/config/mec/iocmanager.cfg", "-p"
-        # )
-        # print(iocpath, dbpath)
-        # iocpath = '/reg/g/pcds/epics-dev/ctsoi/ioc/tst/lcls-plc-hxr-polycap/iocBoot/ioc-lcls-plc-hxr-polycap/lcls_plc_hxr_polycap.db'
-
-        # self.pvList = discover_pvs('', usr_db_path=iocpath)
-        # self.pvList = self.load_test_list()
-
         self.axis = identify_axis(self.pvDict)
         self.publish_axis()
 
@@ -380,14 +448,22 @@ class MyDisplay(Display):
         print(f"numStages count: {numStages}")
         # self.staged_mapping= [[] for _ in range(numStages)]
 
-        # saving components
+        # saving DI components
         currAxis = self.axis_list.currentRow()
         print(f"currAxis: {currAxis}")
         currAxisDi = self.digital_input_axis.currentRow() + 1
         print(f"currAxisDi: {currAxisDi}")
-        currDiHardware = self.digital_input_hardware.currentItem().text()
+        if self.digital_input_hardware.currentItem().text() != "None":
+            currDiHardware = self.digital_input_hardware.currentItem().text()
+        else:
+            currDiHardware = ""
         print(f"currDiHardware: {currDiHardware}")
-        currDiHardwareChan = int(self.digital_input_channels.currentItem().text())
+        if self.digital_input_channels.currentItem() != None:
+            currDiHardwareChan = str(
+                int(self.digital_input_channels.currentItem().text())
+            )
+        else:
+            currDiHardwareChan = ""
         print(f"currDiHardwareChan: {currDiHardwareChan}")
 
         if len(self.staged_mapping[currAxis]) and currAxisDi == 1:
@@ -399,16 +475,36 @@ class MyDisplay(Display):
 
         if currAxisDi == 1:
             self.staged_mapping[currAxis][0].append("0" + str(currAxisDi))
-            self.staged_mapping[currAxis][0].append(currDiHardware)
-            self.staged_mapping[currAxis][0].append(currDiHardwareChan)
+            if currDiHardware != "":
+                self.staged_mapping[currAxis][0].append(currDiHardware)
+            if currDiHardwareChan != "":
+                self.staged_mapping[currAxis][0].append(currDiHardwareChan)
         elif currAxisDi == 2:
             self.staged_mapping[currAxis][1].append("0" + str(currAxisDi))
-            self.staged_mapping[currAxis][1].append(currDiHardware)
-            self.staged_mapping[currAxis][1].append(currDiHardwareChan)
+            if currDiHardware != "":
+                self.staged_mapping[currAxis][1].append(currDiHardware)
+            if currDiHardwareChan != "":
+                self.staged_mapping[currAxis][1].append(currDiHardwareChan)
         elif currAxisDi == 3:
             self.staged_mapping[currAxis][2].append("0" + str(currAxisDi))
-            self.staged_mapping[currAxis][2].append(currDiHardware)
-            self.staged_mapping[currAxis][2].append(currDiHardwareChan)
+            if currDiHardware != "":
+                self.staged_mapping[currAxis][2].append(currDiHardware)
+            if currDiHardwareChan != "":
+                self.staged_mapping[currAxis][2].append(currDiHardwareChan)
+
+        # saving drive
+        if self.drives_list.currentItem() == None:
+            self.staged_de[currAxis][0] = ["None"]
+        elif self.drives_list.currentItem().text() == "None":
+            self.staged_de[currAxis][0] = ["None"]
+        else:
+            self.staged_de[currAxis][0] = [self.drives_list.currentItem().text()]
+        if self.enocders_list.currentItem() == None:
+            self.staged_de[currAxis][1] = ["None"]
+        elif self.enocders_list.currentItem().text() == "None":
+            self.staged_de[currAxis][1] = ["None"]
+        else:
+            self.staged_de[currAxis][1] = [self.drives_list.currentItem().text()]
 
         # self.staged_mapping[currAxis].append('0'+str(currAxisDi))
         # self.staged_mapping[currAxis].append(currDiHardware)
@@ -419,22 +515,34 @@ class MyDisplay(Display):
 
     def clear_stage(self):
         print("in clear_stage")
+        # try:
+        # for sublist in self.staged_mapping:
+        #     # Loop through and remove the element if it exists in any of the inner lists
+        #     for inner_list in range(1,sublist):
+        #         # if element in inner_list:
+        #             inner_list.remove(1)
+        #             inner_list.remove(2)
+
         for sublist in self.staged_mapping:
+            for inner_list in sublist:
+                inner_list.clear()
+        for sublist in self.staged_de:
             for inner_list in sublist:
                 inner_list.clear()
         print(f"staged mapping: {self.staged_mapping}")
 
-    def detect_linked_hardware_di(self):
-        print("in detect_linked_hardware_di")
-        axis_di_idx = self.digital_input_axis.currentRow()
-        currAxisIdx = self.axis_list.currentRow()
-        currAxis = self.val_to_key(self.axis[currAxisIdx])
-        detectableDi = currAxis + ":SelG:DI:" + ("0" + str(int(axis_di_idx) + 1))
-        print(f"link to check: {detectableDi}")
-        DI_hardware = fake_caget(self.pvDict, detectableDi + ":ID_RBV")
-        print(f"DI_hardware: {DI_hardware}")
-        DI_hardware_Channel = fake_caget(self.pvDict, detectableDi + ":HardChNum_RBV")
-        print(f"DI_hardware_channel: {DI_hardware_Channel}")
+    # def detect_linked_hardware_di(self):
+    #     print("in detect_linked_hardware_di")
+    #     axis_di_idx = self.digital_input_axis.currentRow()
+    #     currAxisIdx = self.axis_list.currentRow()
+    #     currAxis = self.val_to_key(self.axis[currAxisIdx])
+    #     detectableDi = currAxis + ":SelG:DI:" + ("0" + str(int(axis_di_idx) + 1))
+    #     print(f"link to check: {detectableDi}")
+    #     DI_hardware = fake_caget(self.pvDict, detectableDi + ":ID_RBV")
+
+    #     print(f"DI_hardware: {DI_hardware}")
+    #     DI_hardware_Channel = fake_caget(self.pvDict, detectableDi + ":HardChNum_RBV")
+    #     print(f"DI_hardware_channel: {DI_hardware_Channel}")
 
     def detect_linked_drv(self):
         print("in detect_linked_drv")
@@ -511,8 +619,16 @@ class MyDisplay(Display):
             self.axis_list.setEnabled(True)
         # print(self.axis_selection)
         # self.staged_mapping= [[] for _ in range(self.axis_list.count())]
+
+        # self.staged_mapping = [
+        #     [[""] for _ in range(3)] for _ in range(self.axis_list.count())
+        # ]
+
         self.staged_mapping = [
-            [[""] for _ in range(3)] for _ in range(self.axis_list.count())
+            [["01"], ["02"], ["03"]] for _ in range(len(self.axis_list))
+        ]
+        self.staged_de = [
+            [["None"] for _ in range(2)] for _ in range(self.axis_list.count())
         ]
 
     def load_axis_di(self):
@@ -603,10 +719,15 @@ class MyDisplay(Display):
         axis_di_idx = self.digital_input_axis.currentRow()
         print(f"axis_di_idx: {axis_di_idx}")
         currAxisIdx = self.axis_list.currentRow()
+        print(f"currAxisIdx: {currAxisIdx}")
+        print(f"axis: {self.axis[currAxisIdx]}")
         currAxis = self.val_to_key(self.axis[currAxisIdx])
+        print(f"currAxis: {currAxis}")
         detectableDi = currAxis + ":SelG:DI:" + ("0" + str(int(axis_di_idx) + 1))
         print(f"link to check: {detectableDi}")
         DI_hardware = fake_caget(self.pvDict, detectableDi + ":ID_RBV")
+        if DI_hardware == "":
+            DI_hardware = None
         print(f"DI_hardware: {DI_hardware}")
         DI_hardware_Channel = fake_caget(self.pvDict, detectableDi + ":HardChNum_RBV")
         print(f"DI_hardware_channel: {DI_hardware_Channel}")
@@ -631,6 +752,9 @@ class MyDisplay(Display):
             if DI_hardware_Channel == self.digital_input_channels.item(i).text():
                 print(f"found channel: {self.digital_input_channels.item(i).text()}")
                 self.digital_input_channels.setCurrentRow(i)
+            elif DI_hardware_Channel == "0":
+                print("something went wrong, should not be possible")
+                self.digital_input_channels.selectionMode(QAbstractItemView.NoSelection)
 
         if axis_di_idx == 0:
             self.store_di_selection[0] = [
@@ -647,9 +771,6 @@ class MyDisplay(Display):
                 self.digital_input_hardware.currentRow(),
                 self.digital_input_channels.currentRow(),
             ]
-        print(f"stored_di_selection: {self.store_di_selection[0][0]}, {self.store_di_selection[0][1]}\n \
-        {self.store_di_selection[1][0]}, {self.store_di_selection[1][1]}\n \
-        {self.store_di_selection[2][0]}, {self.store_di_selection[2][1]}\n     ")
 
         # currDI = self.loaded_di_channels[currDiIdx]
         # print(f"currDI: {currDI}")
@@ -708,6 +829,7 @@ class MyDisplay(Display):
         # update enum with drives pulled from .db file
         print("in load drives")
         self.drives_list.clear()
+        self.drives_list.addItem("None")
         # self.drives = identify_drive(self.pvList, self.axis_list.currentItem().text())
 
         delimiter = ":WCIB_RBV"
@@ -729,6 +851,7 @@ class MyDisplay(Display):
         # update enum with drives pulled from .db file
         print("in load enc")
         self.enocders_list.clear()
+        self.enocders_list.addItem("None")
         # self.enocder_type = identify_enc(self.pvList, self.axis_list.currentItem().text())
         delimiter = ":WCIB_RBV"
         # print(f"encoder list size: {len(self.encoders)}")

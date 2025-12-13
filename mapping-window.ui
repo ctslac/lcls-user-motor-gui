@@ -34,7 +34,7 @@
          <item>
           <widget class="QLabel" name="label">
            <property name="text">
-            <string>Staged Mappings</string>
+            <string>Staged Mappings:  [Foward] [Home] [Backwards]</string>
            </property>
            <property name="alignment">
             <set>Qt::AlignCenter</set>
