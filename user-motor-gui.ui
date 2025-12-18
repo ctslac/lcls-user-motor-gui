@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>985</width>
-    <height>585</height>
+    <width>1308</width>
+    <height>849</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -24,11 +24,11 @@
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>965</width>
-        <height>565</height>
+        <width>1288</width>
+        <height>829</height>
        </rect>
       </property>
-      <layout class="QHBoxLayout" name="horizontalLayout_11">
+      <layout class="QVBoxLayout" name="verticalLayout_33">
        <item>
         <widget class="QTabWidget" name="tabWidget">
          <property name="currentIndex">
@@ -62,6 +62,13 @@
                   <widget class="PyDMLabel" name="ioc_label">
                    <property name="toolTip">
                     <string/>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QLabel" name="status_indicators">
+                   <property name="text">
+                    <string>TextLabel</string>
                    </property>
                   </widget>
                  </item>
@@ -117,50 +124,6 @@
                  <property name="spacing">
                   <number>0</number>
                  </property>
-                 <item row="1" column="0">
-                  <widget class="QTabWidget" name="tabWidget_2">
-                   <property name="currentIndex">
-                    <number>0</number>
-                   </property>
-                   <widget class="QWidget" name="digital_input_tab">
-                    <attribute name="title">
-                     <string>Digital Inputs</string>
-                    </attribute>
-                    <layout class="QHBoxLayout" name="horizontalLayout_16">
-                     <item>
-                      <widget class="QSplitter" name="splitter_5">
-                       <property name="orientation">
-                        <enum>Qt::Horizontal</enum>
-                       </property>
-                       <widget class="QListWidget" name="digital_input_axis"/>
-                       <widget class="QListWidget" name="digital_input_hardware"/>
-                       <widget class="QListWidget" name="digital_input_channel"/>
-                      </widget>
-                     </item>
-                    </layout>
-                   </widget>
-                   <widget class="QWidget" name="drives_tab">
-                    <attribute name="title">
-                     <string>Drives</string>
-                    </attribute>
-                    <layout class="QHBoxLayout" name="horizontalLayout_10">
-                     <item>
-                      <widget class="QListWidget" name="drives_list_view"/>
-                     </item>
-                    </layout>
-                   </widget>
-                   <widget class="QWidget" name="encoder_tab">
-                    <attribute name="title">
-                     <string>Encoders</string>
-                    </attribute>
-                    <layout class="QVBoxLayout" name="verticalLayout_6">
-                     <item>
-                      <widget class="QListWidget" name="encoders_list_view"/>
-                     </item>
-                    </layout>
-                   </widget>
-                  </widget>
-                 </item>
                  <item row="2" column="0">
                   <layout class="QHBoxLayout" name="horizontalLayout_6">
                    <property name="bottomMargin">
@@ -198,6 +161,89 @@
                     </widget>
                    </item>
                   </layout>
+                 </item>
+                 <item row="1" column="0">
+                  <widget class="QTabWidget" name="tabWidget_2">
+                   <property name="currentIndex">
+                    <number>0</number>
+                   </property>
+                   <widget class="QWidget" name="digital_input_tab">
+                    <attribute name="title">
+                     <string>Digital Inputs</string>
+                    </attribute>
+                    <layout class="QVBoxLayout" name="verticalLayout_32">
+                     <item>
+                      <layout class="QHBoxLayout" name="horizontalLayout_5">
+                       <property name="rightMargin">
+                        <number>0</number>
+                       </property>
+                       <item>
+                        <layout class="QVBoxLayout" name="verticalLayout_9">
+                         <item>
+                          <widget class="QLabel" name="label">
+                           <property name="text">
+                            <string>Digital Inputs</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item>
+                          <widget class="QListWidget" name="digital_input_axis"/>
+                         </item>
+                        </layout>
+                       </item>
+                       <item>
+                        <layout class="QVBoxLayout" name="verticalLayout_14">
+                         <item>
+                          <widget class="QLabel" name="label_11">
+                           <property name="text">
+                            <string>Digital Input Hardware</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item>
+                          <widget class="QListWidget" name="digital_input_hardware"/>
+                         </item>
+                        </layout>
+                       </item>
+                       <item>
+                        <layout class="QVBoxLayout" name="verticalLayout_24">
+                         <item>
+                          <widget class="QLabel" name="label_12">
+                           <property name="text">
+                            <string>Digital Input Channel</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item>
+                          <widget class="QListWidget" name="digital_input_channel"/>
+                         </item>
+                        </layout>
+                       </item>
+                      </layout>
+                     </item>
+                    </layout>
+                   </widget>
+                   <widget class="QWidget" name="drives_tab">
+                    <attribute name="title">
+                     <string>Drives</string>
+                    </attribute>
+                    <layout class="QHBoxLayout" name="horizontalLayout_10">
+                     <item>
+                      <widget class="QListWidget" name="drives_list_view"/>
+                     </item>
+                    </layout>
+                   </widget>
+                   <widget class="QWidget" name="encoder_tab">
+                    <attribute name="title">
+                     <string>Encoders</string>
+                    </attribute>
+                    <layout class="QVBoxLayout" name="verticalLayout_6">
+                     <item>
+                      <widget class="QListWidget" name="encoders_list_view"/>
+                     </item>
+                    </layout>
+                   </widget>
+                  </widget>
                  </item>
                 </layout>
                </widget>
@@ -412,7 +458,7 @@
            </item>
           </layout>
          </widget>
-         <widget class="QWidget" name="tab_3">
+         <widget class="QWidget" name="expert_screen">
           <attribute name="title">
            <string>Expert</string>
           </attribute>
@@ -488,7 +534,7 @@
                  <item row="0" column="0">
                   <widget class="QTabWidget" name="tabWidget_3">
                    <property name="currentIndex">
-                    <number>0</number>
+                    <number>2</number>
                    </property>
                    <widget class="QWidget" name="tab_10">
                     <attribute name="title">
@@ -551,7 +597,7 @@
            </item>
           </layout>
          </widget>
-         <widget class="QWidget" name="tab_4">
+         <widget class="QWidget" name="diagnostic_screen">
           <attribute name="title">
            <string>Diagnostic</string>
           </attribute>
@@ -685,7 +731,86 @@
            </item>
           </layout>
          </widget>
+         <widget class="QWidget" name="settings">
+          <attribute name="title">
+           <string>Settings</string>
+          </attribute>
+          <layout class="QVBoxLayout" name="verticalLayout_34">
+           <item>
+            <layout class="QVBoxLayout" name="verticalLayout_31">
+             <item>
+              <widget class="QGroupBox" name="digital_input_linking_settings">
+               <property name="title">
+                <string>Digital Input Linking Settings</string>
+               </property>
+               <layout class="QGridLayout" name="gridLayout">
+                <item row="0" column="0">
+                 <widget class="QCheckBox" name="settings_duplicate_di_warning">
+                  <property name="text">
+                   <string>show duplicate connections</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item>
+              <widget class="QGroupBox" name="drive_linking_settings">
+               <property name="title">
+                <string>Drive Linking Settings</string>
+               </property>
+               <layout class="QGridLayout" name="gridLayout_2">
+                <item row="0" column="0">
+                 <widget class="QCheckBox" name="settings_duplicate_drv_warning">
+                  <property name="text">
+                   <string>show duplicate connections</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item>
+              <widget class="QGroupBox" name="encoder_linking_settings">
+               <property name="title">
+                <string>Encoder Linking Settings</string>
+               </property>
+               <layout class="QGridLayout" name="gridLayout_11">
+                <item row="0" column="0">
+                 <widget class="QCheckBox" name="settings_duplicate_enc_warning">
+                  <property name="text">
+                   <string>show duplicate connections</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
         </widget>
+       </item>
+       <item>
+        <layout class="QVBoxLayout" name="verticalLayout_35">
+         <item>
+          <widget class="QPlainTextEdit" name="plainTextEdit">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="baseSize">
+            <size>
+             <width>0</width>
+             <height>0</height>
+            </size>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </item>
       </layout>
      </widget>

@@ -2,8 +2,8 @@
 cache/*
 
 # Local Files
-.test_output.txt
-
+./test_output*
+./test_epics_many/*
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.pyc

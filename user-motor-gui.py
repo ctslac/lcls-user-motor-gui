@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 import sys
 import time
@@ -22,6 +23,7 @@ from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
     QAbstractItemView,
     QApplication,
+    QCheckBox,
     QComboBox,
     QDialog,
     QFrame,
@@ -30,6 +32,7 @@ from qtpy.QtWidgets import (
     QLabel,
     QLineEdit,
     QListWidget,
+    QMessageBox,
     QPushButton,
     QScrollArea,
     QVBoxLayout,
@@ -50,6 +53,8 @@ from parse_pvs import (
     strip_key,
     what_can_i_be,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class MappingWindow(QDialog):
@@ -123,6 +128,9 @@ class MyDisplay(Display):
             self.di_size = 0
             self.staged_mapping = []
             self.staged_de = []
+            self.duplicate_di_cb_flag = False
+            self.duplicate_drv_cb_flag = False
+            self.duplicate_enc_cb_flag = False
 
         # finding children
         # Linker Tab
@@ -177,7 +185,7 @@ class MyDisplay(Display):
             self.expert_axis.currentRowChanged.connect(slot)
 
         # digitial input handling signals
-        self.axis_list.currentRowChanged.connect(self.select_axis)
+        self.axis_list.currentRowChanged.connect(self.isStatedMappingSet)
         self.digital_input_hardware.currentRowChanged.connect(self.load_di_channel)
         self.digital_input_axis.currentRowChanged.connect(self.select_di_channel)
 
@@ -186,8 +194,25 @@ class MyDisplay(Display):
         self.see_mapping.clicked.connect(self.see_stage)
         self.clear_mapping.clicked.connect(self.clear_stage)
 
+        # Misc Buttons
         self.stage_settings.clicked.connect(self.open_stage_settings)
         self.confirm_mapping.clicked.connect(self.update_links)
+
+        self.duplicate_di_cb = self.ui.findChild(
+            QCheckBox, "settings_duplicate_di_warning"
+        )
+        self.duplicate_di_cb.stateChanged.connect(self.check_duplicate_di_flag)
+
+        self.duplicate_drv_cb = self.ui.findChild(
+            QCheckBox, "settings_duplicate_drv_warning"
+        )
+        self.duplicate_drv_cb.stateChanged.connect(self.check_duplicate_drv_flag)
+
+        self.duplicate_enc_cb = self.ui.findChild(
+            QCheckBox, "settings_duplicate_enc_warning"
+        )
+        self.duplicate_enc_cb.stateChanged.connect(self.check_duplicate_enc_flag)
+        self.status_indicators = self.ui.findChild(QLabel, "status_indicators")
 
     def update_links(self):
         print("in update links")
@@ -201,6 +226,232 @@ class MyDisplay(Display):
         # self.load_drives_ui()
         # self.load_encoders_ui()
         # self.publish_axis_expert()
+
+    def check_duplicate_di_flag(self):
+        print("in check dup di")
+
+        self.duplicate_di_cb_flag = self.duplicate_di_cb.isChecked()
+
+        print(f"isDuplicateDIWarning: {self.duplicate_di_cb_flag}")
+
+    def check_duplicate_drv_flag(self):
+        print("in check dup drv")
+
+        self.duplicate_drv_cb_flag = self.duplicate_drv_cb.isChecked()
+
+        print(f"isDuplicateDIWarning: {self.duplicate_drv_cb_flag}")
+
+    def check_duplicate_enc_flag(self):
+        print("in check dup enc")
+
+        self.duplicate_enc_cb_flag = self.duplicate_enc_cb.isChecked()
+
+        print(f"isDuplicateDIWarning: {self.duplicate_enc_cb_flag}")
+
+    def isStatedMappingSet(self):
+        print("inStateMapptingSet")
+        # if there is nothing staged
+        # Check if there are any staged mappings
+        temp_flag = False
+        temp = self.axis_list.currentRow()
+        if not self.status_staged_mappings():
+            print("There is nothing staged")
+            self.select_axis()
+        else:
+            print("There are some staged values")
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Warning)
+            msg.setText("You have unsaved staged changes!")
+            msg.setWindowTitle("Warning")
+            msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)  # Adjusted buttons
+
+            result = msg.exec_()
+
+            print(f"current axis: {temp}")
+            print(f"Message box result: {result}")
+            if result == QMessageBox.Yes:
+                self.select_axis()
+            else:
+                QMessageBox.information(self, "Continue", "You can continue")
+                temp_flag = True
+        if temp_flag:
+            print(f"resetting row to: {temp}")
+            self.axis_list.setCurrentRow(temp)
+
+    def status_staged_mappings(self):
+        print("in status_staged_mapping: checking if there is a staged mapping")
+        containsDI = False
+        containsDE = False
+        for axis in self.staged_mapping:
+            if isinstance(axis, list):  # Ensure we're working with a list
+                for sublist in axis:
+                    print(f"size of staged mapping: {len(sublist)}")
+                    if isinstance(sublist, list) and len(sublist) > 1:
+                        print(f"there are stagged di changes")
+                        containsDI = True  # Found a non-empty sublist
+        for axis in self.staged_de:
+            if isinstance(axis, list):  # Ensure we're working with a list
+                # [print(f"items: {item}" for item in axis)]
+                if any([item != ["None"] for item in axis]):
+                    containsDE = True
+        if containsDE or containsDI:
+            return True
+        else:
+            return False
+
+    def check_duplicate_di(self):
+        print("in check for duplicate di")
+        # To hold values for duplicate checking
+        second_index_values = set()
+        third_index_values = set()
+
+        # Track duplicates
+        duplicates_second = set()
+        duplicates_third = set()
+
+        # Loop through each sublist in the main list
+        for sublist in self.staged_mapping:
+            for item in sublist:
+                if len(item) > 1:  # Check if the sublist has at least 2 elements
+                    # Check the 2nd index value
+                    second_index_value = item[1]
+                    if second_index_value in second_index_values:
+                        duplicates_second.add(second_index_value)
+                    else:
+                        second_index_values.add(second_index_value)
+
+                if len(item) > 2:  # Check if the sublist has at least 3 elements
+                    # Check the 3rd index value
+                    third_index_value = item[2]
+                    if third_index_value in third_index_values:
+                        duplicates_third.add(third_index_value)
+                    else:
+                        third_index_values.add(third_index_value)
+        if self.duplicate_di_cb_flag and (duplicates_second or duplicates_third):
+            # Prepare the message content
+            second_duplicates = (
+                ", ".join(duplicates_second) if duplicates_second else "None"
+            )
+            third_duplicates = (
+                ", ".join(duplicates_third) if duplicates_third else "None"
+            )
+
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Warning)
+            msg.setText("Duplicate DI")
+            msg.setInformativeText(
+                f"Duplicate DIs found:\n2nd Index: {second_duplicates}\n3rd Index: {third_duplicates}"
+            )
+            msg.setWindowTitle("Warning")
+            msg.setStandardButtons(QMessageBox.Ok)
+
+            msg.exec_()
+
+        # Print the results
+        print("Duplicates in the 2nd index:", duplicates_second)
+        print("Duplicates in the 3rd index:", duplicates_third)
+
+    def check_duplicate_drv(self):
+        """
+        Check for duplicate first index values in staged_de based on the first element of each inner-most list.
+        Ignore duplicates for the value 'None'.
+
+        Returns:
+            set: A set of duplicate first index values except 'None'.
+        """
+        print("in check for duplicate drv")
+
+        # To hold unique values for duplicate checking
+        seen_values = []
+
+        # Track duplicates
+        duplicates = []
+        # Loop through each main list in data
+        for axis in self.staged_de:
+            # Loop through each sublist in the main list
+            # for sublist in axis:
+            # Ensure the sublist is a list and has at least 1 element
+            if isinstance(axis, list) and len(axis) > 0:
+                # Get the first element value
+                first_element_value = axis[0]
+
+                # Ignore None values or empty strings while checking for duplicates
+                if (
+                    first_element_value is None
+                    or first_element_value == "None"
+                    or first_element_value == ["None"]
+                    or first_element_value == ""
+                ):
+                    continue
+
+                # Check for duplicates
+                if first_element_value in seen_values:
+                    duplicates.append(first_element_value)
+                else:
+                    seen_values.append(first_element_value)
+
+        if self.duplicate_di_cb_flag and len(duplicates) > 0:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Warning)
+            msg.setText("Duplicate DRV")
+            msg.setInformativeText(f"Duplicate DRVs found: {duplicates}")
+            msg.setWindowTitle("Warning")
+            msg.setStandardButtons(QMessageBox.Ok)
+            msg.exec_()
+
+        # Print the results
+        print("Duplicates:", duplicates)
+
+    def check_duplicate_enc(self):
+        """
+        Check for duplicate second index values in staged_de based on the second element of each inner-most list.
+        Ignore duplicates for the value 'None'.
+
+        Returns:
+            set: A set of duplicate first index values except 'None'.
+        """
+        print("in check for duplicate enc")
+
+        # To hold unique values for duplicate checking
+        seen_values = []
+
+        # Track duplicates
+        duplicates = []
+        # Loop through each main list in data
+        for axis in self.staged_de:
+            # Loop through each sublist in the main list
+            # for sublist in axis:
+            # Ensure the sublist is a list and has at least 1 element
+            if isinstance(axis, list) and len(axis) > 0:
+                # Get the first element value
+                first_element_value = axis[1]
+
+                # Ignore None values or empty strings while checking for duplicates
+                if (
+                    first_element_value is None
+                    or first_element_value == "None"
+                    or first_element_value == ["None"]
+                    or first_element_value == ""
+                ):
+                    continue
+
+                # Check for duplicates
+                if first_element_value in seen_values:
+                    duplicates.append(first_element_value)
+                else:
+                    seen_values.append(first_element_value)
+
+        if self.duplicate_di_cb_flag and len(duplicates) > 0:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Warning)
+            msg.setText("Duplicate ENC")
+            msg.setInformativeText(f"Duplicate ENCs found: {duplicates}")
+            msg.setWindowTitle("Warning")
+            msg.setStandardButtons(QMessageBox.Ok)
+            msg.exec_()
+
+        # Print the results
+        print("Duplicates:", duplicates)
 
     def see_stage(self):
         print("in see_stage")
@@ -235,6 +486,8 @@ class MyDisplay(Display):
 
             else:
                 print(f"Stage {stage} was empty")  # Handling completely empty stages
+        # #need to setup a way to push info back to the gui is this is wanted
+        # mapping_window.show()
         mapping_window.exec_()
 
     def open_stage_settings(self):
@@ -466,6 +719,18 @@ class MyDisplay(Display):
             currDiHardwareChan = ""
         print(f"currDiHardwareChan: {currDiHardwareChan}")
 
+        if (currDiHardware != None and currDiHardware != "None") and (
+            self.digital_input_channels.currentItem() == None
+        ):
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Warning)
+            msg.setText("Please Select DI Hardware Channel")
+            msg.setInformativeText(f"No DI Hardware Channel Found!")
+            msg.setWindowTitle("Warning")
+            msg.setStandardButtons(QMessageBox.Ok)
+
+            msg.exec_()
+
         if len(self.staged_mapping[currAxis]) and currAxisDi == 1:
             self.staged_mapping[currAxis][0].clear()
         elif len(self.staged_mapping[currAxis]) and currAxisDi == 2:
@@ -504,14 +769,18 @@ class MyDisplay(Display):
         elif self.enocders_list.currentItem().text() == "None":
             self.staged_de[currAxis][1] = ["None"]
         else:
-            self.staged_de[currAxis][1] = [self.drives_list.currentItem().text()]
+            self.staged_de[currAxis][1] = [self.enocders_list.currentItem().text()]
 
+        self.check_duplicate_di()
+        self.check_duplicate_drv()
+        self.check_duplicate_enc()
         # self.staged_mapping[currAxis].append('0'+str(currAxisDi))
         # self.staged_mapping[currAxis].append(currDiHardware)
         # self.staged_mapping[currAxis].append(currDiHardwareChan)
 
         # show mapping
         print(f"staged mapping: {self.staged_mapping}")
+        print(f"staged de: {self.staged_de}")
 
     def clear_stage(self):
         print("in clear_stage")
@@ -530,6 +799,7 @@ class MyDisplay(Display):
             for inner_list in sublist:
                 inner_list.clear()
         print(f"staged mapping: {self.staged_mapping}")
+        print(f"staged de: {self.staged_de}")
 
     # def detect_linked_hardware_di(self):
     #     print("in detect_linked_hardware_di")
@@ -556,6 +826,9 @@ class MyDisplay(Display):
             if drvValue == self.drives_list.item(i).text():
                 print(f"found drv: {self.drives_list.item(i).text()}")
                 self.drives_list.setCurrentRow(i)
+            else:
+                print("No link found, defaulting to None")
+                self.drives_list.setCurrentRow(0)
 
     def detect_linked_enc(self):
         print("in detect_linked_enc")
@@ -563,12 +836,15 @@ class MyDisplay(Display):
         currAxis = self.val_to_key(self.axis[currAxisIdx])
         detectableENC = currAxis + ":SelG:ENC:Id_RBV"
         encValue = fake_caget(self.pvDict, detectableENC)
-        print(f"emcValue: {encValue}")
+        print(f"encValue: {encValue}")
 
         for i in range(0, self.enocders_list.count()):
             if encValue == self.enocders_list.item(i).text():
                 print(f"found drv: {self.enocders_list.item(i).text()}")
                 self.enocders_list.setCurrentRow(i)
+            else:
+                print("No link found, defaulting to None")
+                self.enocders_list.setCurrentRow(0)
 
     def select_axis(self):
         print("in select_axis")
@@ -715,7 +991,7 @@ class MyDisplay(Display):
 
     def select_di_channel(self):
         print(f"in select_di_channel:")
-
+        # self.check_duplicate_di
         axis_di_idx = self.digital_input_axis.currentRow()
         print(f"axis_di_idx: {axis_di_idx}")
         currAxisIdx = self.axis_list.currentRow()
