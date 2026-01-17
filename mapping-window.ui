@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>477</width>
-    <height>368</height>
+    <width>734</width>
+    <height>601</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -24,8 +24,8 @@
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>457</width>
-        <height>348</height>
+        <width>714</width>
+        <height>581</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_4">
@@ -34,7 +34,7 @@
          <item>
           <widget class="QLabel" name="label">
            <property name="text">
-            <string>Staged Mappings:  [Foward] [Home] [Backwards]</string>
+            <string>Staged Mappings: DI [Foward] [Home] [Backwards], DRV [Link], ENC [Link]</string>
            </property>
            <property name="alignment">
             <set>Qt::AlignCenter</set>
