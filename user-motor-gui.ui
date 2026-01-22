@@ -13,7 +13,7 @@
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout_4">
+  <layout class="QHBoxLayout" name="horizontalLayout">
    <item>
     <widget class="QScrollArea" name="scrollArea">
      <property name="widgetResizable">
@@ -45,169 +45,179 @@
           <attribute name="title">
            <string>User Input</string>
           </attribute>
-          <layout class="QVBoxLayout" name="verticalLayout_8">
+          <layout class="QVBoxLayout" name="verticalLayout_4">
            <item>
-            <layout class="QVBoxLayout" name="verticalLayout_5">
+            <layout class="QVBoxLayout" name="verticalLayout_10">
              <item>
-              <layout class="QVBoxLayout" name="verticalLayout_10">
+              <layout class="QHBoxLayout" name="horizontalLayout_3">
                <item>
-                <layout class="QHBoxLayout" name="horizontalLayout_3">
-                 <item>
-                  <widget class="QLabel" name="label_3">
-                   <property name="sizePolicy">
-                    <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-                     <horstretch>0</horstretch>
-                     <verstretch>0</verstretch>
-                    </sizepolicy>
-                   </property>
-                   <property name="text">
-                    <string>PLC IOC</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QLabel" name="label_7">
-                   <property name="sizePolicy">
-                    <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-                     <horstretch>0</horstretch>
-                     <verstretch>0</verstretch>
-                    </sizepolicy>
-                   </property>
-                   <property name="text">
-                    <string>some-plc-name</string>
-                   </property>
-                  </widget>
-                 </item>
-                </layout>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <widget class="QSplitter" name="splitter_2">
-               <property name="orientation">
-                <enum>Qt::Horizontal</enum>
-               </property>
-               <widget class="QWidget" name="layoutWidget">
-                <layout class="QVBoxLayout" name="verticalLayout_15">
-                 <item>
-                  <widget class="QLabel" name="label_6">
-                   <property name="text">
-                    <string>Axis</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QListWidget" name="display_axis_ui"/>
-                 </item>
-                </layout>
-               </widget>
-               <widget class="QWidget" name="layoutWidget">
-                <layout class="QVBoxLayout" name="verticalLayout_17">
-                 <item>
-                  <widget class="QLabel" name="label_9">
-                   <property name="text">
-                    <string>Drive</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QListWidget" name="display_drives_ui"/>
-                 </item>
-                </layout>
-               </widget>
-               <widget class="QWidget" name="layoutWidget">
-                <layout class="QVBoxLayout" name="verticalLayout_16">
-                 <item>
-                  <widget class="QLabel" name="label_8">
-                   <property name="text">
-                    <string>Encoder</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QListWidget" name="display_encoders_ui"/>
-                 </item>
-                </layout>
-               </widget>
-               <widget class="QWidget" name="layoutWidget_2">
-                <layout class="QVBoxLayout" name="verticalLayout_26">
-                 <item>
-                  <widget class="QLabel" name="DI">
-                   <property name="text">
-                    <string>DI</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QListWidget" name="display_di_ui"/>
-                 </item>
-                </layout>
-               </widget>
-               <widget class="QWidget" name="layoutWidget_3">
-                <layout class="QVBoxLayout" name="verticalLayout_30">
-                 <item>
-                  <widget class="QLabel" name="label_10">
-                   <property name="text">
-                    <string>DI Channel</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QListWidget" name="display_di_c_ui"/>
-                 </item>
-                </layout>
-               </widget>
-               <widget class="QWidget" name="layoutWidget">
-                <layout class="QVBoxLayout" name="verticalLayout_18">
-                 <item>
-                  <widget class="QLineEdit" name="stage_search"/>
-                 </item>
-                 <item>
-                  <widget class="QListWidget" name="stage_list"/>
-                 </item>
-                 <item>
-                  <layout class="QVBoxLayout" name="verticalLayout_11"/>
-                 </item>
-                 <item>
-                  <widget class="QPushButton" name="stage_settings">
-                   <property name="text">
-                    <string>Stage Settings</string>
-                   </property>
-                  </widget>
-                 </item>
-                </layout>
-               </widget>
-              </widget>
-             </item>
-             <item>
-              <layout class="QHBoxLayout" name="horizontalLayout_13">
-               <item>
-                <widget class="PyDMPushButton" name="PyDMPushButton_2">
-                 <property name="toolTip">
-                  <string/>
-                 </property>
-                 <property name="text">
-                  <string>Confirm Settings</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="PyDMPushButton" name="PyDMPushButton">
+                <widget class="QLabel" name="label_3">
                  <property name="sizePolicy">
                   <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
                    <horstretch>0</horstretch>
                    <verstretch>0</verstretch>
                   </sizepolicy>
                  </property>
-                 <property name="toolTip">
-                  <string/>
+                 <property name="text">
+                  <string>PLC IOC</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QLabel" name="label_7">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
                  </property>
                  <property name="text">
-                  <string>Export Settings</string>
+                  <string>some-plc-name</string>
                  </property>
                 </widget>
                </item>
               </layout>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="QSplitter" name="splitter_2">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <widget class="QWidget" name="layoutWidget">
+              <layout class="QVBoxLayout" name="verticalLayout_15">
+               <item>
+                <widget class="QLabel" name="label_6">
+                 <property name="text">
+                  <string>Axis</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QListWidget" name="display_axis_ui"/>
+               </item>
+              </layout>
+             </widget>
+             <widget class="QWidget" name="layoutWidget">
+              <layout class="QVBoxLayout" name="verticalLayout_17">
+               <item>
+                <widget class="QLabel" name="label_9">
+                 <property name="text">
+                  <string>Drive</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QListWidget" name="display_drives_ui"/>
+               </item>
+              </layout>
+             </widget>
+             <widget class="QWidget" name="layoutWidget">
+              <layout class="QVBoxLayout" name="verticalLayout_16">
+               <item>
+                <widget class="QLabel" name="label_8">
+                 <property name="text">
+                  <string>Encoder</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QListWidget" name="display_encoders_ui"/>
+               </item>
+              </layout>
+             </widget>
+             <widget class="QWidget" name="layoutWidget_4">
+              <layout class="QVBoxLayout" name="verticalLayout_39">
+               <item>
+                <widget class="QLabel" name="display_di_sel_label">
+                 <property name="text">
+                  <string>DI Selector</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QListWidget" name="ui_digital_input_axis"/>
+               </item>
+              </layout>
+             </widget>
+             <widget class="QWidget" name="layoutWidget_2">
+              <layout class="QVBoxLayout" name="verticalLayout_26">
+               <item>
+                <widget class="QLabel" name="DI">
+                 <property name="text">
+                  <string>DI Hardware</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QListWidget" name="ui_digital_input_hardware"/>
+               </item>
+              </layout>
+             </widget>
+             <widget class="QWidget" name="layoutWidget_3">
+              <layout class="QVBoxLayout" name="verticalLayout_30">
+               <item>
+                <widget class="QLabel" name="label_10">
+                 <property name="text">
+                  <string>DI Channel</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QListWidget" name="ui_digital_input_channels"/>
+               </item>
+              </layout>
+             </widget>
+             <widget class="QWidget" name="layoutWidget">
+              <layout class="QVBoxLayout" name="verticalLayout_18">
+               <item>
+                <widget class="QLineEdit" name="stage_search"/>
+               </item>
+               <item>
+                <widget class="QListWidget" name="stage_list"/>
+               </item>
+               <item>
+                <layout class="QVBoxLayout" name="verticalLayout_11"/>
+               </item>
+               <item>
+                <widget class="QPushButton" name="stage_settings">
+                 <property name="text">
+                  <string>Stage Settings</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+            </widget>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_13">
+             <item>
+              <widget class="PyDMPushButton" name="PyDMPushButton_2">
+               <property name="toolTip">
+                <string/>
+               </property>
+               <property name="text">
+                <string>Confirm Settings</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="PyDMPushButton" name="PyDMPushButton">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="toolTip">
+                <string/>
+               </property>
+               <property name="text">
+                <string>Export Settings</string>
+               </property>
+              </widget>
              </item>
             </layout>
            </item>
