@@ -16,7 +16,7 @@ fi
 
 echo "Creating venv using your active site-packages"
 source /cds/group/pcds/engineering_tools/latest-released/scripts/pcds_conda
-echo "source"
+echo "pcds conda sourced"
 python3 -m venv --system-site-packages .venv
 echo "Activating venv"
 # shellcheck disable=SC1091
