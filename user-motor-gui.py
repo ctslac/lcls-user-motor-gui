@@ -10,7 +10,7 @@ import epics
 import numpy as np
 
 # import epics
-from epics import PV
+from epics import PV, caget, caput
 
 # from epics import PV, fake_caget, cainfo, caput
 from pydm import Display
@@ -54,6 +54,10 @@ from parse_pvs import (
     what_can_i_be,
 )
 
+logging.basicConfig(
+    level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -95,7 +99,7 @@ class MyDisplay(Display):
     ui: QWidget
 
     def __init__(self, parent=None, args=None, macros=None):
-        print("In init")
+        logger.info("In init")
         super().__init__(parent=parent, args=args, macros=macros)
 
         # initialize vars
@@ -193,6 +197,11 @@ class MyDisplay(Display):
         self.see_mapping = self.ui.findChild(QPushButton, "see_staged_mapping")
         self.clear_mapping = self.ui.findChild(QPushButton, "clear_mapping")
 
+        # Logger
+        self.status_logger = self.ui.findChild(QListWidget, "status_logger")
+
+        self.setup_logging()
+
         """
         Signals
         """
@@ -238,69 +247,197 @@ class MyDisplay(Display):
         self.duplicate_enc_cb.stateChanged.connect(self.check_duplicate_enc_flag)
         self.status_indicators = self.ui.findChild(QLabel, "status_indicators")
 
+    def setup_logging(self):
+        self.logger = logging.getLogger()
+
     def update_links(self):
-        print("\n in update links")
+        logger.info(f"in update links")
+        di_hardware_pv = ""
+        di_channel_pv = ""
+        drv_pv = ""
+        enc_pv = ""
+        # caput staged changes to axis
+        for axis in self.staged_mapping:
+            for di in axis:
+                print(f"di: {di}")
+                if len(di) > 1:
+                    print(f"Found changes in di: {di}")
 
-        # caput all changes to axis
-        # for i in self.staged_mapping:
+                    try:
+                        # Construct the Process Variable (PV) strings
+                        # TST:UM:03:SelG:DI:01:ID
+                        di_hardware_pv = (
+                            self.prefixName
+                            + "0"
+                            + str(self.axis_list.currentRow() + 1)
+                            + ":SelG:DI:"
+                            + di[0]
+                            + ":ID"
+                        )
+                        di_channel_pv = (
+                            self.prefixName
+                            + "0"
+                            + str(self.axis_list.currentRow() + 1)
+                            + ":SelG:DI:"
+                            + di[0]
+                            + ":HardChNum"
+                        )
 
-        # self.publish_axis_ui()
-        # self.load_di_ui()
-        # self.load_di_c_ui()
-        # self.load_drives_ui()
-        # self.load_encoders_ui()
-        # self.publish_axis_expert()
+                        # Set di_hardware to the second element of di
+                        if len(di) > 1:
+                            di_hardware = di[1]  # This is expected to be 'EL7047_2'
+                        else:
+                            raise ValueError(
+                                "di does not have enough elements to retrieve di_hardware."
+                            )
+
+                        # Set di_channel to the element after di_hardware ('EL7047_2')
+                        if len(di) > 2:
+                            # Find the index of 'EL7047_2' and get the next element
+                            if di_hardware in di:
+                                index = di.index(di_hardware)
+                                if index + 1 < len(di):
+                                    di_channel = di[index + 1]  # Get the next element
+                                else:
+                                    raise ValueError(
+                                        f"No element found after {di_hardware} in {di}."
+                                    )
+                            else:
+                                raise ValueError(f"{di_hardware} not found in di.")
+                        else:
+                            raise ValueError(
+                                "di does not have enough elements to retrieve di_channel."
+                            )
+
+                        print(
+                            f"di_hardware_pv: {di_hardware_pv}, di hardware: {di_hardware}"
+                        )
+                        print(
+                            f"di_channel_pv: {di_channel_pv}, di channel: {di_channel}"
+                        )
+
+                        # Example operation that may raise an exception
+                        try:
+                            print("trying to caput di hardware")
+                            status_di_hardware = epics.caput(
+                                di_hardware_pv, di_hardware
+                            )
+                            if status_di_hardware == 0:
+                                print("di hardware caput succeded")
+                            elif status_di_hardware < 0:
+                                raise ValueError(
+                                    f"DI Hardware caput failed: {status_di_hardware}"
+                                )
+                        except ValueError as e:
+                            print(f"Value error for di: {di}")
+
+                        try:
+                            print("trying to caput di channel")
+                            status_di_channel = epics.caput(di_channel_pv, di_channel)
+                            if status_di_channel == 0:
+                                print("di channel caput succeded")
+                            elif status_di_channel < 0:
+                                raise ValueError(
+                                    f"DI Hardware caput failed: {status_di_channel}"
+                                )
+                        except ValueError as e:
+                            print(f"Value error for di: {di}")
+
+                    except IndexError as e:
+                        print(
+                            f"IndexError for di {di}: {e}. Ensure di has enough elements."
+                        )
+                    except ValueError as e:
+                        print(f"ValueError for di {di}: {e}")
+                    except Exception as e:
+                        print(f"An unexpected error occurred for di {di}: {e}")
+                else:
+                    print(f"no changes in di: {di}")
+        # for sublist in self.staged_de:
+        for item in self.staged_de:
+            print(f"item: {item}")
+            if len(item) > 1:
+                # TST:UM:03:SelG:ENC:Id
+                drv_pv = (
+                    self.prefixName
+                    + "0"
+                    + str(self.axis_list.currentRow() + 1)
+                    + ":SelG:DRV:Id"
+                )
+                enc_pv = (
+                    self.prefixName
+                    + "0"
+                    + str(self.axis_list.currentRow() + 1)
+                    + ":SelG:ENC:Id"
+                )
+                print(f"drv_pv: {drv_pv}, drv: {item[0][0]}, enc: {item[1][0]}")
+                try:
+                    status_drv = epics.caput(drv_pv, item[0][0])
+                    if status_drv == 1:
+                        print("drv caput succeded")
+                    elif status_drv < 0:
+                        raise ValueError(f"Drv caput failed: {status_drv}")
+                except ValueError as e:
+                    print(f"Value error for drv: {item[0][0]}")
+                try:
+                    status_enc = epics.caput(enc_pv, item[1][0])
+                    if status_enc == 1:
+                        print("enc caput succeded")
+                    elif status_enc < 0:
+                        raise ValueError(f"Enc caput failed: {status_enc}")
+                except ValueError as e:
+                    print(f"Value error for enc: {item[1][0]}")
 
     def check_duplicate_di_flag(self):
-        print("\n in check dup di")
+        logger.info(f"in check dup di")
 
         self.duplicate_di_cb_flag = self.duplicate_di_cb.isChecked()
 
-        print(f"isDuplicateDIWarning: {self.duplicate_di_cb_flag}")
+        logger.debug(f"isDuplicateDIWarning: {self.duplicate_di_cb_flag}")
 
     def check_duplicate_drv_flag(self):
-        print("\n in check dup drv")
+        logger.info(f"in check dup drv")
 
         self.duplicate_drv_cb_flag = self.duplicate_drv_cb.isChecked()
 
-        print(f"isDuplicateDIWarning: {self.duplicate_drv_cb_flag}")
+        logger.debug(f"isDuplicateDIWarning: {self.duplicate_drv_cb_flag}")
 
     def check_duplicate_enc_flag(self):
-        print("\n in check dup enc")
+        logger.info(f"in check dup enc")
 
         self.duplicate_enc_cb_flag = self.duplicate_enc_cb.isChecked()
 
-        print(f"isDuplicateDIWarning: {self.duplicate_enc_cb_flag}")
+        logger.debug(f"isDuplicateDIWarning: {self.duplicate_enc_cb_flag}")
 
     def isStagedMappingSet(self):
-        print("\n inStateMapptingSet")
+        logger.info(f"inStateMapptingSet")
         # if there is nothing staged
         # Check if there are any staged mappings
         temp_flag = False
         self.isMsgActive = True
         # self.axis_list.isEnabled(False)
         # temp = self.axis_list.currentRow()
-        print(f"curr axis index: {self.qCurrAxis}")
+        logger.debug(f"curr axis index: {self.qCurrAxis}")
         if not self.status_staged_mappings():
-            print("There is nothing staged")
+            logger.debug("There is nothing staged")
             self.select_axis()
         else:
-            print("There are some staged values")
+            logger.debug("There are some staged values")
             self.configMappingWarningBox()
             result = self.msg.exec_()
 
-            print(f"current axis: {self.qCurrAxis}")
-            print(f"Message box result: {result}")
+            logger.debug(f"current axis: {self.qCurrAxis}")
+            logger.debug(f"Message box result: {result}")
             if result == QMessageBox.Yes:
-                print("switching to select axis")
+                logger.debug("switching to select axis")
                 self.clear_stage()
                 self.select_axis()
             elif result == QMessageBox.No:
                 # QMessageBox.information(self, "Continue", "You can continue")
                 temp_flag = True
         if temp_flag:
-            print("attempting to reset axis")
-            print(f"resetting row to: {self.qCurrAxis}")
+            logger.debug("attempting to reset axis")
+            logger.debug(f"resetting row to: {self.qCurrAxis}")
             self.axis_list.setEnabled(True)
             self.axis_list.blockSignals(True)
             self.axis_list.setCurrentRow(self.qCurrAxis)
@@ -315,22 +452,22 @@ class MyDisplay(Display):
         )  # Adjusted buttons
 
     def status_staged_mappings(self):
-        print("\n in status_staged_mapping: checking if there is a staged mapping")
+        logger.info(f"in status_staged_mapping: checking if there is a staged mapping")
         containsDI = False
         containsDE = False
         for axis in self.staged_mapping:
             if isinstance(axis, list):  # Ensure we're working with a list
                 for sublist in axis:
-                    print(f"size of staged mapping: {len(sublist)}")
+                    logger.debug(f"size of staged mapping: {len(sublist)}")
                     if isinstance(sublist, list) and len(sublist) > 1:
-                        print(f"there are stagged di changes")
+                        logger.debug(f"there are stagged di changes")
                         containsDI = True  # Found a non-empty sublist
         for axis in self.staged_de:
             if isinstance(axis, list):  # Ensure we're working with a list
-                # [print(f"items: {item}" for item in axis)]
-                [print(f"item: {item}") for item in axis]
+                # [logger.debug(f"items: {item}" for item in axis)]
+                [logger.debug(f"item: {item}") for item in axis]
                 if any([(item != ["None"] and item != [""]) for item in axis]):
-                    print("drive or encoders staged")
+                    logger.debug("drive or encoders staged")
                     containsDE = True
         if containsDE or containsDI:
             return True
@@ -338,7 +475,7 @@ class MyDisplay(Display):
             return False
 
     def check_duplicate_di(self):
-        print("\n in check for duplicate di")
+        logger.info(f"in check for duplicate di")
         # To hold values for duplicate checking
         second_index_values = set()
         third_index_values = set()
@@ -386,8 +523,8 @@ class MyDisplay(Display):
             msg.exec_()
 
         # Print the results
-        print("Duplicates in the 2nd index:", duplicates_second)
-        print("Duplicates in the 3rd index:", duplicates_third)
+        logger.debug("Duplicates in the 2nd index:", duplicates_second)
+        logger.debug("Duplicates in the 3rd index:", duplicates_third)
 
     def check_duplicate_drv(self):
         """
@@ -397,7 +534,7 @@ class MyDisplay(Display):
         Returns:
             set: A set of duplicate first index values except 'None'.
         """
-        print("\n in check for duplicate drv")
+        logger.info(f"in check for duplicate drv")
 
         # To hold unique values for duplicate checking
         seen_values = []
@@ -438,7 +575,7 @@ class MyDisplay(Display):
             msg.exec_()
 
         # Print the results
-        print("Duplicates:", duplicates)
+        logger.debug("Duplicates:", duplicates)
 
     def check_duplicate_enc(self):
         """
@@ -448,7 +585,7 @@ class MyDisplay(Display):
         Returns:
             set: A set of duplicate first index values except 'None'.
         """
-        print("\n in check for duplicate enc")
+        logger.info(f"in check for duplicate enc")
 
         # To hold unique values for duplicate checking
         seen_values = []
@@ -489,20 +626,20 @@ class MyDisplay(Display):
             msg.exec_()
 
         # Print the results
-        print("Duplicates:", duplicates)
+        logger.debug("Duplicates:", duplicates)
 
     def see_stage(self):
-        print("\n in see_stage")
+        logger.info(f"in see_stage")
         mapping_window = MappingWindow(self)
         mapping_window.staged_mappings_list.clear()
         # for stage in range(0,len(self.staged_mapping)):
         #     if self.staged_mapping[stage]:
         #         for di in range(0,len(self.staged_mapping[stage])):
-        #             print(f"axis num: {stage}, di: {di}, di array: {len(self.staged_mapping[stage][di])}")
+        #             logger.debug(f"axis num: {stage}, di: {di}, di array: {len(self.staged_mapping[stage][di])}")
         #             for item in range(0, len(self.staged_mapping[stage][di])):
         #                 mapping_window.staged_mappings_list.addItem(f"{self.staged_mapping[stage][di][item]}, {self.staged_mapping[stage][di][item]}, {self.staged_mapping[stage][di][item]}")
         #     else:
-        #         print(f"stage was empty")
+        #         logger.debug(f"stage was empty")
 
         for stage in range(len(self.staged_mapping)):
             if self.staged_mapping[stage]:  # Check if stage is not empty
@@ -516,13 +653,13 @@ class MyDisplay(Display):
                         # Append an empty list for empty entries
                         row_output.append([""])
                 if len(self.staged_de[stage][0]) < 1:
-                    print("0 is blank")
+                    logger.debug("0 is blank")
                     self.staged_de[stage][0] = [""]
                 if len(self.staged_de[stage][1]) < 1:
                     self.staged_de[stage][1] = [""]
-                    print("0 is blank")
-                print(f"self.staged_de[stage][0]: {self.staged_de[stage][0]}")
-                print(f"self.staged_de[stage][1]: {self.staged_de[stage][1]}")
+                    logger.debug("0 is blank")
+                logger.debug(f"self.staged_de[stage][0]: {self.staged_de[stage][0]}")
+                logger.debug(f"self.staged_de[stage][1]: {self.staged_de[stage][1]}")
 
                 # Print the row output in groups of three
                 mapping_window.staged_mappings_list.addItem(
@@ -531,7 +668,9 @@ class MyDisplay(Display):
                 # print(row_output)  # Printing as one complete list containing the sublists
 
             else:
-                print(f"Stage {stage} was empty")  # Handling completely empty stages
+                logger.debug(
+                    f"Stage {stage} was empty"
+                )  # Handling completely empty stages
         # #need to setup a way to push info back to the gui is this is wanted
         # mapping_window.show()
         mapping_window.exec_()
@@ -547,7 +686,7 @@ class MyDisplay(Display):
         return path.join(path.dirname(path.realpath(__file__)), self.ui_filename())
 
     def load_test_list(self):
-        print("\n in load test list")
+        logger.info(f"in load test list")
         configured = "./unit_test_data.json"
         integration_test = "/cds/home/c/ctsoi/epics-dev/ioc/user_motors/lcls-plc-template-user-motors/iocBoot/ioc-lcls-plc-template-user-motors/lcls_plc_template_user_motors.db"
         unconfigured = "./unit_test_config.json"
@@ -555,78 +694,62 @@ class MyDisplay(Display):
         filepath1 = configured
         pv_caget_list = []
 
-        ## test with configuration
-        iocpath = configured
+        # ## test with configuration
+        # iocpath = configured
 
-        try:
-            # with open(f"{filepath}", "r") as f:
-            #     for pvs in f:
-            #         pv_caget_list.append(pvs)
-
-            with open(iocpath, "r") as file:
-                self.pvDict = json.load(file)
-        except Exception as e:
-            print(f"Failed to read {filepath1}: {e}")
-
-        self.prefixName = list(self.pvDict.keys())[0]
-        pattern = r"(TST:UM:)(?=\S)"
-
-        match = re.search(pattern, self.prefixName)
-        if match:
-            print(match.group(1))  # Output: TST:UM:
-        self.prefixName = match.group(1)
-
-        ## Not sure if i still need this
-        # print(f"prefix: {self.prefixName}")
         # try:
         #     # with open(f"{filepath}", "r") as f:
         #     #     for pvs in f:
         #     #         pv_caget_list.append(pvs)
 
-        #     with open(filepath2, "r") as file:
-        #         self.expertDict = json.load(file)
+        #     with open(iocpath, "r") as file:
+        #         self.pvDict = json.load(file)
         # except Exception as e:
-        #     print(f"Failed to read {filepath2}: {e}")
-        # # for pvs in pv_caget_list:
-        # #     print(pvs)
-        # # pv_caget_list = json.loads(pv_caget_list)
-        # print(f"type: {type(self.pvDict)}")
+        #     logger.debug(f"Failed to read {filepath1}: {e}")
 
-        # ## integration test
-        # iocpath = integration_test
+        # self.prefixName = list(self.pvDict.keys())[0]
+        # pattern = r"(TST:UM:)(?=\S)"
 
-        # # hard code ioc path
-        # self.pvList = discover_pvs("", usr_db_path=iocpath, find_makefile=True)
+        # match = re.search(pattern, self.prefixName)
+        # if match:
+        #     print(match.group(1))  # Output: TST:UM:
+        # self.prefixName = match.group(1)
 
-        # # finding prefix at element 0
-        # self.prefixName = self.pvList[0]
-        # print(self.prefixName)
-        # self.pvList = self.pvList[1:-1]
+        ## integration test
+        iocpath = integration_test
 
-        # print(f"prefixName: {self.prefixName}")
+        # hard code ioc path
+        self.pvList = discover_pvs("", usr_db_path=iocpath, find_makefile=True)
 
-        # # caget whole list
-        # pv_caget_list = epics.caget_many(self.pvList, as_string=True)
+        # finding prefix at element 0
+        self.prefixName = self.pvList[0]
+        print(self.prefixName)
+        self.pvList = self.pvList[1:-1]
 
-        # # put pvs and cagets into a dictionary
-        # self.pvDict = dict(zip(self.pvList, pv_caget_list))
+        logger.debug(f"prefixName: {self.prefixName}")
+
+        # caget whole list
+        pv_caget_list = epics.caget_many(self.pvList, as_string=True)
+
+        # put pvs and cagets into a dictionary
+        self.pvDict = dict(zip(self.pvList, pv_caget_list))
 
     def val_to_key(self, val):
         key = [key for key, value in self.pvDict.items() if value == val]
-        print(f"key: {key}")
+        logger.debug(f"key: {key}")
 
         """
         there may be more than one key for any given value, i might have to change the logic here
         """
         cleaned_axis = strip_key(key[0])
-        print(f"val to key, cleaned axis: {cleaned_axis}, key: {key}")
+        logger.debug(f"val to key, cleaned axis: {cleaned_axis}, key: {key}")
         return str(cleaned_axis)
 
     def find_unique_keys(self, prefix):
-        print("find unique di values")
+        logger.debug("find unique di values")
         # assume Id_RBV
         unique_keys = set()  # Use a set to store unique values
-        print(f"prefix: {prefix}")
+        logger.debug(f"prefix: {prefix}")
         # Loop through the dictionary items
         for key, value in self.pvDict.items():
             # Check if the key starts with the given prefix
@@ -642,26 +765,26 @@ class MyDisplay(Display):
     def identify_di(self, item):
         val = self.val_to_key(item)
         things = self.find_unique_keys(val + ":SelG:DI:")
-        print(f"identify_config: item, {val}, DIs, {things}")
+        logger.debug(f"identify_config: item, {val}, DIs, {things}")
 
         return things
 
     def identify_drv(self, item):
         val = self.val_to_key(item)
         things = self.find_unique_keys(val + ":SelG:DRV:")
-        print(f"identify_config: item, {val}, DRVs, {things}")
+        logger.debug(f"identify_config: item, {val}, DRVs, {things}")
 
         return things
 
     def identify_enc(self, item):
         val = self.val_to_key(item)
         things = self.find_unique_keys(val + ":SelG:ENC:")
-        print(f"identify_config: item, {val}, ENCs, {things}")
+        logger.debug(f"identify_config: item, {val}, ENCs, {things}")
 
         return things
 
     def populate_options(self):
-        print("\n in populate options")
+        logger.info(f"in populate options")
 
         """
         Called from load_ioc
@@ -682,7 +805,7 @@ class MyDisplay(Display):
         2. if the there is a value and it matches something, then highlight
         3. there is a string but it doesnt match anything, something went wrong
         """
-        print("\n in identify_WCIB'")
+        logger.info(f"in identify_WCIB'")
         self.list_WCIB = []
         for pv in self.pvDict:
             if re.search(r".*:WCIB_RBV", pv):
@@ -691,7 +814,7 @@ class MyDisplay(Display):
             # fake_caget output is of type string seperated by comma
             # device_type = epics.caget(pv, as_string=True)
             device_type = fake_caget(self.pvDict, pv)
-            print(f"device_type: {device_type}")
+            logger.debug(f"device_type: {device_type}")
             if re.search(r"DI", device_type):
                 self.digital_inputs.append(pv)
                 self.digital_inputs_ui.append(pv)
@@ -717,7 +840,7 @@ class MyDisplay(Display):
         ---
         Calls publish axis
         """
-        print("\n in get pvs from input")
+        logger.info(f"in get pvs from input")
         # print(self.ioc_name.text())
 
         self.axis = identify_axis(self.pvDict)
@@ -725,32 +848,32 @@ class MyDisplay(Display):
         self.publish_axis_ui()
 
     def save_stage(self):
-        print("\n in save_stage")
+        logger.info(f"in save_stage")
 
         # setup holder for stagged mapping
         numStages = self.axis_list.count()
-        print(f"numStages count: {numStages}")
+        logger.debug(f"numStages count: {numStages}")
         # self.staged_mapping= [[] for _ in range(numStages)]
 
         # saving DI components
         # currAxis = self.axis_list.currentRow()
         self.qCurrAxis = self.axis_list.currentRow()
         currAxis = self.qCurrAxis
-        print(f"currAxis: {self.qCurrAxis}")
+        logger.debug(f"currAxis: {self.qCurrAxis}")
         currAxisDi = self.digital_input_axis.currentRow() + 1
-        print(f"currAxisDi: {currAxisDi}")
+        logger.debug(f"currAxisDi: {currAxisDi}")
         if self.digital_input_hardware.currentItem().text() != "None":
             currDiHardware = self.digital_input_hardware.currentItem().text()
         else:
             currDiHardware = ""
-        print(f"currDiHardware: {currDiHardware}")
+        logger.debug(f"currDiHardware: {currDiHardware}")
         if self.digital_input_channels.currentItem() != None:
             currDiHardwareChan = str(
                 int(self.digital_input_channels.currentItem().text())
             )
         else:
             currDiHardwareChan = ""
-        print(f"currDiHardwareChan: {currDiHardwareChan}")
+        logger.debug(f"currDiHardwareChan: {currDiHardwareChan}")
 
         if (currDiHardware != None and currDiHardware != "None") and (
             self.digital_input_channels.currentItem() == None
@@ -812,11 +935,11 @@ class MyDisplay(Display):
         # self.staged_mapping[currAxis].append(currDiHardwareChan)
 
         # show mapping
-        print(f"staged mapping: {self.staged_mapping}")
-        print(f"staged de: {self.staged_de}")
+        logger.debug(f"staged mapping: {self.staged_mapping}")
+        logger.debug(f"staged de: {self.staged_de}")
 
     def clear_stage(self):
-        print("\n in clear_stage")
+        logger.info(f"in clear_stage")
         # try:
         # for sublist in self.staged_mapping:
         #     # Loop through and remove the element if it exists in any of the inner lists
@@ -831,115 +954,115 @@ class MyDisplay(Display):
         for sublist in self.staged_de:
             for inner_list in sublist:
                 inner_list.clear()
-        print(f"staged mapping: {self.staged_mapping}")
-        print(f"staged de: {self.staged_de}")
+        logger.debug(f"staged mapping: {self.staged_mapping}")
+        logger.debug(f"staged de: {self.staged_de}")
 
     # def detect_linked_hardware_di(self):
-    #     print("\n in detect_linked_hardware_di")
+    #     logger.info(f"in detect_linked_hardware_di")
     #     axis_di_idx = self.digital_input_axis.currentRow()
     #     currAxisIdx = self.axis_list.currentRow()
     #     currAxis = self.val_to_key(self.axis[currAxisIdx])
     #     detectableDi = currAxis + ":SelG:DI:" + ("0" + str(int(axis_di_idx) + 1))
-    #     print(f"link to check: {detectableDi}")
+    #     logger.debug(f"link to check: {detectableDi}")
     #     DI_hardware = fake_caget(self.pvDict, detectableDi + ":ID_RBV")
 
-    #     print(f"DI_hardware: {DI_hardware}")
+    #     logger.debug(f"DI_hardware: {DI_hardware}")
     #     DI_hardware_Channel = fake_caget(self.pvDict, detectableDi + ":HardChNum_RBV")
-    #     print(f"DI_hardware_channel: {DI_hardware_Channel}")
+    #     logger.debug(f"DI_hardware_channel: {DI_hardware_Channel}")
 
     def detect_linked_drv(self):
-        print("\n in detect_linked_drv")
+        logger.info(f"in detect_linked_drv")
         currAxisIdx = self.axis_list.currentRow()
         currAxis = self.val_to_key(self.axis[currAxisIdx])
         detectableDRV = currAxis + ":SelG:DRV:Id_RBV"
         drvValue = fake_caget(self.pvDict, detectableDRV)
-        print(f"drvValue: {drvValue}")
+        logger.debug(f"drvValue: {drvValue}")
 
         for i in range(0, self.drives_list.count()):
             if drvValue == self.drives_list.item(i).text():
-                print(f"found drv: {self.drives_list.item(i).text()}")
+                logger.debug(f"found drv: {self.drives_list.item(i).text()}")
                 self.drives_list.setCurrentRow(i)
                 break
             else:
-                print("No link found, defaulting to None")
+                logger.debug("No link found, defaulting to None")
                 self.drives_list.setCurrentRow(0)
 
     def detect_linked_drv_ui(self):
-        print("\n in detect_linked_drv_ui")
+        logger.info(f"in detect_linked_drv_ui")
         currAxisIdx = self.display_axis.currentRow()
         currAxis = self.val_to_key(self.axis[currAxisIdx])
         detectableDRV = currAxis + ":SelG:DRV:Id_RBV"
-        print(f"detDRV: {detectableDRV}")
+        logger.debug(f"detDRV: {detectableDRV}")
         drvValue = fake_caget(self.pvDict, detectableDRV)
-        print(f"drvValue: {drvValue}")
+        logger.debug(f"drvValue: {drvValue}")
 
         for i in range(0, self.display_drives.count()):
             if drvValue == self.display_drives.item(i).text():
-                print(f"found drv: {self.display_drives.item(i).text()}")
+                logger.debug(f"found drv: {self.display_drives.item(i).text()}")
                 self.display_drives.setCurrentRow(i)
                 break
             else:
-                print("No link found, defaulting to None")
+                logger.debug("No link found, defaulting to None")
                 self.display_drives.setCurrentRow(0)
 
     def detect_linked_enc(self):
-        print("\n in detect_linked_enc")
+        logger.info(f"in detect_linked_enc")
         currAxisIdx = self.axis_list.currentRow()
         currAxis = self.val_to_key(self.axis[currAxisIdx])
         detectableENC = currAxis + ":SelG:ENC:Id_RBV"
         encValue = fake_caget(self.pvDict, detectableENC)
-        print(f"encValue: {encValue}")
+        logger.debug(f"encValue: {encValue}")
 
         for i in range(0, self.enocders_list.count()):
             currEnc = self.enocders_list.item(i).text()
-            print(f"currEnc: {currEnc}, sizeEnc: {len(self.enocders_list)}")
+            logger.debug(f"currEnc: {currEnc}, sizeEnc: {len(self.enocders_list)}")
             if encValue == currEnc:
-                print(f"found enc: {self.enocders_list.item(i).text()}")
+                logger.debug(f"found enc: {self.enocders_list.item(i).text()}")
                 self.enocders_list.setCurrentRow(i)
                 break
             else:
-                print("No link found, defaulting to None")
+                logger.debug("No link found, defaulting to None")
                 self.enocders_list.setCurrentRow(0)
 
     def detect_linked_enc_ui(self):
-        print("\n in detect_linked_enc_ui")
+        logger.info(f"in detect_linked_enc_ui")
         currAxisIdx = self.display_axis.currentRow()
         currAxis = self.val_to_key(self.axis[currAxisIdx])
         detectableENC = currAxis + ":SelG:ENC:Id_RBV"
         encValue = fake_caget(self.pvDict, detectableENC)
-        print(f"encValue: {encValue}")
+        logger.debug(f"encValue: {encValue}")
 
         for i in range(0, self.display_encoders.count()):
             if encValue == self.display_encoders.item(i).text():
-                print(f"found drv: {self.display_encoders.item(i).text()}")
+                logger.debug(f"found drv: {self.display_encoders.item(i).text()}")
                 self.display_encoders.setCurrentRow(i)
                 break
             else:
-                print("No link found, defaulting to None")
+                logger.debug("No link found, defaulting to None")
                 self.display_encoders.setCurrentRow(0)
 
     def select_axis(self):
-        print("\n in select_axis")
+        logger.info(f"in select_axis")
         self.detect_linked_enc()
         self.detect_linked_drv()
         self.publish_axis_di()
 
     def select_axis_ui(self):
-        print("\n in select_axis_ui")
+        logger.info(f"in select_axis_ui")
         self.detect_linked_enc_ui()
         self.detect_linked_drv_ui()
         self.publish_axis_di_ui()
 
     def publish_axis_di(self):
-        print("\n in publish_axis_di")
+        logger.info(f"in publish_axis_di")
         # if self.axis_di_init:
         self.digital_input_axis.clear()
         numDI = 0
 
         # currAxisIdx = self.axis_list.currentRow()
-        # print(f"currAxisIdx: {self.axis[currAxisIdx]}")
+        # logger.debug(f"currAxisIdx: {self.axis[currAxisIdx]}")
         # currAxis = self.val_to_key(self.axis[currAxisIdx])
-        # print(f"currAxis: {currAxis}")
+        # logger.debug(f"currAxis: {currAxis}")
 
         currAxis = self.val_to_key(self.axis_list.currentItem().text())
 
@@ -955,18 +1078,18 @@ class MyDisplay(Display):
         self.select_di_channel()
 
     def publish_axis_di_ui(self):
-        print("\n in publish_axis_di_ui")
+        logger.info(f"in publish_axis_di_ui")
         # if self.axis_di_init:
         self.ui_digital_input_axis.clear()
         numDI = 0
 
         # currAxisIdx = self.axis_list.currentRow()
-        # print(f"currAxisIdx: {self.axis[currAxisIdx]}")
+        # logger.debug(f"currAxisIdx: {self.axis[currAxisIdx]}")
         # currAxis = self.val_to_key(self.axis[currAxisIdx])
-        # print(f"currAxis: {currAxis}")
+        # logger.debug(f"currAxis: {currAxis}")
 
         currAxis = self.val_to_key(self.display_axis.currentItem().text())
-        print(f"currAxis: {currAxis}")
+        logger.debug(f"currAxis: {currAxis}")
         for items in self.loaded_unique_di_ui:
             if items.startswith(currAxis):
                 numDI = numDI + 1
@@ -985,7 +1108,7 @@ class MyDisplay(Display):
 
         """
         # update enum with axis pulled from .db file
-        print("\n in populate axis")
+        logger.info(f"in populate axis")
         self.axis_list.clear()
 
         # for item in self.axis:
@@ -1007,7 +1130,7 @@ class MyDisplay(Display):
 
     def load_axis_di(self):
         """ """
-        print("\n in load_axis_di")
+        logger.info(f"in load_axis_di")
         self.digital_input_axis.clear()
 
         # self.digital_inputs = identify_inputs(
@@ -1015,13 +1138,13 @@ class MyDisplay(Display):
         # )
 
         delimiter = ":Id_RBV"
-        # print(f"di_val: {axis_di}")
+        # logger.debug(f"di_val: {axis_di}")
         for item in self.axis:
-            print(f"axis: {item}")
+            logger.debug(f"axis: {item}")
             # name = self.val_to_key(item)
-            # print(f"name: {name}")
+            # logger.debug(f"name: {name}")
             # cleaned_di = name.replace(delimiter, "")
-            # print(f"cleaned item: {cleaned_di}")
+            # logger.debug(f"cleaned item: {cleaned_di}")
             # pv = fake_caget(self.pvDict, cleaned_di)
             self.loaded_unique_di.append(self.identify_di(item))
 
@@ -1029,14 +1152,14 @@ class MyDisplay(Display):
         self.loaded_unique_di = [
             item for sublist in self.loaded_unique_di for item in sublist
         ]
-        print(f"val: {self.loaded_unique_di}")
+        logger.debug(f"val: {self.loaded_unique_di}")
         # if not self.digital_input_axis.isEnabled():
         #     self.digital_input_hardware.setEnabled(True)
         # self.discover_di_channel()
 
     def load_axis_di_ui(self):
         """ """
-        print("\n in load_axis_di_ui")
+        logger.info(f"in load_axis_di_ui")
         self.ui_digital_input_axis.clear()
 
         # self.digital_inputs = identify_inputs(
@@ -1044,13 +1167,13 @@ class MyDisplay(Display):
         # )
 
         delimiter = ":Id_RBV"
-        # print(f"di_val: {axis_di}")
+        # logger.debug(f"di_val: {axis_di}")
         for item in self.axis:
-            print(f"axis: {item}")
+            logger.debug(f"axis: {item}")
             # name = self.val_to_key(item)
-            # print(f"name: {name}")
+            # logger.debug(f"name: {name}")
             # cleaned_di = name.replace(delimiter, "")
-            # print(f"cleaned item: {cleaned_di}")
+            # logger.debug(f"cleaned item: {cleaned_di}")
             # pv = fake_caget(self.pvDict, cleaned_di)
             self.loaded_unique_di_ui.append(self.identify_di(item))
 
@@ -1058,7 +1181,7 @@ class MyDisplay(Display):
         self.loaded_unique_di_ui = [
             item for sublist in self.loaded_unique_di_ui for item in sublist
         ]
-        print(f"val: {self.loaded_unique_di_ui}")
+        logger.debug(f"val: {self.loaded_unique_di_ui}")
         # if not self.digital_input_axis.isEnabled():
         #     self.digital_input_hardware.setEnabled(True)
         # self.discover_di_channel()
@@ -1068,7 +1191,7 @@ class MyDisplay(Display):
         comes from WCIB
         needs to publish, and call discover_di_channel
         """
-        print("\n in load_di")
+        logger.info(f"in load_di")
         self.digital_input_hardware.clear()
         self.digital_input_hardware.addItem("None")
         # self.digital_inputs = identify_inputs(
@@ -1078,7 +1201,7 @@ class MyDisplay(Display):
         delimiter = ":WCIB_RBV"
         for item in self.digital_inputs:
             cleaned_di = item.replace(delimiter, ":Id_RBV")
-            print(f"cleaned item: {cleaned_di}")
+            logger.debug(f"cleaned item: {cleaned_di}")
             val = fake_caget(self.pvDict, cleaned_di)
             self.digital_input_hardware.addItem(val)
         # self.digital_input_hardware.setCurrentRow(0)
@@ -1091,7 +1214,7 @@ class MyDisplay(Display):
         comes from WCIB
         needs to publish, and call discover_di_channel
         """
-        print("\n in load_di_ui")
+        logger.info(f"in load_di_ui")
         self.ui_digital_input_hardware.clear()
         self.ui_digital_input_hardware.addItem("None")
         # self.digital_inputs = identify_inputs(
@@ -1101,7 +1224,7 @@ class MyDisplay(Display):
         delimiter = ":WCIB_RBV"
         for item in self.digital_inputs_ui:
             cleaned_di = item.replace(delimiter, ":Id_RBV")
-            print(f"cleaned item: {cleaned_di}")
+            logger.debug(f"cleaned item: {cleaned_di}")
             val = fake_caget(self.pvDict, cleaned_di)
             self.ui_digital_input_hardware.addItem(val)
         # self.digital_input_hardware.setCurrentRow(0)
@@ -1115,19 +1238,19 @@ class MyDisplay(Display):
         ---
         find out number of DIs
         """
-        print("\n in load_di channel")
+        logger.info(f"in load_di channel")
         # self.digital_input_channels.clear()
-        # print(f"di text: {self.digital_inputs[self.digital_input_hardware.currentRow()]}")
+        # logger.debug(f"di text: {self.digital_inputs[self.digital_input_hardware.currentRow()]}")
         # val = self.digital_inputs[self.digital_input_hardware.currentRow()]
         # delimiter = ":WCIB_RBV"
         # cleaned_di = val.replace(delimiter, ":NUMDI_RBV")
-        # print(f"cleaned axis: {cleaned_di}")
+        # logger.debug(f"cleaned axis: {cleaned_di}")
         # nums = fake_caget(self.pvDict, cleaned_di)
         # self.digital_input_channels = int(nums) + 1
 
         for pv in self.pvDict:
             if pv.endswith("NUMDI_RBV"):
-                print(f"pv: {pv}")
+                logger.debug(f"pv: {pv}")
                 self.loaded_di_channels.append(pv)
 
     def discover_di_channel_ui(self):
@@ -1136,19 +1259,19 @@ class MyDisplay(Display):
         ---
         find out number of DIs
         """
-        print("\n in load_di channel_ui")
+        logger.info(f"in load_di channel_ui")
         # self.digital_input_channels.clear()
-        # print(f"di text: {self.digital_inputs[self.digital_input_hardware.currentRow()]}")
+        # logger.debug(f"di text: {self.digital_inputs[self.digital_input_hardware.currentRow()]}")
         # val = self.digital_inputs[self.digital_input_hardware.currentRow()]
         # delimiter = ":WCIB_RBV"
         # cleaned_di = val.replace(delimiter, ":NUMDI_RBV")
-        # print(f"cleaned axis: {cleaned_di}")
+        # logger.debug(f"cleaned axis: {cleaned_di}")
         # nums = fake_caget(self.pvDict, cleaned_di)
         # self.digital_input_channels = int(nums) + 1
 
         for pv in self.pvDict:
             if pv.endswith("NUMDI_RBV"):
-                print(f"pv: {pv}")
+                logger.debug(f"pv: {pv}")
                 self.loaded_di_channels_ui.append(pv)
 
         # for i in range(1, int(nums) + 1):
@@ -1161,46 +1284,50 @@ class MyDisplay(Display):
     #     self.digital_input_channels.clear()
 
     def select_di_channel(self):
-        print(f"in select_di_channel:")
+        logger.info(f" select_di_channel:")
         # self.check_duplicate_di
         axis_di_idx = self.digital_input_axis.currentRow()
-        print(f"axis_di_idx: {axis_di_idx}")
+        logger.debug(f"axis_di_idx: {axis_di_idx}")
         currAxisIdx = self.axis_list.currentRow()
-        print(f"currAxisIdx: {currAxisIdx}")
-        print(f"axis: {self.axis[currAxisIdx]}")
+        logger.debug(f"currAxisIdx: {currAxisIdx}")
+        logger.debug(f"axis: {self.axis[currAxisIdx]}")
         currAxis = self.val_to_key(self.axis[currAxisIdx])
-        print(f"currAxis: {currAxis}")
+        logger.debug(f"currAxis: {currAxis}")
         detectableDi = currAxis + ":SelG:DI:" + ("0" + str(int(axis_di_idx) + 1))
-        print(f"link to check: {detectableDi}")
+        logger.debug(f"link to check: {detectableDi}")
         DI_hardware = fake_caget(self.pvDict, detectableDi + ":ID_RBV")
         if DI_hardware == "":
             DI_hardware = None
-        print(f"DI_hardware: {DI_hardware}")
+        logger.debug(f"DI_hardware: {DI_hardware}")
         DI_hardware_Channel = fake_caget(self.pvDict, detectableDi + ":HardChNum_RBV")
-        print(f"DI_hardware_channel: {DI_hardware_Channel}")
+        logger.debug(f"DI_hardware_channel: {DI_hardware_Channel}")
         # returnStatus = self.digital_input_hardware.findItems(value, Qt.MatchCaseSensitive)
-        # print(f"returnStatus: {returnStatus.text()}")
+        # logger.debug(f"returnStatus: {returnStatus.text()}")
 
-        print("searching for DI hardware")
+        logger.debug("searching for DI hardware")
         # detect DI hardware
         for i in range(0, self.digital_input_hardware.count()):
             if DI_hardware == self.digital_input_hardware.item(i).text():
-                # print(f"currItem: {self.digital_input_hardware.item(i).text()}")
-                print(f"found hardware: {self.digital_input_hardware.item(i).text()}")
+                # logger.debug(f"currItem: {self.digital_input_hardware.item(i).text()}")
+                logger.debug(
+                    f"found hardware: {self.digital_input_hardware.item(i).text()}"
+                )
                 self.digital_input_hardware.setCurrentRow(i)
             elif DI_hardware == None:
-                print("no hardware detected")
+                logger.debug("no hardware detected")
                 self.digital_input_hardware.setCurrentRow(0)
             else:
-                print("something went wrong/thinking")
+                logger.debug("something went wrong/thinking")
 
-        print("searching for di hardware channel")
+        logger.debug("searching for di hardware channel")
         for i in range(0, self.digital_input_channels.count()):
             if DI_hardware_Channel == self.digital_input_channels.item(i).text():
-                print(f"found channel: {self.digital_input_channels.item(i).text()}")
+                logger.debug(
+                    f"found channel: {self.digital_input_channels.item(i).text()}"
+                )
                 self.digital_input_channels.setCurrentRow(i)
             elif DI_hardware_Channel == "0":
-                print("something went wrong, should not be possible")
+                logger.debug("something went wrong, should not be possible")
                 self.digital_input_channels.selectionMode(QAbstractItemView.NoSelection)
 
         if axis_di_idx == 0:
@@ -1220,49 +1347,51 @@ class MyDisplay(Display):
             ]
 
     def select_di_channel_ui(self):
-        print(f"in select_di_channel_ui:")
+        logger.info(f" select_di_channel_ui:")
         # self.check_duplicate_di
         axis_di_idx = self.ui_digital_input_axis.currentRow()
-        print(f"axis_di_idx: {axis_di_idx}")
+        logger.debug(f"axis_di_idx: {axis_di_idx}")
         currAxisIdx = self.display_axis.currentRow()
-        print(f"currAxisIdx: {currAxisIdx}")
-        print(f"axis: {self.axis[currAxisIdx]}")
+        logger.debug(f"currAxisIdx: {currAxisIdx}")
+        logger.debug(f"axis: {self.axis[currAxisIdx]}")
         currAxis = self.val_to_key(self.axis[currAxisIdx])
-        print(f"currAxis: {currAxis}")
+        logger.debug(f"currAxis: {currAxis}")
         detectableDi = currAxis + ":SelG:DI:" + ("0" + str(int(axis_di_idx) + 1))
-        print(f"link to check: {detectableDi}")
+        logger.debug(f"link to check: {detectableDi}")
         DI_hardware = fake_caget(self.pvDict, detectableDi + ":ID_RBV")
         if DI_hardware == "":
             DI_hardware = None
-        print(f"DI_hardware: {DI_hardware}")
+        logger.debug(f"DI_hardware: {DI_hardware}")
         DI_hardware_Channel = fake_caget(self.pvDict, detectableDi + ":HardChNum_RBV")
-        print(f"DI_hardware_channel: {DI_hardware_Channel}")
+        logger.debug(f"DI_hardware_channel: {DI_hardware_Channel}")
         # returnStatus = self.digital_input_hardware.findItems(value, Qt.MatchCaseSensitive)
-        # print(f"returnStatus: {returnStatus.text()}")
+        # logger.debug(f"returnStatus: {returnStatus.text()}")
 
-        print("searching for DI hardware")
+        logger.debug("searching for DI hardware")
         # detect DI hardware
         for i in range(0, self.ui_digital_input_hardware.count()):
             if DI_hardware == self.ui_digital_input_hardware.item(i).text():
-                # print(f"currItem: {self.digital_input_hardware.item(i).text()}")
+                # logger.debug(f"currItem: {self.digital_input_hardware.item(i).text()}")
                 print(
                     f"found hardware: {self.ui_digital_input_hardware.item(i).text()}"
                 )
                 self.ui_digital_input_hardware.setCurrentRow(i)
                 break
             elif DI_hardware == None:
-                print("no hardware detected")
+                logger.debug("no hardware detected")
                 self.ui_digital_input_hardware.setCurrentRow(0)
             else:
-                print("something went wrong/thinking")
+                logger.debug("something went wrong/thinking")
 
-        print("searching for di hardware channel")
+        logger.debug("searching for di hardware channel")
         for i in range(0, self.ui_digital_input_channels.count()):
             if DI_hardware_Channel == self.ui_digital_input_channels.item(i).text():
-                print(f"found channel: {self.ui_digital_input_channels.item(i).text()}")
+                logger.debug(
+                    f"found channel: {self.ui_digital_input_channels.item(i).text()}"
+                )
                 self.ui_digital_input_channels.setCurrentRow(i)
             elif DI_hardware_Channel == "0":
-                print("something went wrong, should not be possible")
+                logger.debug("something went wrong, should not be possible")
                 self.ui_digital_input_channels.selectionMode(
                     QAbstractItemView.NoSelection
                 )
@@ -1284,7 +1413,7 @@ class MyDisplay(Display):
             ]
 
         # currDI = self.loaded_di_channels[currDiIdx]
-        # print(f"currDI: {currDI}")
+        # logger.debug(f"currDI: {currDI}")
         # currDiChanIdx = self.digital_input_channels.currentRow()
 
         # for di in self.digital_input_channels:
@@ -1296,15 +1425,16 @@ class MyDisplay(Display):
         #     pass
 
     def load_di_channel(self):
-        print("load di_channel")
+        logger.debug("load di_channel")
         self.digital_input_channels.clear()
         currDiIdx = self.digital_input_hardware.currentRow()
         currDI = self.digital_inputs[currDiIdx]
-        print(f"DI idx: {currDI}")
+        logger.debug(f"DI idx: {currDI}")
         delimiter = ":WCIB_RBV"
         cleaned_di = currDI.replace(delimiter, ":NUMDI_RBV")
-        print(f"cleaned axis: {cleaned_di}")
+        logger.debug(f"cleaned axis: {cleaned_di}")
         self.di_size = fake_caget(self.pvDict, cleaned_di)
+        logger.debug(f"di size: {self.di_size}")
         if self.di_size != 0 or self.di_size != None:
             for i in range(0, int(self.di_size)):
                 self.digital_input_channels.addItem(str(i + 1))
@@ -1312,15 +1442,15 @@ class MyDisplay(Display):
             self.digital_input_channels.clear()
 
     def load_di_channel_ui(self):
-        print("\n in load di_channel_ui")
+        logger.info(f"in load di_channel_ui")
         self.ui_digital_input_channels.clear()
         currDiIdx = self.ui_digital_input_hardware.currentRow()
-        print(f"currDiIdx: {currDiIdx}")
+        logger.debug(f"currDiIdx: {currDiIdx}")
         currDI = self.digital_inputs_ui[currDiIdx]
-        print(f"DI idx: {currDI}")
+        logger.debug(f"DI idx: {currDI}")
         delimiter = ":WCIB_RBV"
         cleaned_di = currDI.replace(delimiter, ":NUMDI_RBV")
-        print(f"cleaned axis: {cleaned_di}")
+        logger.debug(f"cleaned axis: {cleaned_di}")
         self.di_size = fake_caget(self.pvDict, cleaned_di)
         if self.di_size != 0 or self.di_size != None:
             for i in range(0, int(self.di_size)):
@@ -1334,17 +1464,17 @@ class MyDisplay(Display):
         """
         id_list = []
         id_nums = []
-        print("\n in load_di_slot")
+        logger.info(f"in load_di_slot")
         self.digital_input_axis.clear()
         currentAxisIndx = self.axis_list.currentRow()
-        print(f"currentAxisIndx: {currentAxisIndx}")
-        print(f"currentAxis: {self.axis[currentAxisIndx]}")
+        logger.debug(f"currentAxisIndx: {currentAxisIndx}")
+        logger.debug(f"currentAxis: {self.axis[currentAxisIndx]}")
         axisKey = self.axis[currentAxisIndx]
         keys_with_value = [
             key for key, value in self.pvDict.items() if value == axisKey
         ]
         axis = strip_key(keys_with_value)
-        print(f"axis: {axis}")
+        logger.debug(f"axis: {axis}")
         for pv in self.pvDict.keys():
             if re.search(rf"{axis}:SelG:DI:*", pv):
                 id_list.append(re.sub(r":\w+RBV", "", pv))
@@ -1356,7 +1486,7 @@ class MyDisplay(Display):
 
     def load_drives(self):
         # update enum with drives pulled from .db file
-        print("\n in load drives")
+        logger.info(f"in load drives")
         self.drives_list.clear()
         self.drives_list.addItem("None")
         self.display_drives.clear()
@@ -1366,7 +1496,7 @@ class MyDisplay(Display):
         delimiter = ":WCIB_RBV"
         for item in self.drives:
             cleaned_item = item.replace(delimiter, ":Id_RBV")
-            print(f"cleaned item: {cleaned_item}")
+            logger.debug(f"cleaned item: {cleaned_item}")
             val = fake_caget(self.pvDict, cleaned_item)
 
             # publish drive
@@ -1383,17 +1513,17 @@ class MyDisplay(Display):
 
     def load_encoders(self):
         # update enum with drives pulled from .db file
-        print("\n in load enc")
+        logger.info(f"in load enc")
         self.enocders_list.clear()
         self.enocders_list.addItem("None")
         self.display_encoders.clear()
         self.display_encoders.addItem("None")
         # self.enocder_type = identify_enc(self.pvList, self.axis_list.currentItem().text())
         delimiter = ":WCIB_RBV"
-        # print(f"encoder list size: {len(self.encoders)}")
+        # logger.debug(f"encoder list size: {len(self.encoders)}")
         for item in self.encoders:
             cleaned_item = item.replace(delimiter, ":Id_RBV")
-            print(f"cleaned item: {cleaned_item}")
+            logger.debug(f"cleaned item: {cleaned_item}")
             val = fake_caget(self.pvDict, cleaned_item)
 
             # publish encoders
@@ -1409,7 +1539,7 @@ class MyDisplay(Display):
 
     def publish_axis_ui(self):
         # update enum with axis pulled from .db file
-        print("\n in populate axis_ui")
+        logger.info(f"in populate axis_ui")
         self.display_axis.clear()
         self.display_axis.addItems(self.axis)
         # idx = self.axis_list
@@ -1417,10 +1547,10 @@ class MyDisplay(Display):
         # self.display_axis.setSelectionMode(QAbstractItemView.NoSelection)
         if not self.display_axis.isEnabled():
             self.display_axis.setEnabled(True)
-        print(f"caput to: self.axis_selection")
+        logger.debug(f"caput to: self.axis_selection")
 
     # def load_di_ui(self):
-    #     print("\n in load_di_ui")
+    #     logger.info(f"in load_di_ui")
     #     self.ui_digital_input_hardware.clear()
     #     di_list = self.digital_inputs
     #     delimiter = ":WCIB_RBV"
@@ -1435,7 +1565,7 @@ class MyDisplay(Display):
     # self.discover_di_channel()
 
     def load_di_c_ui(self):
-        print("\n in load_di_c_ui")
+        logger.info(f"in load_di_c_ui")
         self.ui_digital_input_channels.clear()
         print(
             f"di text: {self.digital_inputs[self.digital_input_hardware.currentRow()]}"
@@ -1443,7 +1573,7 @@ class MyDisplay(Display):
         val = self.digital_inputs[self.digital_input_hardware.currentRow()]
         delimiter = ":WCIB_RBV"
         cleaned_di = val.replace(delimiter, ":NUMDI_RBV")
-        print(f"cleaned axis: {cleaned_di}")
+        logger.debug(f"cleaned axis: {cleaned_di}")
         nums = fake_caget(self.pvDict, cleaned_di)
         for i in range(1, int(nums) + 1):
             self.ui_digital_input_channels.addItem(str(i))
@@ -1456,7 +1586,7 @@ class MyDisplay(Display):
 
     def load_drives_ui(self):
         # update enum with drives pulled from .db file
-        print("\n in populate drives_ui")
+        logger.info(f"in populate drives_ui")
         self.display_drives.clear()
         # self.drives = identify_drive(self.pvList, self.axis_list.currentItem().text())
 
@@ -1464,7 +1594,7 @@ class MyDisplay(Display):
         drives = self.drives
         for item in drives:
             cleaned_item = item.replace(delimiter, ":Id_RBV")
-            # print(f"cleaned item: {cleaned_item}")
+            # logger.debug(f"cleaned item: {cleaned_item}")
             val = fake_caget(self.pvDict, cleaned_item)
             self.display_drives.addItem(val)
         self.display_drives.setCurrentRow(self.drives_list.currentRow())
@@ -1474,15 +1604,15 @@ class MyDisplay(Display):
 
     def load_encoders_ui(self):
         # update enum with drives pulled from .db file
-        print("\n in populate enc_ui")
+        logger.info(f"in populate enc_ui")
         self.display_encoders.clear()
         # self.enocder_type = identify_enc(self.pvList, self.axis_list.currentItem().text())
         delimiter = ":WCIB_RBV"
-        # print(f"encoder list size: {len(self.encoders)}")
+        # logger.debug(f"encoder list size: {len(self.encoders)}")
         encoders = self.encoders
         for item in encoders:
             cleaned_item = item.replace(delimiter, ":Id_RBV")
-            print(f"cleaned item: {cleaned_item}")
+            logger.debug(f"cleaned item: {cleaned_item}")
             val = fake_caget(self.pvDict, cleaned_item)
             self.display_encoders.addItem(val)
         self.display_encoders.setCurrentRow(self.enocders_list.currentRow())
@@ -1493,7 +1623,7 @@ class MyDisplay(Display):
 
     def publish_axis_expert(self):
         # update enum with axis pulled from .db file
-        print("\n in populate axis_expert")
+        logger.info(f"in populate axis_expert")
         self.expert_axis.clear()
         axis_list = self.axis
         for item in axis_list:
@@ -1502,7 +1632,7 @@ class MyDisplay(Display):
         self.expert_axis.setCurrentRow(0)
         if not self.expert_axis.isEnabled():
             self.expert_axis.setEnabled(True)
-        print(f"caput to: self.axis_selection")
+        logger.debug(f"caput to: self.axis_selection")
 
     def update_nc(self):
         """
@@ -1512,14 +1642,14 @@ class MyDisplay(Display):
         clear previous list
         add items
         """
-        print("\n in update_nc")
+        logger.info(f"in update_nc")
         axis = self.axis[self.expert_axis.currentRow()]
-        print(f"axis: {self.expert_axis.currentRow()}")
+        logger.debug(f"axis: {self.expert_axis.currentRow()}")
         self.expert_nc_list.clear()
         keys_with_value = [key for key, value in self.pvDict.items() if value == axis]
-        print(f"Key: {keys_with_value}")
+        logger.debug(f"Key: {keys_with_value}")
         cleaned_axis = strip_key(keys_with_value)
-        print(f"cleaned axis: {cleaned_axis}")
+        logger.debug(f"cleaned axis: {cleaned_axis}")
         items = identify_nc_params(cleaned_axis, self.expertDict)
         for item in items:
             self.expert_nc_list.addItem(item)
@@ -1528,13 +1658,13 @@ class MyDisplay(Display):
             self.expert_nc_list.setEnabled(True)
 
     def update_coe_drive(self, axis):
-        print("\n in update coe drive")
+        logger.info(f"in update coe drive")
         self.expert_drive_list.clear()
         axis = self.axis[self.expert_axis.currentRow()]
-        print(f"axis: {self.expert_axis.currentRow()}")
+        logger.debug(f"axis: {self.expert_axis.currentRow()}")
         keys_with_value = [key for key, value in self.pvDict.items() if value == axis]
         cleaned_axis = strip_key(keys_with_value)
-        print(f"cleaned axis: {cleaned_axis}")
+        logger.debug(f"cleaned axis: {cleaned_axis}")
         """Need to coordinate with Nick on how to structure PVs"""
 
         if self.drive_selection.currentText() == "EL7047":
@@ -1556,7 +1686,7 @@ class MyDisplay(Display):
             self.drive_coe_dropdown.setEnabled(True)
 
     def update_coe_enc(self):
-        print("\n in update enc coe")
+        logger.info(f"in update enc coe")
         self.coe_enc_list.clear()
         self.encoder_coe_dropdown.clear()
         if self.encoder_selection.currentText() == "EL5102":
@@ -1578,10 +1708,10 @@ class MyDisplay(Display):
             self.encoder_coe_dropdown.setEnabled(True)
 
     def update_nc_io(self, index):
-        print("\n in update_nc_io")
+        logger.info(f"in update_nc_io")
         self.nc_list_indx = self.nc_param_dropdown.currentIndex()
         nc_pv = self.nc_param_dropdown.currentText()
-        # print(f"nc_pv: {nc_pv}")
+        # logger.debug(f"nc_pv: {nc_pv}")
         # self.nc_param_io.channel = "ca://" + nc_pv
         self.nc_param_io.setText("ca://" + nc_pv)
         if not self.nc_param_io.isEnabled():
@@ -1589,10 +1719,10 @@ class MyDisplay(Display):
         self.nc_param_io.show()
 
     def update_drive_coe_io(self, index):
-        print("\n in update_drive_coe_io")
+        logger.info(f"in update_drive_coe_io")
         self.coe_drive_indx = self.drive_coe_dropdown.currentIndex()
         coe_pv = self.drive_coe_dropdown.currentText()
-        print(f"UDIO: coe_pv: {coe_pv}")
+        logger.debug(f"UDIO: coe_pv: {coe_pv}")
         # self.drive_coe_io.channel = "ca://" + coe_pv
         self.drive_coe_io.setText("ca://" + coe_pv)
         if not self.drive_coe_io.isEnabled():
@@ -1600,10 +1730,10 @@ class MyDisplay(Display):
         self.drive_coe_io.show()
 
     def update_enc_coe_io(self, index):
-        print("\n in update_enc_coe_io")
+        logger.info(f"in update_enc_coe_io")
         self.coe_enc_indx = self.encoder_coe_dropdown.currentIndex()
         coe_pv = self.encoder_coe_dropdown.currentText()
-        print(f"UEIO: coe_pv: {coe_pv}")
+        logger.debug(f"UEIO: coe_pv: {coe_pv}")
         # self.encoder_coe_io.channel = "ca://" + coe_pv
         self.encoder_coe_io.setText("ca://" + coe_pv)
         if not self.encoder_coe_io.isEnabled():

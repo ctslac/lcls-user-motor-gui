@@ -776,7 +776,7 @@
        <item>
         <layout class="QVBoxLayout" name="verticalLayout_35">
          <item>
-          <widget class="QPlainTextEdit" name="plainTextEdit">
+          <widget class="QPlainTextEdit" name="status_logger">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
              <horstretch>0</horstretch>
