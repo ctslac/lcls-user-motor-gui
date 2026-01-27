@@ -411,6 +411,12 @@ class MyDisplay(Display):
 
     def isStagedMappingSet(self):
         logger.info(f"inStateMapptingSet")
+        for stage in range(len(self.staged_mapping)):
+            for di in range(len(self.staged_mapping[stage])):
+                print(f"di: {self.staged_mapping[stage][di]}")
+        for stage in range(len(self.staged_de)):
+            for item in range(len(self.staged_de[stage])):
+                print(f"item: {self.staged_de[stage][item]}")
         # if there is nothing staged
         # Check if there are any staged mappings
         temp_flag = False
@@ -423,7 +429,14 @@ class MyDisplay(Display):
             self.select_axis()
         else:
             logger.debug("There are some staged values")
-            self.configMappingWarningBox()
+            # self.configMappingWarningBox()
+
+            self.msg.setIcon(QMessageBox.Warning)
+            self.msg.setText("You have unsaved staged changes! Discard changes?")
+            self.msg.setWindowTitle("Warning")
+            self.msg.setStandardButtons(
+                QMessageBox.Yes | QMessageBox.No
+            )  # Adjusted buttons
             result = self.msg.exec_()
 
             logger.debug(f"current axis: {self.qCurrAxis}")
@@ -443,13 +456,13 @@ class MyDisplay(Display):
             self.axis_list.setCurrentRow(self.qCurrAxis)
             self.axis_list.blockSignals(False)
 
-    def configMappingWarningBox(self):
-        self.msg.setIcon(QMessageBox.Warning)
-        self.msg.setText("You have unsaved staged changes! Discard changes?")
-        self.msg.setWindowTitle("Warning")
-        self.msg.setStandardButtons(
-            QMessageBox.Yes | QMessageBox.No
-        )  # Adjusted buttons
+    # def configMappingWarningBox(self):
+    #     self.msg.setIcon(QMessageBox.Warning)
+    #     self.msg.setText("You have unsaved staged changes! Discard changes?")
+    #     self.msg.setWindowTitle("Warning")
+    #     self.msg.setStandardButtons(
+    #         QMessageBox.Yes | QMessageBox.No
+    #     )  # Adjusted buttons
 
     def status_staged_mappings(self):
         logger.info(f"in status_staged_mapping: checking if there is a staged mapping")
@@ -459,6 +472,9 @@ class MyDisplay(Display):
             if isinstance(axis, list):  # Ensure we're working with a list
                 for sublist in axis:
                     logger.debug(f"size of staged mapping: {len(sublist)}")
+                    logger.debug(
+                        f"isinstance: {isinstance(sublist, list) and len(sublist) > 1}"
+                    )
                     if isinstance(sublist, list) and len(sublist) > 1:
                         logger.debug(f"there are stagged di changes")
                         containsDI = True  # Found a non-empty sublist
@@ -466,7 +482,15 @@ class MyDisplay(Display):
             if isinstance(axis, list):  # Ensure we're working with a list
                 # [logger.debug(f"items: {item}" for item in axis)]
                 [logger.debug(f"item: {item}") for item in axis]
-                if any([(item != ["None"] and item != [""]) for item in axis]):
+                logger.debug(
+                    f"any: {any([(item != ['None'] and item != [''] and item != []) for item in axis])}"
+                )
+                if any(
+                    [
+                        (item != ["None"] and item != [""] and item != [])
+                        for item in axis
+                    ]
+                ):
                     logger.debug("drive or encoders staged")
                     containsDE = True
         if containsDE or containsDI:
@@ -626,7 +650,7 @@ class MyDisplay(Display):
             msg.exec_()
 
         # Print the results
-        logger.debug("Duplicates:", duplicates)
+        logger.debug(f"Duplicates: {duplicates}")
 
     def see_stage(self):
         logger.info(f"in see_stage")
@@ -657,7 +681,7 @@ class MyDisplay(Display):
                     self.staged_de[stage][0] = [""]
                 if len(self.staged_de[stage][1]) < 1:
                     self.staged_de[stage][1] = [""]
-                    logger.debug("0 is blank")
+                    logger.debug("1 is blank")
                 logger.debug(f"self.staged_de[stage][0]: {self.staged_de[stage][0]}")
                 logger.debug(f"self.staged_de[stage][1]: {self.staged_de[stage][1]}")
 
