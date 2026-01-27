@@ -33,6 +33,7 @@ from qtpy.QtWidgets import (
     QLineEdit,
     QListWidget,
     QMessageBox,
+    QPlainTextEdit,
     QPushButton,
     QScrollArea,
     QVBoxLayout,
@@ -59,6 +60,17 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+
+
+class QPlainTextEditLoggerHandler(logging.Handler):
+    def __init__(self, text_edit):
+        super().__init__()
+        self.text_edit = text_edit
+
+    def emit(self, record):
+        if record.levelno == logging.INFO:
+            msg = self.format(record)
+            self.text_edit.appendPlainText(msg)
 
 
 class MappingWindow(QDialog):
@@ -198,9 +210,15 @@ class MyDisplay(Display):
         self.clear_mapping = self.ui.findChild(QPushButton, "clear_mapping")
 
         # Logger
-        self.status_logger = self.ui.findChild(QListWidget, "status_logger")
-
-        self.setup_logging()
+        self.status_logger = self.ui.findChild(QPlainTextEdit, "status_logger")
+        if self.status_logger is not None:
+            handler = QPlainTextEditLoggerHandler(self.status_logger)
+            formatter = logging.Formatter("%(asctime)s - %(message)s")
+            handler.setFormatter(formatter)
+            logging.getLogger().addHandler(handler)
+            logging.getLogger().setLevel(logging.INFO)
+        else:
+            logger.warning("status_logger QPlainTextEdit not found in UI.")
 
         """
         Signals
@@ -246,9 +264,6 @@ class MyDisplay(Display):
         )
         self.duplicate_enc_cb.stateChanged.connect(self.check_duplicate_enc_flag)
         self.status_indicators = self.ui.findChild(QLabel, "status_indicators")
-
-    def setup_logging(self):
-        self.logger = logging.getLogger()
 
     def update_links(self):
         logger.info(f"in update links")
