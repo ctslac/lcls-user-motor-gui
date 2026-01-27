@@ -547,8 +547,8 @@ class MyDisplay(Display):
             msg.exec_()
 
         # Print the results
-        logger.debug("Duplicates in the 2nd index:", duplicates_second)
-        logger.debug("Duplicates in the 3rd index:", duplicates_third)
+        logger.debug(f"Duplicates in the 2nd index: {duplicates_second}")
+        logger.debug(f"Duplicates in the 3rd index: {duplicates_third}")
 
     def check_duplicate_drv(self):
         """
@@ -599,7 +599,7 @@ class MyDisplay(Display):
             msg.exec_()
 
         # Print the results
-        logger.debug("Duplicates:", duplicates)
+        logger.debug(f"Duplicates: {duplicates}")
 
     def check_duplicate_enc(self):
         """
@@ -1459,7 +1459,7 @@ class MyDisplay(Display):
         logger.debug(f"cleaned axis: {cleaned_di}")
         self.di_size = fake_caget(self.pvDict, cleaned_di)
         logger.debug(f"di size: {self.di_size}")
-        if self.di_size != 0 or self.di_size != None:
+        if self.di_size is not None and self.di_size != 0:
             for i in range(0, int(self.di_size)):
                 self.digital_input_channels.addItem(str(i + 1))
         else:
