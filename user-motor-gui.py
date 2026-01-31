@@ -25,13 +25,16 @@ from qtpy.QtWidgets import (
     QApplication,
     QCheckBox,
     QComboBox,
+    QCompleter,
     QDialog,
     QFrame,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QListView,
     QListWidget,
+    QListWidgetItem,
     QMessageBox,
     QPlainTextEdit,
     QPushButton,
@@ -71,6 +74,60 @@ class QPlainTextEditLoggerHandler(logging.Handler):
         if record.levelno == logging.INFO:
             msg = self.format(record)
             self.text_edit.appendPlainText(msg)
+
+
+from PyQt5 import QtCore
+from PyQt5.QtWidgets import QCompleter, QLineEdit, QListView, QVBoxLayout, QWidget
+
+
+class FilteredListWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        layout = QVBoxLayout(self)
+
+        # Line edit for filtering
+        self.line_edit = QLineEdit(self)
+        self.line_edit.setPlaceholderText("Type to filter...")
+        layout.addWidget(self.line_edit)
+
+        # Source model
+        self.source_model = QtCore.QStringListModel(self)
+
+        # Proxy model for filtering
+        self.filter_model = QtCore.QSortFilterProxyModel(self)
+        self.filter_model.setFilterCaseSensitivity(QtCore.Qt.CaseInsensitive)
+        self.filter_model.setSourceModel(self.source_model)
+
+        # List view
+        self.list_view = QListView(self)
+        self.list_view.setModel(self.filter_model)
+        layout.addWidget(self.list_view)
+
+        # Completer
+        self.completer = QCompleter(self.filter_model, self)
+        self.completer.setCompletionMode(QCompleter.UnfilteredPopupCompletion)
+        self.completer.setCaseSensitivity(QtCore.Qt.CaseInsensitive)
+        self.line_edit.setCompleter(self.completer)
+
+        # Connections
+        self.line_edit.textEdited.connect(self.filter_model.setFilterFixedString)
+        self.completer.activated.connect(self.on_completer_activated)
+
+    def add_items(self, items):
+        current = self.source_model.stringList()
+        self.source_model.setStringList(current + list(items))
+
+    def on_completer_activated(self, text):
+        matches = self.filter_model.match(
+            self.filter_model.index(0, 0),
+            QtCore.Qt.DisplayRole,
+            text,
+            hits=1,
+            flags=QtCore.Qt.MatchExactly,
+        )
+        if matches:
+            self.list_view.setCurrentIndex(matches[0])
 
 
 class MappingWindow(QDialog):
@@ -152,6 +209,7 @@ class MyDisplay(Display):
             self.duplicate_drv_cb_flag = False
             self.duplicate_enc_cb_flag = False
             self.qCurrAxis = 0
+            self.nc_list = []
 
             # Mapping message box
             self.msg = QMessageBox()
@@ -199,10 +257,15 @@ class MyDisplay(Display):
         self.stage_settings = self.ui.findChild(QPushButton, "stage_settings")
 
         # Expert Tab
-        self.expert_axis = self.ui.findChild(QListWidget, "expert_axis")
+        self.expert_axis = self.ui.findChild(QComboBox, "expert_axis")
         self.expert_nc_list = self.ui.findChild(QListWidget, "expert_nc_list")
         self.expert_drive_list = self.ui.findChild(QListWidget, "expert_drive_list")
         self.expert_enocder_list = self.ui.findChild(QListWidget, "expert_enocder_list")
+        self.param_list = self.ui.findChild(QListWidget, "expert_param_list")
+        self.nc_groupbox = self.ui.findChild(QGroupBox, "expert_nc_param")
+
+        self.expert_nc_filter = FilteredListWidget(self.nc_groupbox)
+        self.nc_groupbox.layout().addWidget(self.expert_nc_filter)
 
         # Mapping
         self.stage_mapping = self.ui.findChild(QPushButton, "stage_mapping")
@@ -224,8 +287,7 @@ class MyDisplay(Display):
         Signals
         """
 
-        for slot in [self.update_nc]:
-            self.expert_axis.currentRowChanged.connect(slot)
+        self.expert_axis.currentIndexChanged.connect(self.expert_update_nc)
 
         self.display_axis.currentRowChanged.connect(self.select_axis_ui)
 
@@ -264,6 +326,14 @@ class MyDisplay(Display):
         )
         self.duplicate_enc_cb.stateChanged.connect(self.check_duplicate_enc_flag)
         self.status_indicators = self.ui.findChild(QLabel, "status_indicators")
+
+    def filter_expert_nc_list(self, text):
+        """
+        Filter items in expert_nc_list based on expert_filter text.
+        """
+        for i in range(self.expert_nc_list.count()):
+            item = self.expert_nc_list.item(i)
+            item.setHidden(text.lower() not in item.text().lower())
 
     def update_links(self):
         logger.info(f"in update links")
@@ -471,13 +541,70 @@ class MyDisplay(Display):
             self.axis_list.setCurrentRow(self.qCurrAxis)
             self.axis_list.blockSignals(False)
 
-    # def configMappingWarningBox(self):
-    #     self.msg.setIcon(QMessageBox.Warning)
-    #     self.msg.setText("You have unsaved staged changes! Discard changes?")
-    #     self.msg.setWindowTitle("Warning")
-    #     self.msg.setStandardButtons(
-    #         QMessageBox.Yes | QMessageBox.No
-    #     )  # Adjusted buttons
+    def extract_unique_parts(self, pv_names):
+        unique_parts = set()
+        for pv in pv_names:
+            parts = pv.split(":")
+            if len(parts) > 4:
+                unique_parts.add(parts[4])
+        return sorted(unique_parts)
+
+    def remove_name_rbv(self, pv_name):
+        suffix = ":Name_RBV"
+        if pv_name.endswith(suffix):
+            return pv_name[: -len(suffix)]
+        return pv_name
+
+    def configure_param_widgets(self, widget: QWidget, nc_pv):
+        """
+        Configure all param.ui widgets in self.param_widgets.
+        Optionally takes a config_list (list of dicts) to set values for each widget.
+        Example config_list: [{"label": "NC1", "lineEdit": "val1", "lineEdit_2": "val2", "label_2": "desc1"}, ...]
+        """
+        vals = ["", "", "", ""]
+        vals[0] = nc_pv + ":Name_RBV"
+        vals[1] = nc_pv + ":Goal"
+        vals[2] = nc_pv + ":Val_RBV"
+        vals[3] = nc_pv + ":EU_RBV"
+        ca_vals = epics.caget_many(vals, as_string=True)
+        print(ca_vals)
+        name = widget.findChild(QLabel, "pv_param")
+        name.setText(ca_vals[0])
+        goal = widget.findChild(QLineEdit, "pv_goal")
+        goal.setText(ca_vals[1])
+        rbv = widget.findChild(QLineEdit, "pv_rbv")
+        rbv.setText(ca_vals[2])
+        units = widget.findChild(QLabel, "pv_units")
+        units.setText(ca_vals[3])
+
+    def add_param_widgets(self):
+        """
+        Dynamically add instances of the param.ui widget as QListWidgetItems in self.param_list (QListWidget)
+        """
+
+        # Remove all items from the QListWidget
+        self.param_list.clear()
+        self.param_widgets = []
+        pv = ""
+        ncs = identify_nc_params(
+            self.prefixName + "0" + str(self.expert_axis.currentIndex() + 1),
+            self.pvDict,
+        )
+
+        # Add new widgets based on expert_nc_list
+        for i in ncs:
+            param_widget = uic.loadUi(
+                path.join(path.dirname(path.realpath(__file__)), "param.ui")
+            )
+            item = QListWidgetItem()
+            pv = self.remove_name_rbv(i)
+            print(f"pv: {pv}")
+            self.configure_param_widgets(param_widget, pv)
+            item.setSizeHint(param_widget.sizeHint())
+            self.param_list.addItem(item)
+            self.param_list.setItemWidget(item, param_widget)
+
+            self.param_widgets.append(param_widget)
 
     def status_staged_mappings(self):
         logger.info(f"in status_staged_mapping: checking if there is a staged mapping")
@@ -885,6 +1012,7 @@ class MyDisplay(Display):
         self.axis = identify_axis(self.pvDict)
         self.publish_axis()
         self.publish_axis_ui()
+        self.publish_axis_expert()
 
     def save_stage(self):
         logger.info(f"in save_stage")
@@ -1668,33 +1796,42 @@ class MyDisplay(Display):
         for item in axis_list:
             self.expert_axis.addItem(item)
         # idx = self.axis_list
-        self.expert_axis.setCurrentRow(0)
+        # self.expert_axis.setCurrentRow(0)
         if not self.expert_axis.isEnabled():
             self.expert_axis.setEnabled(True)
         logger.debug(f"caput to: self.axis_selection")
 
-    def update_nc(self):
-        """
-        if axis selection current index is changed grab index and axis reference to populate NC dropdown
-        get currently selected axis
-        identify all NC params based on selected axis
-        clear previous list
-        add items
-        """
-        logger.info(f"in update_nc")
-        axis = self.axis[self.expert_axis.currentRow()]
-        logger.debug(f"axis: {self.expert_axis.currentRow()}")
-        self.expert_nc_list.clear()
-        keys_with_value = [key for key, value in self.pvDict.items() if value == axis]
-        logger.debug(f"Key: {keys_with_value}")
-        cleaned_axis = strip_key(keys_with_value)
-        logger.debug(f"cleaned axis: {cleaned_axis}")
-        items = identify_nc_params(cleaned_axis, self.expertDict)
-        for item in items:
-            self.expert_nc_list.addItem(item)
-        self.expert_nc_list.setCurrentRow(0)
-        if not self.expert_nc_list.isEnabled():
-            self.expert_nc_list.setEnabled(True)
+    def expert_update_nc(self):
+        logger.info("in expert_update_nc")
+
+        axis_index = self.expert_axis.currentIndex()
+        axis = f"{self.prefixName}0{axis_index + 1}"
+
+        # Clear previous items
+        self.expert_nc_filter.source_model.setStringList([])
+        self.nc_list.clear()
+
+        # Identify NC params
+        self.nc_list = identify_nc_params(axis, self.pvDict)
+
+        temp = epics.caget_many(self.nc_list, as_string=True)
+        logger.info(f"items size: {len(temp)}")
+
+        # Add items (filter out None just in case)
+        items = [item for item in temp if item]
+        self.expert_nc_filter.add_items(items)
+
+        # Enable widget if needed
+        self.expert_nc_filter.setEnabled(True)
+
+        # Select first item (if exists)
+        if items:
+            first_index = self.expert_nc_filter.filter_model.index(0, 0)
+            self.expert_nc_filter.list_view.setCurrentIndex(first_index)
+            self.expert_nc_filter.line_edit.setText(items[0])
+
+        # Dynamically add param widgets
+        self.add_param_widgets()
 
     def update_coe_drive(self, axis):
         logger.info(f"in update coe drive")
@@ -1746,8 +1883,8 @@ class MyDisplay(Display):
         if not self.encoder_coe_dropdown.isEnabled():
             self.encoder_coe_dropdown.setEnabled(True)
 
-    def update_nc_io(self, index):
-        logger.info(f"in update_nc_io")
+    def expert_update_nc_io(self, index):
+        logger.info(f"in expert_update_nc_io")
         self.nc_list_indx = self.nc_param_dropdown.currentIndex()
         nc_pv = self.nc_param_dropdown.currentText()
         # logger.debug(f"nc_pv: {nc_pv}")
@@ -1779,7 +1916,7 @@ class MyDisplay(Display):
             self.encoder_coe_io.setEnabled(True)
         self.encoder_coe_io.show()
 
-    def update_nc_index(self):
+    def expert_update_nc_index(self):
         self.nc_list_indx = self.nc_param_dropdown.currentIndex()
 
 

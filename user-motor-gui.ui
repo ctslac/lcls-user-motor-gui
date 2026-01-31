@@ -13,7 +13,7 @@
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <layout class="QHBoxLayout" name="horizontalLayout">
+  <layout class="QVBoxLayout" name="verticalLayout_5">
    <item>
     <widget class="QScrollArea" name="scrollArea">
      <property name="widgetResizable">
@@ -39,7 +39,7 @@
        <item>
         <widget class="QTabWidget" name="tabWidget">
          <property name="currentIndex">
-          <number>0</number>
+          <number>2</number>
          </property>
          <widget class="QWidget" name="user_input_view">
           <attribute name="title">
@@ -483,15 +483,75 @@
                 <layout class="QGridLayout" name="gridLayout_6">
                  <item row="0" column="0">
                   <layout class="QGridLayout" name="gridLayout_7">
-                   <item row="0" column="0">
-                    <widget class="QLabel" name="label_16">
-                     <property name="text">
-                      <string>Select Virtual Axis</string>
+                   <item row="2" column="0">
+                    <widget class="QTabWidget" name="tabWidget_3">
+                     <property name="currentIndex">
+                      <number>0</number>
                      </property>
+                     <widget class="QWidget" name="tab_10">
+                      <attribute name="title">
+                       <string>NC</string>
+                      </attribute>
+                      <layout class="QVBoxLayout" name="verticalLayout_19">
+                       <item>
+                        <widget class="QGroupBox" name="expert_nc_param">
+                         <property name="title">
+                          <string>Parameters</string>
+                         </property>
+                         <layout class="QVBoxLayout" name="verticalLayout_8"/>
+                        </widget>
+                       </item>
+                      </layout>
+                     </widget>
+                     <widget class="QWidget" name="tab_11">
+                      <attribute name="title">
+                       <string>Drives</string>
+                      </attribute>
+                      <layout class="QVBoxLayout" name="verticalLayout_20">
+                       <item>
+                        <widget class="QListWidget" name="expert_drive_list"/>
+                       </item>
+                       <item>
+                        <widget class="PyDMLineEdit" name="PyDMLineEdit_2">
+                         <property name="toolTip">
+                          <string/>
+                         </property>
+                        </widget>
+                       </item>
+                      </layout>
+                     </widget>
+                     <widget class="QWidget" name="tab_12">
+                      <attribute name="title">
+                       <string>Encoders</string>
+                      </attribute>
+                      <layout class="QVBoxLayout" name="verticalLayout_21">
+                       <item>
+                        <widget class="QListWidget" name="expert_encoder_list"/>
+                       </item>
+                       <item>
+                        <widget class="PyDMLineEdit" name="PyDMLineEdit">
+                         <property name="toolTip">
+                          <string/>
+                         </property>
+                        </widget>
+                       </item>
+                      </layout>
+                     </widget>
                     </widget>
                    </item>
-                   <item row="2" column="0">
-                    <widget class="QListWidget" name="expert_axis"/>
+                   <item row="1" column="0">
+                    <layout class="QHBoxLayout" name="horizontalLayout_7">
+                     <item>
+                      <widget class="QLabel" name="label_16">
+                       <property name="text">
+                        <string>Select Virtual Axis</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QComboBox" name="expert_axis"/>
+                     </item>
+                    </layout>
                    </item>
                   </layout>
                  </item>
@@ -502,73 +562,8 @@
                  <property name="spacing">
                   <number>0</number>
                  </property>
-                 <item row="1" column="0">
-                  <widget class="PyDMPushButton" name="PyDMPushButton_6">
-                   <property name="toolTip">
-                    <string/>
-                   </property>
-                   <property name="text">
-                    <string>View Logger</string>
-                   </property>
-                  </widget>
-                 </item>
                  <item row="0" column="0">
-                  <widget class="QTabWidget" name="tabWidget_3">
-                   <property name="currentIndex">
-                    <number>2</number>
-                   </property>
-                   <widget class="QWidget" name="tab_10">
-                    <attribute name="title">
-                     <string>NC</string>
-                    </attribute>
-                    <layout class="QVBoxLayout" name="verticalLayout_19">
-                     <item>
-                      <widget class="QListWidget" name="expert_nc_list"/>
-                     </item>
-                     <item>
-                      <widget class="PyDMLineEdit" name="PyDMLineEdit_3">
-                       <property name="toolTip">
-                        <string/>
-                       </property>
-                      </widget>
-                     </item>
-                    </layout>
-                   </widget>
-                   <widget class="QWidget" name="tab_11">
-                    <attribute name="title">
-                     <string>Drives</string>
-                    </attribute>
-                    <layout class="QVBoxLayout" name="verticalLayout_20">
-                     <item>
-                      <widget class="QListWidget" name="expert_drive_list"/>
-                     </item>
-                     <item>
-                      <widget class="PyDMLineEdit" name="PyDMLineEdit_2">
-                       <property name="toolTip">
-                        <string/>
-                       </property>
-                      </widget>
-                     </item>
-                    </layout>
-                   </widget>
-                   <widget class="QWidget" name="tab_12">
-                    <attribute name="title">
-                     <string>Encoders</string>
-                    </attribute>
-                    <layout class="QVBoxLayout" name="verticalLayout_21">
-                     <item>
-                      <widget class="QListWidget" name="expert_encoder_list"/>
-                     </item>
-                     <item>
-                      <widget class="PyDMLineEdit" name="PyDMLineEdit">
-                       <property name="toolTip">
-                        <string/>
-                       </property>
-                      </widget>
-                     </item>
-                    </layout>
-                   </widget>
-                  </widget>
+                  <widget class="QListWidget" name="expert_param_list"/>
                  </item>
                 </layout>
                </widget>

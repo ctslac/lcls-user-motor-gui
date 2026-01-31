@@ -4,7 +4,7 @@ import os
 import re
 import sys
 
-# from epics import PV, fake_caget
+import epics
 
 
 def fake_caget(pv_dict, pv):
@@ -131,7 +131,7 @@ def identify_enc(pv_list, axis_name):
     return encoder_type
 
 
-def identify_nc_params(axis, dict):
+def identify_nc_params(axis, pv_dict):
     """
     Given a list of PVs, find all of the NC params for a given axis prefix
     """
@@ -142,19 +142,23 @@ def identify_nc_params(axis, dict):
     # cleaned_prefix = prefix.replace(stripped_axis_rbv, "")
     # print(f"after axis prefix: {cleaned_prefix}")
     nc_list = []
+    cagetted_nc_list = []
     nc_param = axis + ":NC:"
     print(f"nc_param: {nc_param}")
-    c_nc_p = "r" + '"' + nc_param + '"'
+
+    # r"TST:UM:02:NC:[^:]+:Name_RBV"
+    c_nc_p = nc_param + "[^:]+:Name_RBV"
     print(f"nc p: {c_nc_p}")
-    print(f"nc_param type: {type(c_nc_p)}, pv_list type: {type(dict)}")
-    for pv in dict:
+    # print(f"nc_param type: {type(c_nc_p)}, pv_dict size: {len(pv_dict)}")
+    for pv in pv_dict:
         # print(f"nc p: {c_nc_p}, pv: {pv}")
-        if re.search(nc_param, pv):
-            # print(f"Found nc_param in the list, param: {pv}")
+        if re.search(c_nc_p, pv):
+            print(f"Found nc_param in the list, param: {pv}")
             nc_list.append(pv.strip())
             # print("Not an axis")
             # print("didnt find a match")
 
+    # cagetted_nc_list = epics.caget_many(nc_list, as_string=True)
     return nc_list
 
 
