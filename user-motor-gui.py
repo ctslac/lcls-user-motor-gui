@@ -211,6 +211,7 @@ class MyDisplay(Display):
             self.qCurrAxis = 0
             self.nc_list = []
             self.coe_drive_list = []
+            self.coe_encoder_list = []
 
             # Mapping message box
             self.msg = QMessageBox()
@@ -263,8 +264,15 @@ class MyDisplay(Display):
         self.expert_drive_list = self.ui.findChild(QListWidget, "expert_drive_list")
         self.expert_enocder_list = self.ui.findChild(QListWidget, "expert_enocder_list")
         self.param_list = self.ui.findChild(QListWidget, "expert_param_list")
+        self.expert_drive_param_list = self.ui.findChild(
+            QListWidget, "expert_coe_drive_list"
+        )
+        self.expert_encoder_param_list = self.ui.findChild(
+            QListWidget, "expert_coe_encoder_list"
+        )
         self.nc_groupbox = self.ui.findChild(QGroupBox, "expert_nc_param")
         self.drive_groupbox = self.ui.findChild(QGroupBox, "expert_drive_param")
+        self.encoder_groupbox = self.ui.findChild(QGroupBox, "expert_encoder_param")
 
         # NC Tab
         self.expert_nc_filter = FilteredListWidget(self.nc_groupbox)
@@ -273,6 +281,10 @@ class MyDisplay(Display):
         # Drive Tab
         self.expert_drive_filter = FilteredListWidget(self.drive_groupbox)
         self.drive_groupbox.layout().addWidget(self.expert_drive_filter)
+
+        # Encoder Tab
+        self.expert_encoder_filter = FilteredListWidget(self.encoder_groupbox)
+        self.encoder_groupbox.layout().addWidget(self.expert_encoder_filter)
 
         # Mapping
         self.stage_mapping = self.ui.findChild(QPushButton, "stage_mapping")
@@ -293,7 +305,11 @@ class MyDisplay(Display):
         """
         Signals
         """
-        for slot in [self.expert_update_nc, self.expert_update_drive]:
+        for slot in [
+            self.expert_update_nc,
+            self.expert_update_drive,
+            self.expert_update_encoder,
+        ]:
             self.expert_axis.currentIndexChanged.connect(slot)
 
         self.display_axis.currentRowChanged.connect(self.select_axis_ui)
@@ -573,9 +589,9 @@ class MyDisplay(Display):
         vals[1] = nc_pv + ":Goal"
         vals[2] = nc_pv + ":Val_RBV"
         vals[3] = nc_pv + ":EU_RBV"
-        print("ca://" + vals[1])
+        # print("ca://" + vals[1])
         ca_vals = epics.caget_many(vals, as_string=True)
-        print(ca_vals)
+        # print(ca_vals)
         name = widget.findChild(PyDMLabel, "pv_name")
         name.setText(ca_vals[0])
         goal = widget.findChild(PyDMLineEdit, "pv_goal")
@@ -585,22 +601,45 @@ class MyDisplay(Display):
         units = widget.findChild(PyDMLabel, "pv_units")
         units.setText(ca_vals[3])
 
-    def add_param_widgets(self):
+    # def add_param_widgets(self, param, widget : QListWidget):
+    #     """
+    #     Dynamically add instances of the param.ui widget as QListWidgetItems in self.param_list (QListWidget)
+    #     """
+
+    #     # Remove all items from the QListWidget
+    #     widget.clear()
+    #     self.param_widgets = []
+    #     pv = ""
+    #     # ncs = identify_nc_params(
+    #     #     self.prefixName + "0" + str(self.expert_axis.currentIndex() + 1),
+    #     #     self.pvDict,
+    #     # )
+    #     ncs = param
+
+    #     # Add new widgets based on expert_nc_list
+    #     for i in ncs:
+    #         param_widget = uic.loadUi(
+    #             path.join(path.dirname(path.realpath(__file__)), "param.ui")
+    #         )
+    #         item = QListWidgetItem()
+    #         pv = self.remove_name_rbv(i)
+    #         print(f"pv: {pv}")
+    #         self.configure_param_widgets(param_widget, pv)
+    #         item.setSizeHint(param_widget.sizeHint())
+    #         self.widget.addItem(item)
+    #         self.widget.setItemWidget(item, param_widget)
+
+    #         self.param_widgets.append(param_widget)
+
+    def add_param_widgets(self, param, widget: QListWidget):
         """
         Dynamically add instances of the param.ui widget as QListWidgetItems in self.param_list (QListWidget)
         """
-
         # Remove all items from the QListWidget
-        self.param_list.clear()
+        widget.clear()
         self.param_widgets = []
-        pv = ""
-        ncs = identify_nc_params(
-            self.prefixName + "0" + str(self.expert_axis.currentIndex() + 1),
-            self.pvDict,
-        )
-
-        # Add new widgets based on expert_nc_list
-        for i in ncs:
+        # ... other code ...
+        for i in param:
             param_widget = uic.loadUi(
                 path.join(path.dirname(path.realpath(__file__)), "param.ui")
             )
@@ -609,8 +648,8 @@ class MyDisplay(Display):
             print(f"pv: {pv}")
             self.configure_param_widgets(param_widget, pv)
             item.setSizeHint(param_widget.sizeHint())
-            self.param_list.addItem(item)
-            self.param_list.setItemWidget(item, param_widget)
+            widget.addItem(item)
+            widget.setItemWidget(item, param_widget)
 
             self.param_widgets.append(param_widget)
 
@@ -1836,13 +1875,13 @@ class MyDisplay(Display):
         if items:
             first_index = self.expert_nc_filter.filter_model.index(0, 0)
             self.expert_nc_filter.list_view.setCurrentIndex(first_index)
-            self.expert_nc_filter.line_edit.setText(items[0])
+            # self.expert_nc_filter.line_edit.setText(items[0])
 
         # Dynamically add param widgets
-        self.add_param_widgets()
+        self.add_param_widgets(self.nc_list, self.param_list)
 
     def expert_update_drive(self, axis):
-        logger.info(f"in expert_update_drive")
+        logger.info(f"\nin expert_update_drive")
 
         # Get current axis
         axis_index = self.expert_axis.currentIndex()
@@ -1857,10 +1896,12 @@ class MyDisplay(Display):
         # Get hardware slice
         # TST:UM:01:SelG:DRV:Id_RBV
         hardwareID = epics.caget(axis + ":SelG:DRV:Id_RBV", as_string=True)
+
+        print(f"hardwareID after split: {hardwareID}")
         # Remove everything after the first underscore
         if hardwareID and "_" in hardwareID:
             hardwareID = hardwareID.split("_", 1)[0]
-        print(f"hardwareID: {hardwareID}")
+        print(f"hardwareID after split: {hardwareID}")
 
         self.coe_drive_list = identify_coe_drive_params(
             axis + ":" + hardwareID, self.pvDict
@@ -1880,32 +1921,56 @@ class MyDisplay(Display):
         if items:
             first_index = self.expert_drive_filter.filter_model.index(0, 0)
             self.expert_drive_filter.list_view.setCurrentIndex(first_index)
-            self.expert_drive_filter.line_edit.setText(items[0])
+            # self.expert_drive_filter.line_edit.setText(items[0])
 
         # # Dynamically add param widgets
-        # self.add_param_widgets()
+        self.add_param_widgets(self.coe_drive_list, self.expert_drive_param_list)
 
-    def update_coe_enc(self):
-        logger.info(f"in update enc coe")
-        self.coe_enc_list.clear()
-        self.encoder_coe_dropdown.clear()
-        if self.encoder_selection.currentText() == "EL5102":
-            self.coe_enc_list = identify_coe_enc_params(
-                self.axis_selection.currentText(),
-                "EL5102",
-                self.pvList,
-            )
-        elif self.encoder_selection.currentText() == "EL5042":
-            self.coe_enc_list = identify_coe_enc_params(
-                self.axis_selection.currentText(),
-                "EL5042",
-                self.pvList,
-            )
-        self.encoder_coe_dropdown.addItems(self.coe_enc_list)
-        self.encoder_coe_dropdown.setCurrentIndex(0)
-        self.encoder_coe_dropdown.show()
-        if not self.encoder_coe_dropdown.isEnabled():
-            self.encoder_coe_dropdown.setEnabled(True)
+    def expert_update_encoder(self, axis):
+        logger.info(f"in expert_update_encoder")
+
+        # Get current axis
+        axis_index = self.expert_axis.currentIndex()
+        axis = f"{self.prefixName}0{axis_index + 1}"
+        print(f"axis: {axis}")
+        print(f'caget: {axis + ":SelG:ENC:Id_RBV"}')
+
+        # Clear previous items
+        self.expert_encoder_filter.source_model.setStringList([])
+        self.coe_encoder_list.clear()
+
+        # Get hardware slice
+        # TST:UM:01:SelG:DRV:Id_RBV
+        hardwareID = epics.caget(axis + ":SelG:ENC:Id_RBV", as_string=True)
+
+        print(f"hardwareID after split: {hardwareID}")
+        # Remove everything after the first underscore
+        if hardwareID and "_" in hardwareID:
+            hardwareID = hardwareID.split("_", 1)[0]
+        print(f"hardwareID after split: {hardwareID}")
+
+        self.coe_encoder_list = identify_coe_enc_params(
+            axis + ":" + hardwareID, self.pvDict
+        )
+
+        temp = epics.caget_many(self.coe_encoder_list, as_string=True)
+        logger.info(f"items size: {len(temp)}")
+
+        # Add items (filter out None just in case)
+        items = [item for item in temp if item]
+        self.expert_encoder_filter.add_items(items)
+
+        # Enable widget if needed
+        self.expert_encoder_filter.setEnabled(True)
+
+        # Select first item (if exists)
+        if items:
+            first_index = self.expert_encoder_filter.filter_model.index(0, 0)
+            self.expert_encoder_filter.list_view.setCurrentIndex(first_index)
+            # self.expert_encoder_filter.line_edit.setText(items[0])
+
+        # # Dynamically add param widgets
+        self.add_param_widgets(self.coe_encoder_list, self.expert_encoder_param_list)
 
     def expert_update_nc_io(self, index):
         logger.info(f"in expert_update_nc_io")
