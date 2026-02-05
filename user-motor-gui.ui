@@ -486,7 +486,7 @@
                    <item row="2" column="0">
                     <widget class="QTabWidget" name="tabWidget_3">
                      <property name="currentIndex">
-                      <number>0</number>
+                      <number>2</number>
                      </property>
                      <widget class="QWidget" name="tab_10">
                       <attribute name="title">
@@ -509,13 +509,11 @@
                       </attribute>
                       <layout class="QVBoxLayout" name="verticalLayout_20">
                        <item>
-                        <widget class="QListWidget" name="expert_drive_list"/>
-                       </item>
-                       <item>
-                        <widget class="PyDMLineEdit" name="PyDMLineEdit_2">
-                         <property name="toolTip">
-                          <string/>
+                        <widget class="QGroupBox" name="expert_drive_param">
+                         <property name="title">
+                          <string>Parameters</string>
                          </property>
+                         <layout class="QVBoxLayout" name="verticalLayout_36"/>
                         </widget>
                        </item>
                       </layout>
@@ -526,13 +524,11 @@
                       </attribute>
                       <layout class="QVBoxLayout" name="verticalLayout_21">
                        <item>
-                        <widget class="QListWidget" name="expert_encoder_list"/>
-                       </item>
-                       <item>
-                        <widget class="PyDMLineEdit" name="PyDMLineEdit">
-                         <property name="toolTip">
-                          <string/>
+                        <widget class="QGroupBox" name="expert_encoder_param">
+                         <property name="title">
+                          <string>Parameters</string>
                          </property>
+                         <layout class="QVBoxLayout" name="verticalLayout_38"/>
                         </widget>
                        </item>
                       </layout>
@@ -563,7 +559,53 @@
                   <number>0</number>
                  </property>
                  <item row="0" column="0">
-                  <widget class="QListWidget" name="expert_param_list"/>
+                  <widget class="QTabWidget" name="tab_params">
+                   <property name="currentIndex">
+                    <number>0</number>
+                   </property>
+                   <widget class="QWidget" name="tab_nc_params">
+                    <attribute name="title">
+                     <string>NC Params</string>
+                    </attribute>
+                    <layout class="QVBoxLayout" name="verticalLayout_41">
+                     <item>
+                      <layout class="QVBoxLayout" name="verticalLayout_40">
+                       <item>
+                        <widget class="QListWidget" name="expert_param_list"/>
+                       </item>
+                      </layout>
+                     </item>
+                    </layout>
+                   </widget>
+                   <widget class="QWidget" name="tab_2">
+                    <attribute name="title">
+                     <string>COE Drive Params</string>
+                    </attribute>
+                    <layout class="QVBoxLayout" name="verticalLayout_43">
+                     <item>
+                      <layout class="QVBoxLayout" name="verticalLayout_42">
+                       <item>
+                        <widget class="QListWidget" name="expert_coe_drive_list"/>
+                       </item>
+                      </layout>
+                     </item>
+                    </layout>
+                   </widget>
+                   <widget class="QWidget" name="tab">
+                    <attribute name="title">
+                     <string>COE Encoder Params</string>
+                    </attribute>
+                    <layout class="QVBoxLayout" name="verticalLayout_45">
+                     <item>
+                      <layout class="QVBoxLayout" name="verticalLayout_44">
+                       <item>
+                        <widget class="QListWidget" name="expert_coe_encoder_list"/>
+                       </item>
+                      </layout>
+                     </item>
+                    </layout>
+                   </widget>
+                  </widget>
                  </item>
                 </layout>
                </widget>
@@ -598,6 +640,28 @@
                 <layout class="QGridLayout" name="gridLayout_9">
                  <item row="0" column="0">
                   <layout class="QGridLayout" name="gridLayout_10">
+                   <item row="2" column="0">
+                    <widget class="QGroupBox" name="groupBox_2">
+                     <property name="title">
+                      <string>GroupBox</string>
+                     </property>
+                     <layout class="QVBoxLayout" name="verticalLayout_37"/>
+                    </widget>
+                   </item>
+                   <item row="0" column="0">
+                    <layout class="QHBoxLayout" name="horizontalLayout_4">
+                     <item>
+                      <widget class="QLabel" name="label_19">
+                       <property name="text">
+                        <string>Select Virtual Axis</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QComboBox" name="comboBox"/>
+                     </item>
+                    </layout>
+                   </item>
                    <item row="3" column="0">
                     <widget class="PyDMPushButton" name="PyDMPushButton_7">
                      <property name="toolTip">
@@ -605,16 +669,6 @@
                      </property>
                      <property name="text">
                       <string>RESET</string>
-                     </property>
-                    </widget>
-                   </item>
-                   <item row="2" column="0">
-                    <widget class="QListWidget" name="listWidget_12"/>
-                   </item>
-                   <item row="0" column="0">
-                    <widget class="QLabel" name="label_19">
-                     <property name="text">
-                      <string>Select Virtual Axis</string>
                      </property>
                     </widget>
                    </item>
@@ -799,11 +853,6 @@
    <class>PyDMLabel</class>
    <extends>QLabel</extends>
    <header>pydm.widgets.label</header>
-  </customwidget>
-  <customwidget>
-   <class>PyDMLineEdit</class>
-   <extends>QLineEdit</extends>
-   <header>pydm.widgets.line_edit</header>
   </customwidget>
   <customwidget>
    <class>PyDMPushButton</class>

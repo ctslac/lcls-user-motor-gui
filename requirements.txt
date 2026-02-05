@@ -6,3 +6,4 @@ pcdsutils
 qtpy
 PyQt5
 pyepics==3.5.9
+ophyd>=1.7.0

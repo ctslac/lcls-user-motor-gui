@@ -210,6 +210,7 @@ class MyDisplay(Display):
             self.duplicate_enc_cb_flag = False
             self.qCurrAxis = 0
             self.nc_list = []
+            self.coe_drive_list = []
 
             # Mapping message box
             self.msg = QMessageBox()
@@ -256,16 +257,22 @@ class MyDisplay(Display):
         self.display_encoders = self.ui.findChild(QListWidget, "display_encoders_ui")
         self.stage_settings = self.ui.findChild(QPushButton, "stage_settings")
 
-        # Expert Tab
+        ## Expert Tab
         self.expert_axis = self.ui.findChild(QComboBox, "expert_axis")
         self.expert_nc_list = self.ui.findChild(QListWidget, "expert_nc_list")
         self.expert_drive_list = self.ui.findChild(QListWidget, "expert_drive_list")
         self.expert_enocder_list = self.ui.findChild(QListWidget, "expert_enocder_list")
         self.param_list = self.ui.findChild(QListWidget, "expert_param_list")
         self.nc_groupbox = self.ui.findChild(QGroupBox, "expert_nc_param")
+        self.drive_groupbox = self.ui.findChild(QGroupBox, "expert_drive_param")
 
+        # NC Tab
         self.expert_nc_filter = FilteredListWidget(self.nc_groupbox)
         self.nc_groupbox.layout().addWidget(self.expert_nc_filter)
+
+        # Drive Tab
+        self.expert_drive_filter = FilteredListWidget(self.drive_groupbox)
+        self.drive_groupbox.layout().addWidget(self.expert_drive_filter)
 
         # Mapping
         self.stage_mapping = self.ui.findChild(QPushButton, "stage_mapping")
@@ -286,8 +293,8 @@ class MyDisplay(Display):
         """
         Signals
         """
-
-        self.expert_axis.currentIndexChanged.connect(self.expert_update_nc)
+        for slot in [self.expert_update_nc, self.expert_update_drive]:
+            self.expert_axis.currentIndexChanged.connect(slot)
 
         self.display_axis.currentRowChanged.connect(self.select_axis_ui)
 
@@ -566,15 +573,16 @@ class MyDisplay(Display):
         vals[1] = nc_pv + ":Goal"
         vals[2] = nc_pv + ":Val_RBV"
         vals[3] = nc_pv + ":EU_RBV"
+        print("ca://" + vals[1])
         ca_vals = epics.caget_many(vals, as_string=True)
         print(ca_vals)
-        name = widget.findChild(QLabel, "pv_param")
+        name = widget.findChild(PyDMLabel, "pv_name")
         name.setText(ca_vals[0])
-        goal = widget.findChild(QLineEdit, "pv_goal")
-        goal.setText(ca_vals[1])
-        rbv = widget.findChild(QLineEdit, "pv_rbv")
-        rbv.setText(ca_vals[2])
-        units = widget.findChild(QLabel, "pv_units")
+        goal = widget.findChild(PyDMLineEdit, "pv_goal")
+        goal.set_channel("ca://" + vals[1])
+        rbv = widget.findChild(PyDMLineEdit, "pv_rbv")
+        rbv.set_channel("ca://" + vals[2])
+        units = widget.findChild(PyDMLabel, "pv_units")
         units.setText(ca_vals[3])
 
     def add_param_widgets(self):
@@ -1833,33 +1841,49 @@ class MyDisplay(Display):
         # Dynamically add param widgets
         self.add_param_widgets()
 
-    def update_coe_drive(self, axis):
-        logger.info(f"in update coe drive")
-        self.expert_drive_list.clear()
-        axis = self.axis[self.expert_axis.currentRow()]
-        logger.debug(f"axis: {self.expert_axis.currentRow()}")
-        keys_with_value = [key for key, value in self.pvDict.items() if value == axis]
-        cleaned_axis = strip_key(keys_with_value)
-        logger.debug(f"cleaned axis: {cleaned_axis}")
-        """Need to coordinate with Nick on how to structure PVs"""
+    def expert_update_drive(self, axis):
+        logger.info(f"in expert_update_drive")
 
-        if self.drive_selection.currentText() == "EL7047":
-            self.coe_drive_list = identify_coe_drive_params(
-                self.axis_selection.currentText(),
-                "EL7047",
-                self.pvList,
-            )
-        elif self.drive_selection.currentText() == "EL7062":
-            self.coe_drive_list = identify_coe_drive_params(
-                self.axis_selection.currentText(),
-                "EL7062",
-                self.pvList,
-            )
-        self.drive_coe_dropdown.addItems(self.coe_drive_list)
-        self.drive_coe_dropdown.setCurrentIndex(0)
-        self.drive_coe_dropdown.show()
-        if not self.drive_coe_dropdown.isEnabled():
-            self.drive_coe_dropdown.setEnabled(True)
+        # Get current axis
+        axis_index = self.expert_axis.currentIndex()
+        axis = f"{self.prefixName}0{axis_index + 1}"
+        print(f"axis: {axis}")
+        print(f'caget: {axis + ":SelG:DRV:Id_RBV"}')
+
+        # Clear previous items
+        self.expert_drive_filter.source_model.setStringList([])
+        self.coe_drive_list.clear()
+
+        # Get hardware slice
+        # TST:UM:01:SelG:DRV:Id_RBV
+        hardwareID = epics.caget(axis + ":SelG:DRV:Id_RBV", as_string=True)
+        # Remove everything after the first underscore
+        if hardwareID and "_" in hardwareID:
+            hardwareID = hardwareID.split("_", 1)[0]
+        print(f"hardwareID: {hardwareID}")
+
+        self.coe_drive_list = identify_coe_drive_params(
+            axis + ":" + hardwareID, self.pvDict
+        )
+
+        temp = epics.caget_many(self.coe_drive_list, as_string=True)
+        logger.info(f"items size: {len(temp)}")
+
+        # Add items (filter out None just in case)
+        items = [item for item in temp if item]
+        self.expert_drive_filter.add_items(items)
+
+        # Enable widget if needed
+        self.expert_drive_filter.setEnabled(True)
+
+        # Select first item (if exists)
+        if items:
+            first_index = self.expert_drive_filter.filter_model.index(0, 0)
+            self.expert_drive_filter.list_view.setCurrentIndex(first_index)
+            self.expert_drive_filter.line_edit.setText(items[0])
+
+        # # Dynamically add param widgets
+        # self.add_param_widgets()
 
     def update_coe_enc(self):
         logger.info(f"in update enc coe")
