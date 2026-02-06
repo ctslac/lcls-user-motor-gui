@@ -217,6 +217,16 @@ def identify_coe_enc_params(axis, pv_dict):
     return coe_list
 
 
+def identify_dg_params(prefix: str, pv_dict: dict):
+    print(f"in identify_dg_params")
+    dgList = []
+    # TST:UM:01:EL5042:COE:DG:[^:]+:Name_RBV
+    for pv in pv_dict:
+        if re.search(prefix + "[^:]+:Name_RBV", pv):
+            dgList.append(pv.strip())
+    return dgList
+
+
 def strip_key(key):
     key = str(key).replace("'", "")
     key = key.replace("[", "")

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1308</width>
-    <height>849</height>
+    <height>974</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -25,7 +25,7 @@
         <x>0</x>
         <y>0</y>
         <width>1288</width>
-        <height>829</height>
+        <height>954</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_33">
@@ -39,7 +39,7 @@
        <item>
         <widget class="QTabWidget" name="tabWidget">
          <property name="currentIndex">
-          <number>2</number>
+          <number>3</number>
          </property>
          <widget class="QWidget" name="user_input_view">
           <attribute name="title">
@@ -639,16 +639,8 @@
                <widget class="QWidget" name="gridLayoutWidget_7">
                 <layout class="QGridLayout" name="gridLayout_9">
                  <item row="0" column="0">
-                  <layout class="QGridLayout" name="gridLayout_10">
-                   <item row="2" column="0">
-                    <widget class="QGroupBox" name="groupBox_2">
-                     <property name="title">
-                      <string>GroupBox</string>
-                     </property>
-                     <layout class="QVBoxLayout" name="verticalLayout_37"/>
-                    </widget>
-                   </item>
-                   <item row="0" column="0">
+                  <layout class="QVBoxLayout" name="verticalLayout_46">
+                   <item>
                     <layout class="QHBoxLayout" name="horizontalLayout_4">
                      <item>
                       <widget class="QLabel" name="label_19">
@@ -658,11 +650,41 @@
                       </widget>
                      </item>
                      <item>
-                      <widget class="QComboBox" name="comboBox"/>
+                      <widget class="QComboBox" name="diagnostic_axis_selection"/>
                      </item>
                     </layout>
                    </item>
-                   <item row="3" column="0">
+                   <item alignment="Qt::AlignHCenter">
+                    <widget class="QLabel" name="label_4">
+                     <property name="sizePolicy">
+                      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                       <horstretch>0</horstretch>
+                       <verstretch>0</verstretch>
+                      </sizepolicy>
+                     </property>
+                     <property name="minimumSize">
+                      <size>
+                       <width>0</width>
+                       <height>0</height>
+                      </size>
+                     </property>
+                     <property name="text">
+                      <string>Select Hardware</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QListWidget" name="diagnostic_hardware_selection"/>
+                   </item>
+                   <item>
+                    <widget class="QGroupBox" name="diagnostic_groupbox">
+                     <property name="title">
+                      <string>Diagnostic Params</string>
+                     </property>
+                     <layout class="QVBoxLayout" name="verticalLayout_37"/>
+                    </widget>
+                   </item>
+                   <item>
                     <widget class="PyDMPushButton" name="PyDMPushButton_7">
                      <property name="toolTip">
                       <string/>
@@ -671,6 +693,19 @@
                       <string>RESET</string>
                      </property>
                     </widget>
+                   </item>
+                   <item>
+                    <spacer name="verticalSpacer">
+                     <property name="orientation">
+                      <enum>Qt::Vertical</enum>
+                     </property>
+                     <property name="sizeHint" stdset="0">
+                      <size>
+                       <width>20</width>
+                       <height>40</height>
+                      </size>
+                     </property>
+                    </spacer>
                    </item>
                   </layout>
                  </item>
@@ -684,71 +719,11 @@
                  <item>
                   <layout class="QVBoxLayout" name="verticalLayout_25">
                    <item>
-                    <widget class="QLabel" name="label_20">
-                     <property name="text">
-                      <string>TextLabel</string>
+                    <widget class="QGroupBox" name="diagnostic_params_groupbox">
+                     <property name="title">
+                      <string>Diagnostics</string>
                      </property>
-                    </widget>
-                   </item>
-                   <item>
-                    <widget class="QListWidget" name="listWidget_13"/>
-                   </item>
-                   <item>
-                    <widget class="PyDMLabel" name="PyDMLabel_6">
-                     <property name="toolTip">
-                      <string/>
-                     </property>
-                     <property name="text">
-                      <string>Error Code</string>
-                     </property>
-                    </widget>
-                   </item>
-                  </layout>
-                 </item>
-                 <item>
-                  <layout class="QVBoxLayout" name="verticalLayout_29">
-                   <item>
-                    <widget class="QLabel" name="label_18">
-                     <property name="text">
-                      <string>Drives</string>
-                     </property>
-                    </widget>
-                   </item>
-                   <item>
-                    <widget class="QListWidget" name="listWidget_17"/>
-                   </item>
-                   <item>
-                    <widget class="PyDMLabel" name="PyDMLabel_4">
-                     <property name="toolTip">
-                      <string/>
-                     </property>
-                     <property name="text">
-                      <string>Error Code</string>
-                     </property>
-                    </widget>
-                   </item>
-                  </layout>
-                 </item>
-                 <item>
-                  <layout class="QVBoxLayout" name="verticalLayout_28">
-                   <item>
-                    <widget class="QLabel" name="label_17">
-                     <property name="text">
-                      <string>Encoders</string>
-                     </property>
-                    </widget>
-                   </item>
-                   <item>
-                    <widget class="QListWidget" name="listWidget_16"/>
-                   </item>
-                   <item>
-                    <widget class="PyDMLabel" name="PyDMLabel_5">
-                     <property name="toolTip">
-                      <string/>
-                     </property>
-                     <property name="text">
-                      <string>ErrorCode</string>
-                     </property>
+                     <layout class="QVBoxLayout" name="verticalLayout_28"/>
                     </widget>
                    </item>
                   </layout>
@@ -827,7 +802,7 @@
          <item>
           <widget class="QPlainTextEdit" name="status_logger">
            <property name="sizePolicy">
-            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+            <sizepolicy hsizetype="Expanding" vsizetype="Minimum">
              <horstretch>0</horstretch>
              <verstretch>0</verstretch>
             </sizepolicy>

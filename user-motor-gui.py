@@ -50,6 +50,7 @@ from parse_pvs import (
     identify_axis,
     identify_coe_drive_params,
     identify_coe_enc_params,
+    identify_dg_params,
     identify_drive,
     identify_enc,
     identify_inputs,
@@ -81,6 +82,8 @@ from PyQt5.QtWidgets import QCompleter, QLineEdit, QListView, QVBoxLayout, QWidg
 
 
 class FilteredListWidget(QWidget):
+    currentIndexChanged = QtCore.pyqtSignal(QtCore.QModelIndex)  # <-- CLASS LEVEL
+
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -117,6 +120,24 @@ class FilteredListWidget(QWidget):
     def add_items(self, items):
         current = self.source_model.stringList()
         self.source_model.setStringList(current + list(items))
+
+    def currentIndex(self):
+        """
+        Returns the current index in the proxy model.
+        """
+        return self.list_view.currentIndex()
+
+    def currentText(self):
+        """
+        Returns the text at the current index, or None if invalid.
+        """
+        idx = self.currentIndex()
+        if idx.isValid():
+            return idx.data()
+        return None
+
+    def _emit_currentIndexChanged(self, current, previous):
+        self.currentIndexChanged.emit(current)
 
     def on_completer_activated(self, text):
         matches = self.filter_model.match(
@@ -212,6 +233,7 @@ class MyDisplay(Display):
             self.nc_list = []
             self.coe_drive_list = []
             self.coe_encoder_list = []
+            self.l_dgParamsList = []
 
             # Mapping message box
             self.msg = QMessageBox()
@@ -274,17 +296,33 @@ class MyDisplay(Display):
         self.drive_groupbox = self.ui.findChild(QGroupBox, "expert_drive_param")
         self.encoder_groupbox = self.ui.findChild(QGroupBox, "expert_encoder_param")
 
-        # NC Tab
+        # Expert Tab -> NC Tab
         self.expert_nc_filter = FilteredListWidget(self.nc_groupbox)
         self.nc_groupbox.layout().addWidget(self.expert_nc_filter)
 
-        # Drive Tab
+        # Drive Tab -> NC Tab
         self.expert_drive_filter = FilteredListWidget(self.drive_groupbox)
         self.drive_groupbox.layout().addWidget(self.expert_drive_filter)
 
-        # Encoder Tab
+        # Encoder Tab -> NC Tab
         self.expert_encoder_filter = FilteredListWidget(self.encoder_groupbox)
         self.encoder_groupbox.layout().addWidget(self.expert_encoder_filter)
+
+        # Diagnostic Tab
+        self.diagnostic_axis_selection = self.ui.findChild(
+            QComboBox, "diagnostic_axis_selection"
+        )
+        self.diagnostic_hardware_selection = self.ui.findChild(
+            QListWidget, "diagnostic_hardware_selection"
+        )
+        self.diagnostic_groupbox = self.ui.findChild(QGroupBox, "diagnostic_groupbox")
+
+        self.diagnostic_param_filter = FilteredListWidget(self.diagnostic_groupbox)
+        self.diagnostic_groupbox.layout().addWidget(self.diagnostic_param_filter)
+
+        self.diagnostic_params_groupbox = self.ui.findChild(
+            QGroupBox, "diagnostic_params_groupbox"
+        )
 
         # Mapping
         self.stage_mapping = self.ui.findChild(QPushButton, "stage_mapping")
@@ -316,6 +354,15 @@ class MyDisplay(Display):
 
         # axis signals
         self.axis_list.currentRowChanged.connect(self.isStagedMappingSet)
+        self.diagnostic_axis_selection.currentIndexChanged.connect(
+            self.populate_diagnostic_hardware
+        )
+        self.diagnostic_hardware_selection.currentRowChanged.connect(
+            self.populate_diagnostic_coe
+        )
+        self.diagnostic_param_filter.currentIndexChanged.connect(
+            self.populate_diagnostic_widget
+        )
 
         # digitial input handling signals
         self.digital_input_hardware.currentRowChanged.connect(self.load_di_channel)
@@ -1060,6 +1107,7 @@ class MyDisplay(Display):
         self.publish_axis()
         self.publish_axis_ui()
         self.publish_axis_expert()
+        self.publish_axis_diagnostic()
 
     def save_stage(self):
         logger.info(f"in save_stage")
@@ -1848,6 +1896,17 @@ class MyDisplay(Display):
             self.expert_axis.setEnabled(True)
         logger.debug(f"caput to: self.axis_selection")
 
+    def publish_axis_diagnostic(self):
+        # update enum with axis pulled from .db file
+        logger.info(f"in publish_axis_diagnostic")
+        self.diagnostic_axis_selection.clear()
+        self.diagnostic_axis_selection.addItems(self.axis)
+        # idx = self.axis_list
+        # self.expert_axis.setCurrentRow(0)
+        if not self.diagnostic_axis_selection.isEnabled():
+            self.diagnostic_axis_selection.setEnabled(True)
+        logger.debug(f"caput to: self.axis_selection")
+
     def expert_update_nc(self):
         logger.info("in expert_update_nc")
 
@@ -1971,6 +2030,64 @@ class MyDisplay(Display):
 
         # # Dynamically add param widgets
         self.add_param_widgets(self.coe_encoder_list, self.expert_encoder_param_list)
+
+    def populate_diagnostic_hardware(self):
+        logger.info(f"in populate_diagnostic_hardware")
+        # Get current axis
+        self.diagnostic_hardware_selection.clear()
+        axis_index = self.diagnostic_axis_selection.currentIndex()
+        axis = f"{self.prefixName}0{axis_index + 1}"
+        print(f"axis: {axis}")
+        print(f'caget: {axis + ":SelG:ENC:Id_RBV"}')
+        hardwareDrvId = epics.caget(axis + ":SelG:DRV:Id_RBV", as_string=True)
+        hardwareEncId = epics.caget(axis + ":SelG:ENC:Id_RBV", as_string=True)
+        print(f"drv id: {hardwareDrvId}, enc id: {hardwareEncId}")
+        if hardwareDrvId and "_" in hardwareDrvId:
+            hardwareDrvId = hardwareDrvId.split("_", 1)[0]
+        if hardwareEncId and "_" in hardwareEncId:
+            hardwareEncId = hardwareEncId.split("_", 1)[0]
+        axis_w_drv = axis + ":" + hardwareDrvId
+        axis_w_enc = axis + ":" + hardwareEncId
+        self.diagnostic_hardware_selection.addItems([axis_w_drv, axis_w_enc])
+
+    def populate_diagnostic_coe(self):
+        logger.info(f"in populate_diagnostic_coe")
+        currHardware = self.diagnostic_hardware_selection.currentItem().text()
+        dgPrefix = currHardware + ":COE:DG:"
+
+        # Clear previous items
+        self.diagnostic_param_filter.source_model.setStringList([])
+        self.l_dgParamsList.clear()
+
+        self.l_dgParamsList = identify_dg_params(dgPrefix, self.pvDict)
+
+        print(f"dg list size: {len(self.l_dgParamsList)}")
+
+        temp = epics.caget_many(self.l_dgParamsList, as_string=True)
+
+        # Add items (filter out None just in case)
+        items = [item for item in temp if item]
+        self.diagnostic_param_filter.add_items(items)
+
+        # Enable widget if needed
+        self.diagnostic_param_filter.setEnabled(True)
+
+        # Select first item (if exists)
+        if items:
+            first_index = self.diagnostic_param_filter.filter_model.index(0, 0)
+            self.diagnostic_param_filter.list_view.setCurrentIndex(first_index)
+            # self.expert_encoder_filter.line_edit.setText(items[0])
+
+        # # Dynamically add param widgets
+        # self.add_param_widgets(self.l_dgParamsList, self.expert_encoder_param_list)
+
+    def populate_diagnostic_widget(self):
+        """
+        Docstring for populate_diagnostic_widget
+
+        :param self: recieves one axis ID
+        """
+        print(f"in populate_diagnostic_widget!!!!!!!!!!")
 
     def expert_update_nc_io(self, index):
         logger.info(f"in expert_update_nc_io")
