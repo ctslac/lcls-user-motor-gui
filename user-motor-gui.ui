@@ -486,7 +486,7 @@
                    <item row="2" column="0">
                     <widget class="QTabWidget" name="tabWidget_3">
                      <property name="currentIndex">
-                      <number>2</number>
+                      <number>0</number>
                      </property>
                      <widget class="QWidget" name="tab_10">
                       <attribute name="title">
@@ -561,7 +561,7 @@
                  <item row="0" column="0">
                   <widget class="QTabWidget" name="tab_params">
                    <property name="currentIndex">
-                    <number>2</number>
+                    <number>0</number>
                    </property>
                    <widget class="QWidget" name="tab_nc_params">
                     <attribute name="title">
@@ -685,16 +685,6 @@
                     </widget>
                    </item>
                    <item>
-                    <widget class="PyDMPushButton" name="PyDMPushButton_7">
-                     <property name="toolTip">
-                      <string/>
-                     </property>
-                     <property name="text">
-                      <string>RESET</string>
-                     </property>
-                    </widget>
-                   </item>
-                   <item>
                     <spacer name="verticalSpacer">
                      <property name="orientation">
                       <enum>Qt::Vertical</enum>
@@ -725,6 +715,19 @@
                      </property>
                      <layout class="QVBoxLayout" name="verticalLayout_28"/>
                     </widget>
+                   </item>
+                   <item>
+                    <spacer name="verticalSpacer_2">
+                     <property name="orientation">
+                      <enum>Qt::Vertical</enum>
+                     </property>
+                     <property name="sizeHint" stdset="0">
+                      <size>
+                       <width>20</width>
+                       <height>40</height>
+                      </size>
+                     </property>
+                    </spacer>
                    </item>
                   </layout>
                  </item>

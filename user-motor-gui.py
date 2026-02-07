@@ -18,6 +18,7 @@ from pydm.widgets.enum_combo_box import PyDMEnumComboBox
 from pydm.widgets.label import PyDMLabel
 from pydm.widgets.line_edit import PyDMLineEdit
 from pydm.widgets.pushbutton import PyDMPushButton
+from PyQt5.QtCore import pyqtSignal
 from qtpy import QtCore, uic
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
@@ -82,73 +83,46 @@ from PyQt5.QtWidgets import QCompleter, QLineEdit, QListView, QVBoxLayout, QWidg
 
 
 class FilteredListWidget(QWidget):
-    currentIndexChanged = QtCore.pyqtSignal(QtCore.QModelIndex)  # <-- CLASS LEVEL
+    currentIndexChanged = pyqtSignal(int)
 
     def __init__(self, parent=None):
         super().__init__(parent)
-
         layout = QVBoxLayout(self)
-
-        # Line edit for filtering
         self.line_edit = QLineEdit(self)
         self.line_edit.setPlaceholderText("Type to filter...")
         layout.addWidget(self.line_edit)
-
-        # Source model
-        self.source_model = QtCore.QStringListModel(self)
-
-        # Proxy model for filtering
-        self.filter_model = QtCore.QSortFilterProxyModel(self)
-        self.filter_model.setFilterCaseSensitivity(QtCore.Qt.CaseInsensitive)
-        self.filter_model.setSourceModel(self.source_model)
-
-        # List view
-        self.list_view = QListView(self)
-        self.list_view.setModel(self.filter_model)
-        layout.addWidget(self.list_view)
-
-        # Completer
-        self.completer = QCompleter(self.filter_model, self)
-        self.completer.setCompletionMode(QCompleter.UnfilteredPopupCompletion)
-        self.completer.setCaseSensitivity(QtCore.Qt.CaseInsensitive)
-        self.line_edit.setCompleter(self.completer)
+        self.list_widget = QListWidget(self)
+        layout.addWidget(self.list_widget)
+        self._all_items = []
 
         # Connections
-        self.line_edit.textEdited.connect(self.filter_model.setFilterFixedString)
-        self.completer.activated.connect(self.on_completer_activated)
+        self.line_edit.textChanged.connect(self.filter_items)
+        self.list_widget.currentRowChanged.connect(self.currentIndexChanged)
 
     def add_items(self, items):
-        current = self.source_model.stringList()
-        self.source_model.setStringList(current + list(items))
+        self._all_items.extend(items)
+        self.filter_items(self.line_edit.text())
 
-    def currentIndex(self):
-        """
-        Returns the current index in the proxy model.
-        """
-        return self.list_view.currentIndex()
+    def filter_items(self, text):
+        self.list_widget.clear()
+        filtered = [item for item in self._all_items if text.lower() in item.lower()]
+        self.list_widget.addItems(filtered)
+        # if filtered:
+        #     self.list_widget.setCurrentRow(0)
+        # else:
+        #     self.list_widget.setCurrentRow(-1)
+
+    def currentRow(self):
+        return self.list_widget.currentRow()
 
     def currentText(self):
-        """
-        Returns the text at the current index, or None if invalid.
-        """
-        idx = self.currentIndex()
-        if idx.isValid():
-            return idx.data()
-        return None
+        item = self.list_widget.currentItem()
+        return item.text() if item else None
 
-    def _emit_currentIndexChanged(self, current, previous):
-        self.currentIndexChanged.emit(current)
-
-    def on_completer_activated(self, text):
-        matches = self.filter_model.match(
-            self.filter_model.index(0, 0),
-            QtCore.Qt.DisplayRole,
-            text,
-            hits=1,
-            flags=QtCore.Qt.MatchExactly,
-        )
-        if matches:
-            self.list_view.setCurrentIndex(matches[0])
+    def clear_items(self):
+        """Remove all items from both the widget and the source list."""
+        self._all_items.clear()
+        self.list_widget.clear()
 
 
 class MappingWindow(QDialog):
@@ -233,7 +207,11 @@ class MyDisplay(Display):
             self.nc_list = []
             self.coe_drive_list = []
             self.coe_encoder_list = []
-            self.l_dgParamsList = []
+            self.dg_list = []
+            self.ca_nc_list = []
+            self.ca_coe_drive_list = []
+            self.ca_coe_encoder_list = []
+            self.ca_dg_list = []
 
             # Mapping message box
             self.msg = QMessageBox()
@@ -359,6 +337,14 @@ class MyDisplay(Display):
         )
         self.diagnostic_hardware_selection.currentRowChanged.connect(
             self.populate_diagnostic_coe
+        )
+
+        self.expert_nc_filter.currentIndexChanged.connect(self.highlight_nc_param)
+        self.expert_drive_filter.currentIndexChanged.connect(
+            self.highlight_coe_drive_param
+        )
+        self.expert_encoder_filter.currentIndexChanged.connect(
+            self.highlight_coe_encoder_param
         )
         self.diagnostic_param_filter.currentIndexChanged.connect(
             self.populate_diagnostic_widget
@@ -647,6 +633,42 @@ class MyDisplay(Display):
         rbv.set_channel("ca://" + vals[2])
         units = widget.findChild(PyDMLabel, "pv_units")
         units.setText(ca_vals[3])
+
+    def configure_diagnostic_widgets(self, widget: QWidget, nc_pv):
+        """
+        Configure all param.ui widgets in self.param_widgets.
+        Optionally takes a config_list (list of dicts) to set values for each widget.
+        Example config_list: [{"label": "NC1", "lineEdit": "val1", "lineEdit_2": "val2", "label_2": "desc1"}, ...]
+        """
+        vals = [
+            nc_pv + ":Goal_RBV",
+            nc_pv + ":Goal_RBV",
+            nc_pv + ":Acc_RBV",
+            nc_pv + ":Desc_RBV",
+            nc_pv + ":TLastUp_RBV",
+            nc_pv + ":EU_RBV",
+        ]
+        # vals[0] = nc_pv + ":Goal_RBV"
+        # vals[1] = nc_pv + ":Val_RBV"
+        # vals[2] = nc_pv + ":Acc_RBV"
+        # vals[3] = nc_pv + ":Desc_RBV"
+        # vals[4] = nc_pv + ":TLastUp_RBV"
+        # vals[5] = nc_pv + ":EU_RBV"
+        # print("ca://" + vals[1])
+        ca_vals = epics.caget_many(vals, as_string=True)
+        # print(ca_vals)
+        goal = widget.findChild(PyDMLabel, "goal")
+        goal.setText(ca_vals[0])
+        value = widget.findChild(PyDMLabel, "value")
+        value.setText(ca_vals[1])
+        access = widget.findChild(PyDMLabel, "access")
+        access.setText(ca_vals[2])
+        description = widget.findChild(PyDMLabel, "description")
+        description.setText(ca_vals[3])
+        tlastup = widget.findChild(PyDMLabel, "tlastup")
+        tlastup.setText(ca_vals[4])
+        eu = widget.findChild(PyDMLabel, "eu")
+        eu.setText(ca_vals[5])
 
     # def add_param_widgets(self, param, widget : QListWidget):
     #     """
@@ -1914,27 +1936,28 @@ class MyDisplay(Display):
         axis = f"{self.prefixName}0{axis_index + 1}"
 
         # Clear previous items
-        self.expert_nc_filter.source_model.setStringList([])
+        self.expert_nc_filter.clear_items()
         self.nc_list.clear()
 
         # Identify NC params
         self.nc_list = identify_nc_params(axis, self.pvDict)
 
-        temp = epics.caget_many(self.nc_list, as_string=True)
-        logger.info(f"items size: {len(temp)}")
+        self.ca_nc_list = epics.caget_many(self.nc_list, as_string=True)
+        logger.info(f"items size after caget: {len(self.ca_nc_list)}")
 
         # Add items (filter out None just in case)
-        items = [item for item in temp if item]
+        items = [item for item in self.ca_nc_list if item]
         self.expert_nc_filter.add_items(items)
 
         # Enable widget if needed
         self.expert_nc_filter.setEnabled(True)
 
         # Select first item (if exists)
-        if items:
-            first_index = self.expert_nc_filter.filter_model.index(0, 0)
-            self.expert_nc_filter.list_view.setCurrentIndex(first_index)
-            # self.expert_nc_filter.line_edit.setText(items[0])
+        # if items:
+        #     if self.expert_nc_filter.list_widget.count() > 0:
+        #         self.expert_nc_filter.list_widget.setCurrentRow(0)
+        # self.expert_nc_filter.list_view.setCurrentIndex(first_index)
+        # self.expert_nc_filter.line_edit.setText(items[0])
 
         # Dynamically add param widgets
         self.add_param_widgets(self.nc_list, self.param_list)
@@ -1949,7 +1972,7 @@ class MyDisplay(Display):
         print(f'caget: {axis + ":SelG:DRV:Id_RBV"}')
 
         # Clear previous items
-        self.expert_drive_filter.source_model.setStringList([])
+        self.expert_drive_filter.clear_items()
         self.coe_drive_list.clear()
 
         # Get hardware slice
@@ -1966,21 +1989,22 @@ class MyDisplay(Display):
             axis + ":" + hardwareID, self.pvDict
         )
 
-        temp = epics.caget_many(self.coe_drive_list, as_string=True)
-        logger.info(f"items size: {len(temp)}")
+        self.ca_coe_drive_list = epics.caget_many(self.coe_drive_list, as_string=True)
+        logger.info(f"items size: {len(self.ca_coe_drive_list)}")
 
         # Add items (filter out None just in case)
-        items = [item for item in temp if item]
+        items = [item for item in self.ca_coe_drive_list if item]
         self.expert_drive_filter.add_items(items)
 
         # Enable widget if needed
         self.expert_drive_filter.setEnabled(True)
 
         # Select first item (if exists)
-        if items:
-            first_index = self.expert_drive_filter.filter_model.index(0, 0)
-            self.expert_drive_filter.list_view.setCurrentIndex(first_index)
-            # self.expert_drive_filter.line_edit.setText(items[0])
+        # if items:
+        #     if self.expert_drive_filter.list_widget.count() > 0:
+        #         self.expert_drive_filter.list_widget.setCurrentRow(0)
+        # self.expert_drive_filter.list_view.setCurrentIndex(first_index)
+        # self.expert_drive_filter.line_edit.setText(items[0])
 
         # # Dynamically add param widgets
         self.add_param_widgets(self.coe_drive_list, self.expert_drive_param_list)
@@ -1995,7 +2019,7 @@ class MyDisplay(Display):
         print(f'caget: {axis + ":SelG:ENC:Id_RBV"}')
 
         # Clear previous items
-        self.expert_encoder_filter.source_model.setStringList([])
+        self.expert_encoder_filter.clear_items()
         self.coe_encoder_list.clear()
 
         # Get hardware slice
@@ -2012,21 +2036,24 @@ class MyDisplay(Display):
             axis + ":" + hardwareID, self.pvDict
         )
 
-        temp = epics.caget_many(self.coe_encoder_list, as_string=True)
-        logger.info(f"items size: {len(temp)}")
+        self.ca_coe_encoder_list = epics.caget_many(
+            self.coe_encoder_list, as_string=True
+        )
+        logger.info(f"items size: {len(self.ca_coe_encoder_list)}")
 
         # Add items (filter out None just in case)
-        items = [item for item in temp if item]
+        items = [item for item in self.ca_coe_encoder_list if item]
         self.expert_encoder_filter.add_items(items)
 
         # Enable widget if needed
         self.expert_encoder_filter.setEnabled(True)
 
         # Select first item (if exists)
-        if items:
-            first_index = self.expert_encoder_filter.filter_model.index(0, 0)
-            self.expert_encoder_filter.list_view.setCurrentIndex(first_index)
-            # self.expert_encoder_filter.line_edit.setText(items[0])
+        # if items:
+        #     if self.expert_encoder_filter.list_widget.count() > 0:
+        #         self.expert_encoder_filter.list_widget.setCurrentRow(0)
+        # self.expert_encoder_filter.list_view.setCurrentIndex(first_index)
+        # self.expert_encoder_filter.line_edit.setText(items[0])
 
         # # Dynamically add param widgets
         self.add_param_widgets(self.coe_encoder_list, self.expert_encoder_param_list)
@@ -2056,30 +2083,28 @@ class MyDisplay(Display):
         dgPrefix = currHardware + ":COE:DG:"
 
         # Clear previous items
-        self.diagnostic_param_filter.source_model.setStringList([])
-        self.l_dgParamsList.clear()
+        self.diagnostic_param_filter.clear_items()
+        self.dg_list.clear()
 
-        self.l_dgParamsList = identify_dg_params(dgPrefix, self.pvDict)
+        self.dg_list = identify_dg_params(dgPrefix, self.pvDict)
 
-        print(f"dg list size: {len(self.l_dgParamsList)}")
+        print(f"dg list size: {len(self.dg_list)}")
 
-        temp = epics.caget_many(self.l_dgParamsList, as_string=True)
+        self.ca_dg_list = epics.caget_many(self.dg_list, as_string=True)
 
         # Add items (filter out None just in case)
-        items = [item for item in temp if item]
+        items = [item for item in self.ca_dg_list if item]
         self.diagnostic_param_filter.add_items(items)
 
         # Enable widget if needed
         self.diagnostic_param_filter.setEnabled(True)
 
         # Select first item (if exists)
-        if items:
-            first_index = self.diagnostic_param_filter.filter_model.index(0, 0)
-            self.diagnostic_param_filter.list_view.setCurrentIndex(first_index)
-            # self.expert_encoder_filter.line_edit.setText(items[0])
+        # if self.diagnostic_param_filter.list_widget.count() > 0:
+        #     self.diagnostic_param_filter.list_widget.setCurrentRow(0)
 
         # # Dynamically add param widgets
-        # self.add_param_widgets(self.l_dgParamsList, self.expert_encoder_param_list)
+        # self.add_param_widgets(self.dg_list, self.expert_encoder_param_list)
 
     def populate_diagnostic_widget(self):
         """
@@ -2088,6 +2113,119 @@ class MyDisplay(Display):
         :param self: recieves one axis ID
         """
         print(f"in populate_diagnostic_widget!!!!!!!!!!")
+        print(f"current Item: {self.diagnostic_param_filter.currentText()}")
+        current_text = self.diagnostic_param_filter.currentText()
+
+        if current_text in self.ca_dg_list:
+            pv_index = self.ca_dg_list.index(current_text)
+            print(f"current pv: {pv_index} ({current_text})")
+            # item = self.param_list.item(pv_index)
+            thing = self.dg_list[pv_index]
+            print(f"item: {thing}")
+            name = self.remove_name_rbv(thing)
+            param_widget = uic.loadUi(
+                path.join(path.dirname(path.realpath(__file__)), "diagnostics.ui")
+            )
+            self.configure_diagnostic_widgets(param_widget, name)
+            self.diagnostic_params_groupbox.layout().addWidget(param_widget)
+
+    def highlight_nc_param(self):
+        print("in highlight_nc_param")
+        current_text = self.expert_nc_filter.currentText()
+        # Defensive check: Make sure current_text is in the list
+        if current_text in self.ca_nc_list:
+            pv_index = self.ca_nc_list.index(current_text)
+            print(f"current pv: {pv_index} ({current_text})")
+
+            # Clear all highlights
+            for i in range(self.param_list.count()):
+                widget = self.param_list.itemWidget(self.param_list.item(i))
+                if widget is not None:
+                    widget.setStyleSheet("")  # Remove highlight
+
+            # Highlight the desired item
+            item = self.param_list.item(pv_index)
+            widget = self.param_list.itemWidget(item)
+            if widget is not None:
+                widget.setStyleSheet(
+                    "border: 2px solid #22AAFF; border-radius: 4px; background: #e8f6fd;"
+                )
+            # Scroll to this item
+            if item is not None:
+                self.param_list.scrollToItem(item, QAbstractItemView.PositionAtCenter)
+
+            # (Optional: also select the item in the list view)
+            # self.param_list.setCurrentItem(item)
+            else:
+                print("Current filter text not found in ca_nc_list!")
+
+    def highlight_coe_drive_param(self):
+        print("in highlight_coe_drive_param")
+        current_text = self.expert_drive_filter.currentText()
+        # Defensive check: Make sure current_text is in the list
+        if current_text in self.ca_coe_drive_list:
+            pv_index = self.ca_coe_drive_list.index(current_text)
+            print(f"current pv: {pv_index} ({current_text})")
+
+            # Clear all highlights
+            for i in range(self.expert_drive_param_list.count()):
+                widget = self.expert_drive_param_list.itemWidget(
+                    self.expert_drive_param_list.item(i)
+                )
+                if widget is not None:
+                    widget.setStyleSheet("")  # Remove highlight
+
+            # Highlight the desired item
+            item = self.expert_drive_param_list.item(pv_index)
+            widget = self.expert_drive_param_list.itemWidget(item)
+            if widget is not None:
+                widget.setStyleSheet(
+                    "border: 2px solid #22AAFF; border-radius: 4px; background: #e8f6fd;"
+                )
+            # Scroll to this item
+            if item is not None:
+                self.expert_drive_param_list.scrollToItem(
+                    item, QAbstractItemView.PositionAtCenter
+                )
+
+            # (Optional: also select the item in the list view)
+            # self.param_list.setCurrentItem(item)
+            else:
+                print("Current filter text not found in ca_coe_drive_list!")
+
+    def highlight_coe_encoder_param(self):
+        print("in highlight_coe_encoder_param")
+        current_text = self.expert_encoder_filter.currentText()
+        # Defensive check: Make sure current_text is in the list
+        if current_text in self.ca_coe_encoder_list:
+            pv_index = self.ca_coe_encoder_list.index(current_text)
+            print(f"current pv: {pv_index} ({current_text})")
+
+            # Clear all highlights
+            for i in range(self.expert_encoder_param_list.count()):
+                widget = self.expert_encoder_param_list.itemWidget(
+                    self.expert_encoder_param_list.item(i)
+                )
+                if widget is not None:
+                    widget.setStyleSheet("")  # Remove highlight
+
+            # Highlight the desired item
+            item = self.expert_encoder_param_list.item(pv_index)
+            widget = self.expert_encoder_param_list.itemWidget(item)
+            if widget is not None:
+                widget.setStyleSheet(
+                    "border: 2px solid #22AAFF; border-radius: 4px; background: #e8f6fd;"
+                )
+            # Scroll to this item
+            if item is not None:
+                self.expert_encoder_param_list.scrollToItem(
+                    item, QAbstractItemView.PositionAtCenter
+                )
+
+            # (Optional: also select the item in the list view)
+            # self.param_list.setCurrentItem(item)
+            else:
+                print("Current filter text not found in ca_coe_encoder_list!")
 
     def expert_update_nc_io(self, index):
         logger.info(f"in expert_update_nc_io")
