@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>SettingsTab</class>
+ <widget class="QWidget" name="SettingsTab">
+  <layout class="QVBoxLayout" name="verticalLayout_34">
+   <item>
+    <layout class="QVBoxLayout" name="verticalLayout_31">
+     <item>
+      <widget class="QGroupBox" name="digital_input_linking_settings">
+       <property name="title">
+        <string>Digital Input Linking Settings</string>
+       </property>
+       <layout class="QGridLayout" name="gridLayout">
+        <item row="0" column="0">
+         <widget class="QCheckBox" name="settings_duplicate_di_warning">
+          <property name="text">
+           <string>show duplicate connections</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
+      <widget class="QGroupBox" name="drive_linking_settings">
+       <property name="title">
+        <string>Drive Linking Settings</string>
+       </property>
+       <layout class="QGridLayout" name="gridLayout_2">
+        <item row="0" column="0">
+         <widget class="QCheckBox" name="settings_duplicate_drv_warning">
+          <property name="text">
+           <string>show duplicate connections</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
+      <widget class="QGroupBox" name="encoder_linking_settings">
+       <property name="title">
+        <string>Encoder Linking Settings</string>
+       </property>
+       <layout class="QGridLayout" name="gridLayout_11">
+        <item row="0" column="0">
+         <widget class="QCheckBox" name="settings_duplicate_enc_warning">
+          <property name="text">
+           <string>show duplicate connections</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

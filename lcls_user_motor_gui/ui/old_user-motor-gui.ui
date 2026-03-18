@@ -1,0 +1,854 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Form</class>
+ <widget class="QWidget" name="Form">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1308</width>
+    <height>974</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout_5">
+   <item>
+    <widget class="QScrollArea" name="scrollArea">
+     <property name="widgetResizable">
+      <bool>true</bool>
+     </property>
+     <widget class="QWidget" name="scrollAreaWidgetContents">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>1288</width>
+        <height>954</height>
+       </rect>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_33">
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout">
+         <item>
+          <widget class="QPushButton" name="reload_ioc_pushButton">
+           <property name="text">
+            <string>Reload IOC</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="load_ioc_pushButton">
+           <property name="text">
+            <string>Load IOC</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QTabWidget" name="tabWidget">
+         <property name="currentIndex">
+          <number>3</number>
+         </property>
+         <widget class="QWidget" name="user_input_view">
+          <attribute name="title">
+           <string>User Input</string>
+          </attribute>
+          <layout class="QVBoxLayout" name="verticalLayout_4">
+           <item>
+            <layout class="QVBoxLayout" name="verticalLayout_10">
+             <item>
+              <layout class="QHBoxLayout" name="horizontalLayout_3">
+               <item>
+                <widget class="QLabel" name="label_3">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="text">
+                  <string>PLC IOC</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QLabel" name="label_7">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="text">
+                  <string>some-plc-name</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="QSplitter" name="splitter_2">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <widget class="QWidget" name="layoutWidget">
+              <layout class="QVBoxLayout" name="verticalLayout_15">
+               <item>
+                <widget class="QLabel" name="label_6">
+                 <property name="text">
+                  <string>Axis</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QListWidget" name="display_axis_ui"/>
+               </item>
+              </layout>
+             </widget>
+             <widget class="QWidget" name="layoutWidget">
+              <layout class="QVBoxLayout" name="verticalLayout_17">
+               <item>
+                <widget class="QLabel" name="label_9">
+                 <property name="text">
+                  <string>Drive</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QListWidget" name="display_drives_ui"/>
+               </item>
+              </layout>
+             </widget>
+             <widget class="QWidget" name="layoutWidget">
+              <layout class="QVBoxLayout" name="verticalLayout_16">
+               <item>
+                <widget class="QLabel" name="label_8">
+                 <property name="text">
+                  <string>Encoder</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QListWidget" name="display_encoders_ui"/>
+               </item>
+              </layout>
+             </widget>
+             <widget class="QWidget" name="layoutWidget_4">
+              <layout class="QVBoxLayout" name="verticalLayout_39">
+               <item>
+                <widget class="QLabel" name="display_di_sel_label">
+                 <property name="text">
+                  <string>DI Selector</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QListWidget" name="ui_digital_input_axis"/>
+               </item>
+              </layout>
+             </widget>
+             <widget class="QWidget" name="layoutWidget_2">
+              <layout class="QVBoxLayout" name="verticalLayout_26">
+               <item>
+                <widget class="QLabel" name="DI">
+                 <property name="text">
+                  <string>DI Hardware</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QListWidget" name="ui_digital_input_hardware"/>
+               </item>
+              </layout>
+             </widget>
+             <widget class="QWidget" name="layoutWidget_3">
+              <layout class="QVBoxLayout" name="verticalLayout_30">
+               <item>
+                <widget class="QLabel" name="label_10">
+                 <property name="text">
+                  <string>DI Channel</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QListWidget" name="ui_digital_input_channels"/>
+               </item>
+              </layout>
+             </widget>
+             <widget class="QWidget" name="layoutWidget">
+              <layout class="QVBoxLayout" name="verticalLayout_18">
+               <item>
+                <widget class="QLineEdit" name="stage_search"/>
+               </item>
+               <item>
+                <widget class="QListWidget" name="stage_list"/>
+               </item>
+               <item>
+                <layout class="QVBoxLayout" name="verticalLayout_11"/>
+               </item>
+               <item>
+                <widget class="QPushButton" name="stage_settings">
+                 <property name="text">
+                  <string>Stage Settings</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+            </widget>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_13">
+             <item>
+              <widget class="PyDMPushButton" name="PyDMPushButton_2">
+               <property name="toolTip">
+                <string/>
+               </property>
+               <property name="text">
+                <string>Confirm Settings</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="PyDMPushButton" name="PyDMPushButton">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="toolTip">
+                <string/>
+               </property>
+               <property name="text">
+                <string>Export Settings</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="map_view">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <attribute name="title">
+           <string>Linker</string>
+          </attribute>
+          <layout class="QVBoxLayout" name="verticalLayout_7">
+           <item>
+            <layout class="QVBoxLayout" name="verticalLayout_2">
+             <item>
+              <layout class="QVBoxLayout" name="verticalLayout">
+               <item>
+                <layout class="QHBoxLayout" name="horizontalLayout_2">
+                 <item>
+                  <widget class="QLabel" name="label_2">
+                   <property name="text">
+                    <string>Current Linked Setup</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="PyDMLabel" name="ioc_label">
+                   <property name="toolTip">
+                    <string/>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QLabel" name="status_indicators">
+                   <property name="text">
+                    <string>TextLabel</string>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
+              </layout>
+             </item>
+             <item>
+              <widget class="QSplitter" name="splitter">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <widget class="QWidget" name="gridLayoutWidget">
+                <layout class="QGridLayout" name="gridLayout_3">
+                 <item row="0" column="0">
+                  <layout class="QGridLayout" name="gridLayout_5">
+                   <item row="2" column="0">
+                    <widget class="QListWidget" name="axis_list_view">
+                     <property name="selectionMode">
+                      <enum>QAbstractItemView::SingleSelection</enum>
+                     </property>
+                    </widget>
+                   </item>
+                   <item row="0" column="0">
+                    <widget class="QLabel" name="label_5">
+                     <property name="text">
+                      <string>Select Virtual Axis</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item row="3" column="0">
+                    <widget class="QPushButton" name="confirm_mapping">
+                     <property name="text">
+                      <string>Confirm Mapping</string>
+                     </property>
+                    </widget>
+                   </item>
+                  </layout>
+                 </item>
+                </layout>
+               </widget>
+               <widget class="QWidget" name="gridLayoutWidget_2">
+                <layout class="QGridLayout" name="gridLayout_4">
+                 <property name="spacing">
+                  <number>0</number>
+                 </property>
+                 <item row="2" column="0">
+                  <layout class="QHBoxLayout" name="horizontalLayout_6">
+                   <property name="bottomMargin">
+                    <number>0</number>
+                   </property>
+                   <item>
+                    <widget class="QPushButton" name="stage_mapping">
+                     <property name="text">
+                      <string>Stage Mapping</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="see_staged_mapping">
+                     <property name="text">
+                      <string>See Mapping</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="clear_mapping">
+                     <property name="text">
+                      <string>Clear Mapping</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="PyDMPushButton" name="view_logger_button">
+                     <property name="toolTip">
+                      <string/>
+                     </property>
+                     <property name="text">
+                      <string>View Logger</string>
+                     </property>
+                    </widget>
+                   </item>
+                  </layout>
+                 </item>
+                 <item row="1" column="0">
+                  <widget class="QTabWidget" name="tabWidget_2">
+                   <property name="currentIndex">
+                    <number>0</number>
+                   </property>
+                   <widget class="QWidget" name="digital_input_tab">
+                    <attribute name="title">
+                     <string>Digital Inputs</string>
+                    </attribute>
+                    <layout class="QVBoxLayout" name="verticalLayout_32">
+                     <item>
+                      <layout class="QHBoxLayout" name="horizontalLayout_5">
+                       <property name="rightMargin">
+                        <number>0</number>
+                       </property>
+                       <item>
+                        <layout class="QVBoxLayout" name="verticalLayout_9">
+                         <item>
+                          <widget class="QLabel" name="label">
+                           <property name="text">
+                            <string>Digital Inputs</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item>
+                          <widget class="QListWidget" name="digital_input_axis"/>
+                         </item>
+                        </layout>
+                       </item>
+                       <item>
+                        <layout class="QVBoxLayout" name="verticalLayout_14">
+                         <item>
+                          <widget class="QLabel" name="label_11">
+                           <property name="text">
+                            <string>Digital Input Hardware</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item>
+                          <widget class="QListWidget" name="digital_input_hardware"/>
+                         </item>
+                        </layout>
+                       </item>
+                       <item>
+                        <layout class="QVBoxLayout" name="verticalLayout_24">
+                         <item>
+                          <widget class="QLabel" name="label_12">
+                           <property name="text">
+                            <string>Digital Input Channel</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item>
+                          <widget class="QListWidget" name="digital_input_channel"/>
+                         </item>
+                        </layout>
+                       </item>
+                      </layout>
+                     </item>
+                    </layout>
+                   </widget>
+                   <widget class="QWidget" name="drives_tab">
+                    <attribute name="title">
+                     <string>Drives</string>
+                    </attribute>
+                    <layout class="QHBoxLayout" name="horizontalLayout_10">
+                     <item>
+                      <widget class="QListWidget" name="drives_list_view"/>
+                     </item>
+                    </layout>
+                   </widget>
+                   <widget class="QWidget" name="encoder_tab">
+                    <attribute name="title">
+                     <string>Encoders</string>
+                    </attribute>
+                    <layout class="QVBoxLayout" name="verticalLayout_6">
+                     <item>
+                      <widget class="QListWidget" name="encoders_list_view"/>
+                     </item>
+                    </layout>
+                   </widget>
+                  </widget>
+                 </item>
+                </layout>
+               </widget>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="expert_screen">
+          <attribute name="title">
+           <string>Expert</string>
+          </attribute>
+          <layout class="QVBoxLayout" name="verticalLayout_3">
+           <item>
+            <layout class="QVBoxLayout" name="verticalLayout_12">
+             <item>
+              <layout class="QVBoxLayout" name="verticalLayout_13">
+               <item>
+                <layout class="QHBoxLayout" name="horizontalLayout_15">
+                 <item>
+                  <widget class="QLabel" name="label_15">
+                   <property name="text">
+                    <string>IOC Status</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="PyDMLabel" name="PyDMLabel_3">
+                   <property name="toolTip">
+                    <string/>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
+              </layout>
+             </item>
+             <item>
+              <widget class="QSplitter" name="splitter_3">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <widget class="QWidget" name="gridLayoutWidget_5">
+                <layout class="QGridLayout" name="gridLayout_6">
+                 <item row="0" column="0">
+                  <layout class="QGridLayout" name="gridLayout_7">
+                   <item row="2" column="0">
+                    <widget class="QTabWidget" name="tabWidget_3">
+                     <property name="currentIndex">
+                      <number>0</number>
+                     </property>
+                     <widget class="QWidget" name="tab_10">
+                      <attribute name="title">
+                       <string>NC</string>
+                      </attribute>
+                      <layout class="QVBoxLayout" name="verticalLayout_19">
+                       <item>
+                        <widget class="QGroupBox" name="expert_nc_param">
+                         <property name="title">
+                          <string>Parameters</string>
+                         </property>
+                         <layout class="QVBoxLayout" name="verticalLayout_8"/>
+                        </widget>
+                       </item>
+                      </layout>
+                     </widget>
+                     <widget class="QWidget" name="tab_11">
+                      <attribute name="title">
+                       <string>Drives</string>
+                      </attribute>
+                      <layout class="QVBoxLayout" name="verticalLayout_20">
+                       <item>
+                        <widget class="QGroupBox" name="expert_drive_param">
+                         <property name="title">
+                          <string>Parameters</string>
+                         </property>
+                         <layout class="QVBoxLayout" name="verticalLayout_36"/>
+                        </widget>
+                       </item>
+                      </layout>
+                     </widget>
+                     <widget class="QWidget" name="tab_12">
+                      <attribute name="title">
+                       <string>Encoders</string>
+                      </attribute>
+                      <layout class="QVBoxLayout" name="verticalLayout_21">
+                       <item>
+                        <widget class="QGroupBox" name="expert_encoder_param">
+                         <property name="title">
+                          <string>Parameters</string>
+                         </property>
+                         <layout class="QVBoxLayout" name="verticalLayout_38"/>
+                        </widget>
+                       </item>
+                      </layout>
+                     </widget>
+                    </widget>
+                   </item>
+                   <item row="1" column="0">
+                    <layout class="QHBoxLayout" name="horizontalLayout_7">
+                     <item>
+                      <widget class="QLabel" name="label_16">
+                       <property name="text">
+                        <string>Select Virtual Axis</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QComboBox" name="expert_axis"/>
+                     </item>
+                    </layout>
+                   </item>
+                  </layout>
+                 </item>
+                </layout>
+               </widget>
+               <widget class="QWidget" name="gridLayoutWidget_6">
+                <layout class="QGridLayout" name="gridLayout_8">
+                 <property name="spacing">
+                  <number>0</number>
+                 </property>
+                 <item row="0" column="0">
+                  <widget class="QTabWidget" name="tab_params">
+                   <property name="currentIndex">
+                    <number>0</number>
+                   </property>
+                   <widget class="QWidget" name="tab_nc_params">
+                    <attribute name="title">
+                     <string>NC Params</string>
+                    </attribute>
+                    <layout class="QVBoxLayout" name="verticalLayout_41">
+                     <item>
+                      <layout class="QVBoxLayout" name="verticalLayout_40">
+                       <item>
+                        <widget class="QListWidget" name="expert_param_list"/>
+                       </item>
+                      </layout>
+                     </item>
+                    </layout>
+                   </widget>
+                   <widget class="QWidget" name="tab_2">
+                    <attribute name="title">
+                     <string>COE Drive Params</string>
+                    </attribute>
+                    <layout class="QVBoxLayout" name="verticalLayout_43">
+                     <item>
+                      <layout class="QVBoxLayout" name="verticalLayout_42">
+                       <item>
+                        <widget class="QListWidget" name="expert_coe_drive_list"/>
+                       </item>
+                      </layout>
+                     </item>
+                    </layout>
+                   </widget>
+                   <widget class="QWidget" name="tab">
+                    <attribute name="title">
+                     <string>COE Encoder Params</string>
+                    </attribute>
+                    <layout class="QVBoxLayout" name="verticalLayout_45">
+                     <item>
+                      <layout class="QVBoxLayout" name="verticalLayout_44">
+                       <item>
+                        <widget class="QListWidget" name="expert_coe_encoder_list"/>
+                       </item>
+                      </layout>
+                     </item>
+                    </layout>
+                   </widget>
+                  </widget>
+                 </item>
+                </layout>
+               </widget>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="diagnostic_screen">
+          <attribute name="title">
+           <string>Diagnostic</string>
+          </attribute>
+          <layout class="QVBoxLayout" name="verticalLayout_27">
+           <item>
+            <layout class="QVBoxLayout" name="verticalLayout_22">
+             <item>
+              <layout class="QVBoxLayout" name="verticalLayout_23"/>
+             </item>
+             <item>
+              <widget class="QSplitter" name="splitter_4">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <widget class="QWidget" name="gridLayoutWidget_7">
+                <layout class="QGridLayout" name="gridLayout_9">
+                 <item row="0" column="0">
+                  <layout class="QVBoxLayout" name="verticalLayout_46">
+                   <item>
+                    <layout class="QHBoxLayout" name="horizontalLayout_4">
+                     <item>
+                      <widget class="QLabel" name="label_19">
+                       <property name="text">
+                        <string>Select Virtual Axis</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QComboBox" name="diagnostic_axis_selection"/>
+                     </item>
+                    </layout>
+                   </item>
+                   <item alignment="Qt::AlignHCenter">
+                    <widget class="QLabel" name="label_4">
+                     <property name="sizePolicy">
+                      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                       <horstretch>0</horstretch>
+                       <verstretch>0</verstretch>
+                      </sizepolicy>
+                     </property>
+                     <property name="minimumSize">
+                      <size>
+                       <width>0</width>
+                       <height>0</height>
+                      </size>
+                     </property>
+                     <property name="text">
+                      <string>Select Hardware</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QListWidget" name="diagnostic_hardware_selection"/>
+                   </item>
+                   <item>
+                    <widget class="QGroupBox" name="diagnostic_groupbox">
+                     <property name="title">
+                      <string>Diagnostic Params</string>
+                     </property>
+                     <layout class="QVBoxLayout" name="verticalLayout_37"/>
+                    </widget>
+                   </item>
+                   <item>
+                    <spacer name="verticalSpacer">
+                     <property name="orientation">
+                      <enum>Qt::Vertical</enum>
+                     </property>
+                     <property name="sizeHint" stdset="0">
+                      <size>
+                       <width>20</width>
+                       <height>40</height>
+                      </size>
+                     </property>
+                    </spacer>
+                   </item>
+                  </layout>
+                 </item>
+                </layout>
+               </widget>
+               <widget class="QWidget" name="gridLayoutWidget_8">
+                <layout class="QHBoxLayout" name="horizontalLayout_17">
+                 <property name="spacing">
+                  <number>0</number>
+                 </property>
+                 <item>
+                  <layout class="QVBoxLayout" name="verticalLayout_25">
+                   <item>
+                    <widget class="QGroupBox" name="diagnostic_params_groupbox">
+                     <property name="title">
+                      <string>Diagnostics</string>
+                     </property>
+                     <layout class="QVBoxLayout" name="verticalLayout_28"/>
+                    </widget>
+                   </item>
+                   <item>
+                    <spacer name="verticalSpacer_2">
+                     <property name="orientation">
+                      <enum>Qt::Vertical</enum>
+                     </property>
+                     <property name="sizeHint" stdset="0">
+                      <size>
+                       <width>20</width>
+                       <height>40</height>
+                      </size>
+                     </property>
+                    </spacer>
+                   </item>
+                  </layout>
+                 </item>
+                </layout>
+               </widget>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="settings">
+          <attribute name="title">
+           <string>Settings</string>
+          </attribute>
+          <layout class="QVBoxLayout" name="verticalLayout_34">
+           <item>
+            <layout class="QVBoxLayout" name="verticalLayout_31">
+             <item>
+              <widget class="QGroupBox" name="digital_input_linking_settings">
+               <property name="title">
+                <string>Digital Input Linking Settings</string>
+               </property>
+               <layout class="QGridLayout" name="gridLayout">
+                <item row="0" column="0">
+                 <widget class="QCheckBox" name="settings_duplicate_di_warning">
+                  <property name="text">
+                   <string>show duplicate connections</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item>
+              <widget class="QGroupBox" name="drive_linking_settings">
+               <property name="title">
+                <string>Drive Linking Settings</string>
+               </property>
+               <layout class="QGridLayout" name="gridLayout_2">
+                <item row="0" column="0">
+                 <widget class="QCheckBox" name="settings_duplicate_drv_warning">
+                  <property name="text">
+                   <string>show duplicate connections</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item>
+              <widget class="QGroupBox" name="encoder_linking_settings">
+               <property name="title">
+                <string>Encoder Linking Settings</string>
+               </property>
+               <layout class="QGridLayout" name="gridLayout_11">
+                <item row="0" column="0">
+                 <widget class="QCheckBox" name="settings_duplicate_enc_warning">
+                  <property name="text">
+                   <string>show duplicate connections</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </widget>
+       </item>
+       <item>
+        <layout class="QVBoxLayout" name="verticalLayout_35">
+         <item>
+          <widget class="QPlainTextEdit" name="status_logger">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Minimum">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="baseSize">
+            <size>
+             <width>0</width>
+             <height>0</height>
+            </size>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>PyDMLabel</class>
+   <extends>QLabel</extends>
+   <header>pydm.widgets.label</header>
+  </customwidget>
+  <customwidget>
+   <class>PyDMPushButton</class>
+   <extends>QPushButton</extends>
+   <header>pydm.widgets.pushbutton</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

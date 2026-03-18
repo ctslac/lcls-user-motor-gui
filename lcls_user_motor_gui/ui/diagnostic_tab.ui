@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>DiagnosticTab</class>
+ <widget class="QWidget" name="DiagnosticTab">
+  <layout class="QVBoxLayout" name="verticalLayout_27">
+   <item>
+    <layout class="QVBoxLayout" name="verticalLayout_22">
+     <item>
+      <layout class="QVBoxLayout" name="verticalLayout_23"/>
+     </item>
+     <item>
+      <widget class="QSplitter" name="splitter_4">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <widget class="QWidget" name="gridLayoutWidget_7">
+        <layout class="QGridLayout" name="gridLayout_9">
+         <item row="0" column="0">
+          <layout class="QVBoxLayout" name="verticalLayout_46">
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_4">
+             <item>
+              <widget class="QLabel" name="label_19">
+               <property name="text">
+                <string>Select Virtual Axis</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QComboBox" name="diagnostic_axis_selection"/>
+             </item>
+            </layout>
+           </item>
+           <item alignment="Qt::AlignHCenter">
+            <widget class="QLabel" name="label_4">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Select Hardware</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QListWidget" name="diagnostic_hardware_selection"/>
+           </item>
+           <item>
+            <widget class="QGroupBox" name="diagnostic_groupbox">
+             <property name="title">
+              <string>Diagnostic Params</string>
+             </property>
+             <layout class="QVBoxLayout" name="verticalLayout_37"/>
+            </widget>
+           </item>
+           <item>
+            <spacer name="verticalSpacer">
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>40</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QWidget" name="gridLayoutWidget_8">
+        <layout class="QHBoxLayout" name="horizontalLayout_17">
+         <property name="spacing">
+          <number>0</number>
+         </property>
+         <item>
+          <layout class="QVBoxLayout" name="verticalLayout_25">
+           <item>
+            <widget class="QGroupBox" name="diagnostic_params_groupbox">
+             <property name="title">
+              <string>Diagnostics</string>
+             </property>
+             <layout class="QVBoxLayout" name="verticalLayout_28"/>
+            </widget>
+           </item>
+           <item>
+            <spacer name="verticalSpacer_2">
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>40</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </widget>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

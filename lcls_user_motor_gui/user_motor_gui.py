@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import re
@@ -13,6 +14,7 @@ import numpy as np
 
 # import epics
 from epics import PV, caget, caput
+from pcdsutils.qt.designer_display import DesignerDisplay
 from processing.discover_pvs import discover_pvs
 from processing.parse_pvs import (
     fake_caget,
@@ -35,6 +37,8 @@ from pydm.widgets.label import PyDMLabel
 from pydm.widgets.line_edit import PyDMLineEdit
 from pydm.widgets.pushbutton import PyDMPushButton
 from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtWidgets import QCompleter, QLineEdit, QListView, QVBoxLayout, QWidget
+from qt_helpers import ThreadWorker
 from qtpy import QtCore, uic
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
@@ -56,10 +60,19 @@ from qtpy.QtWidgets import (
     QPlainTextEdit,
     QPushButton,
     QScrollArea,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
 from qtpy.uic import loadUi
+from utils.dict_tools import (
+    find_unique_keys,
+    identify_di,
+    identify_drv,
+    identify_enc,
+    strip_axis_id,
+    val_to_key,
+)
 
 logging.basicConfig(
     level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -77,10 +90,6 @@ class QPlainTextEditLoggerHandler(logging.Handler):
         if record.levelno == logging.INFO:
             msg = self.format(record)
             self.text_edit.appendPlainText(msg)
-
-
-from PyQt5 import QtCore
-from PyQt5.QtWidgets import QCompleter, QLineEdit, QListView, QVBoxLayout, QWidget
 
 
 class FilteredListWidget(QWidget):
@@ -131,7 +140,7 @@ class MappingWindow(QDialog):
         super(MappingWindow, self).__init__(parent)
         loadUi("mapping-window.ui", self)
         self.staged_mappings_list = self.findChild(QListWidget, "staged_mappings_list")
-        # for stages in MyDisplay(self.staged_mapping):
+        # for stages in MainWindow(self.staged_mapping):
 
 
 class StageSettings(QDialog):
@@ -160,12 +169,868 @@ class StageSettings(QDialog):
         )
 
 
-class MyDisplay(Display):
-    ui: QWidget
+class UserInputWindow(DesignerDisplay, QWidget):
+    filename = "user_input_tab.ui"
+    ui_dir = Path(__file__).parent / "ui"
 
-    def __init__(self, parent=None, args=None, macros=None):
-        logger.info("In init")
-        super().__init__(parent=parent, args=args, macros=macros)
+    # User Input Tab
+    display_axis_ui: QListWidget
+    display_drives_ui: QListWidget
+    display_encoders_ui: QListWidget
+    digital_input_axis_ui: QListWidget
+    digital_input_hardware_ui: QListWidget
+    digital_input_channels_ui: QListWidget
+
+    def __init__(self, main_window, parent=None):
+        # Properly call the superclass __init__!
+        super().__init__(parent)
+        self.main_window = main_window
+        self.prefixName = ""
+        self.axis = []
+        # self.drives = []
+        # self.encoders = []
+        self.pvDict = {}
+        self.store_di_selection = [[-1, -1], [-1, -1], [-1, -1]]
+        self.loaded_unique_di = []
+        self.drives_ui = ["None"]
+        self.encoders_ui = ["None"]
+        self.di_size = 0
+        self.digital_inputs_ui = ["None"]
+        self.digital_inputs_hardware_ui = ["None"]
+        self.loaded_di_channels_ui = []
+
+    def select_axis_ui(self):
+        logger.info(f"in select_axis_ui")
+        self.detect_linked_enc_ui()
+        self.detect_linked_drv_ui()
+        self.publish_axis_di_ui()
+
+    def detect_linked_enc_ui(self):
+        logger.info(f"in detect_linked_enc_ui")
+        currAxisIdx = self.display_axis_ui.currentRow()
+        currAxis = val_to_key(self.axis[currAxisIdx], self.pvDict)
+        logger.debug(f"currAxis: {currAxis}")
+        currAxis = strip_axis_id(currAxis)
+        detectableENC = currAxis + ":SelG:ENC:Id_RBV"
+        encValue = fake_caget(self.pvDict, detectableENC)
+        logger.debug(f"encValue: {encValue}")
+
+        for i in range(0, self.display_encoders_ui.count()):
+            if encValue == self.display_encoders_ui.item(i).text():
+                logger.debug(f"found enc: {self.display_encoders_ui.item(i).text()}")
+                self.display_encoders_ui.setCurrentRow(i)
+                break
+            else:
+                logger.debug("No link found, defaulting to None")
+                self.display_encoders_ui.setCurrentRow(0)
+
+    def detect_linked_drv_ui(self):
+        logger.info(f"in detect_linked_drv_ui")
+        currAxisIdx = self.display_axis_ui.currentRow()
+        currAxis = val_to_key(self.axis[currAxisIdx], self.pvDict)
+        logger.debug(f"currAxis: {currAxis}")
+        currAxis = strip_axis_id(currAxis)
+        detectableDRV = currAxis + ":SelG:DRV:Id_RBV"
+        logger.debug(f"detDRV: {detectableDRV}")
+        drvValue = fake_caget(self.pvDict, detectableDRV)
+        logger.debug(f"drvValue: {drvValue}")
+
+        found_drv = False
+        for i in range(0, self.display_drives_ui.count()):
+            if drvValue == self.display_drives_ui.item(i).text():
+                logger.debug(f"found drv: {self.display_drives_ui.item(i).text()}")
+                self.display_drives_ui.setCurrentRow(i)
+                found_drv = True
+                break
+
+        if not found_drv:
+            logger.debug("No link found, defaulting to None")
+            self.display_drives_ui.setCurrentRow(0)
+
+    def load_axis_di_ui(self):
+        """ """
+        logger.info(f"in load_axis_di_ui")
+        self.digital_input_axis_ui.clear()
+
+        # self.digital_inputs = identify_inputs(
+        #     self.pvList, self.axis_list.currentItem().text()
+        # )
+
+        delimiter = ":Id_RBV"
+        # logger.debug(f"di_val: {axis_di}")
+        for item in self.axis:
+            logger.debug(f"axis: {item}")
+            # name = self.val_to_key(item)
+            # logger.debug(f"name: {name}")
+            # cleaned_di = name.replace(delimiter, "")
+            # logger.debug(f"cleaned item: {cleaned_di}")
+            # pv = fake_caget(self.pvDict, cleaned_di)
+            self.loaded_unique_di_ui.append(self.identify_di(item))
+
+            # self.digital_input_axis.addItem(val)
+        self.loaded_unique_di_ui = [
+            item for sublist in self.loaded_unique_di_ui for item in sublist
+        ]
+        logger.debug(f"val: {self.loaded_unique_di_ui}")
+        # if not self.digital_input_axis.isEnabled():
+        #     self.digital_input_hardware.setEnabled(True)
+        # self.discover_di_channel()
+
+    def publish_axis_di_ui(self):
+        logger.info(f"in publish_axis_di_ui")
+        # if self.axis_di_init:
+        self.digital_input_axis_ui.clear()
+        numDI = 0
+
+        # currAxisIdx = self.axis_list.currentRow()
+        # logger.debug(f"currAxisIdx: {self.axis[currAxisIdx]}")
+        # currAxis = self.val_to_key(self.axis[currAxisIdx])
+        # logger.debug(f"currAxis: {currAxis}")
+
+        currAxis = val_to_key(self.display_axis_ui.currentItem().text(), self.pvDict)
+        logger.debug(f"currAxis: {currAxis}")
+        # for items in self.loaded_unique_di:
+        #     if items.startswith(currAxis):
+        #         numDI = numDI + 1
+        for i in range(0, 3):
+            logger.debug("adding di item")
+            self.digital_input_axis_ui.addItem("0" + str(1 + i))
+            # self.axis_di_init = False
+        # elif self.axis_di_init is False:
+        # self.digital_input_axis.setCurrentRow(self.axis_di_idx)
+
+        self.select_di_channel_ui()
+
+    def select_di_channel_ui(self):
+        logger.info(f" select_di_channel_ui:")
+        # self.check_duplicate_di
+        axis_di_idx = self.digital_input_axis_ui.currentRow()
+        logger.debug(f"axis_di_idx: {axis_di_idx}")
+        if axis_di_idx < 0:
+            logger.debug("please select a di")
+        else:
+            currAxisIdx = self.display_axis_ui.currentRow()
+            logger.debug(f"currAxisIdx: {currAxisIdx}")
+            logger.debug(f"axis: {self.axis[currAxisIdx]}")
+            currAxis = val_to_key(self.axis[currAxisIdx], self.pvDict)
+            logger.debug(f"currAxis: {currAxis}")
+            currAxis = strip_axis_id(currAxis)
+            detectableDi = currAxis + ":SelG:DI:" + ("0" + str(int(axis_di_idx) + 1))
+            logger.debug(f"link to check: {detectableDi}")
+            DI_hardware = fake_caget(self.pvDict, detectableDi + ":ID_RBV")
+            if DI_hardware == "":
+                DI_hardware = None
+            logger.debug(f"DI_hardware: {DI_hardware}")
+            DI_hardware_Channel = fake_caget(
+                self.pvDict, detectableDi + ":HardChNum_RBV"
+            )
+            logger.debug(f"DI_hardware_channel: {DI_hardware_Channel}")
+            # returnStatus = self.digital_input_hardware.findItems(value, Qt.MatchCaseSensitive)
+            # logger.debug(f"returnStatus: {returnStatus.text()}")
+
+            logger.debug("searching for DI hardware")
+            # detect DI hardware
+            for i in range(0, self.digital_input_hardware_ui.count()):
+                if DI_hardware == self.digital_input_hardware_ui.item(i).text():
+                    # logger.debug(f"currItem: {self.digital_input_hardware.item(i).text()}")
+                    print(
+                        f"found hardware: {self.digital_input_hardware_ui.item(i).text()}"
+                    )
+                    self.digital_input_hardware_ui.setCurrentRow(i)
+                    break
+                elif DI_hardware == None:
+                    logger.debug("no hardware detected")
+                    self.digital_input_hardware_ui.setCurrentRow(0)
+                else:
+                    logger.debug("something went wrong/thinking")
+
+            logger.debug("searching for di hardware channel")
+            for i in range(0, self.digital_input_channels_ui.count()):
+                if DI_hardware_Channel == self.digital_input_channels_ui.item(i).text():
+                    logger.debug(
+                        f"found channel: {self.digital_input_channels_ui.item(i).text()}"
+                    )
+                    self.digital_input_channels_ui.setCurrentRow(i)
+                elif DI_hardware_Channel == "0":
+                    logger.debug("something went wrong, should not be possible")
+                    self.digital_input_channels_ui.selectionMode(
+                        QAbstractItemView.NoSelection
+                    )
+
+            if axis_di_idx == 0:
+                self.store_di_selection[0] = [
+                    self.digital_input_hardware_ui.currentRow(),
+                    self.digital_input_channels_ui.currentRow(),
+                ]
+            elif axis_di_idx == 1:
+                self.store_di_selection[1] = [
+                    self.digital_input_hardware_ui.currentRow(),
+                    self.digital_input_channels_ui.currentRow(),
+                ]
+            elif axis_di_idx == 2:
+                self.store_di_selection[2] = [
+                    self.digital_input_hardware_ui.currentRow(),
+                    self.digital_input_channels_ui.currentRow(),
+                ]
+
+        # currDI = self.loaded_di_channels[currDiIdx]
+        # logger.debug(f"currDI: {currDI}")
+        # currDiChanIdx = self.digital_input_channels.currentRow()
+
+        # for di in self.digital_input_channels:
+        #     """
+        #     finish code here need to implement
+        #     when a di slot is selected save the selected mapping
+        #     in self.store_di_selection = {}
+        #     """
+        #     pass
+
+    def load_di_ui(self):
+        """
+        comes from WCIB
+        needs to publish, and call discover_di_channel
+        """
+        logger.info(f"in load_di_ui")
+        self.digital_input_hardware_ui.clear()
+        self.digital_input_hardware_ui.addItem("None")
+        # self.digital_inputs = identify_inputs(
+        #     self.pvList, self.axis_list.currentItem().text()
+        # )
+
+        delimiter = ":WCIB_RBV"
+        for item in self.digital_inputs_ui:
+            cleaned_di = item.replace(delimiter, ":Id_RBV")
+            logger.debug(f"cleaned item: {cleaned_di}")
+            val = fake_caget(self.pvDict, cleaned_di)
+            logger.debug(f"val: {val}")
+            self.digital_input_hardware_ui.addItem(val)
+        # self.digital_input_hardware.setCurrentRow(0)
+        if not self.digital_input_hardware_ui.isEnabled():
+            self.digital_input_hardware_ui.setEnabled(True)
+        self.discover_di_channel_ui()
+
+    def load_di_channel_ui(self):
+        logger.info(f"in load di_channel_ui")
+        self.digital_input_channels_ui.clear()
+
+        current_item = self.digital_input_hardware_ui.currentItem()
+        if current_item is None:
+            logger.warning("No digital input hardware item selected")
+            return
+
+        currDI = current_item.text()
+        if currDI == "None":
+            logger.debug(
+                "Selected digital input hardware is None, no hardware selected"
+            )
+            return
+
+        currDI = currDI.split("_")[0]
+        logger.debug(f"DI Slice: {currDI}")
+        if currDI.startswith("EL7062"):
+            self.di_size = 2
+        elif currDI.startswith("EL1429"):
+            self.di_size = 16
+        else:
+            logger.debug("check currDI")
+        # cleaned_di = self.prefixName + ':0' + str(self.display_axis_ui.currentRow()+1) +':'+ currDI +  ":NUMDI_RBV"
+        # cleaned_di = self.prefixName + ':0' + str(self.display_axis_ui.currentRow()+1) + ':0' + str(self.digital_input_axis_ui.currentRow()) + ":NUMDI_RBV"
+        # logger.debug(f"cleaned axis: {cleaned_di}")
+
+        # self.di_size = fake_caget(self.pvDict, cleaned_di)
+        # if self.di_size is None:
+        #     logger.warning(f"NUMDI_RBV value for {cleaned_di} is None")
+        #     return
+
+        # try:
+        #     di_size_int = int(self.di_size)
+        # except (TypeError, ValueError):
+        #     logger.error(f"Invalid NUMDI_RBV value for {cleaned_di}: {self.di_size}")
+        #     return
+
+        if self.di_size > 0:
+            for i in range(self.di_size):
+                self.digital_input_channels_ui.addItem(str(i + 1))
+        else:
+            self.digital_input_channels_ui.clear()
+
+    def load_drives_ui(self):
+        # update enum with drives pulled from .db file
+        logger.info(f"in populate drives_ui")
+        self.display_drives_ui.clear()
+        # self.user_input_widget.display_drives_ui.clear()
+        self.display_drives_ui.addItem("None")
+        # self.drives = identify_drive(self.pvList, self.axis_list.currentItem().text())
+
+        delimiter = ":WCIB_RBV"
+        drives = self.drives_ui
+        for item in drives:
+            cleaned_item = item.replace(delimiter, ":Id_RBV")
+            # logger.debug(f"cleaned item: {cleaned_item}")
+            val = fake_caget(self.pvDict, cleaned_item)
+            self.display_drives_ui.addItem(val)
+        # self.display_drives_ui.setCurrentRow(self.drives_list.currentRow())
+        # self.display_drives_ui.setSelectionMode(QAbstractItemView.NoSelection)
+        if not self.display_drives_ui.isEnabled():
+            self.display_drives_ui.setEnabled(True)
+
+    def discover_di_channel_ui(self):
+        """
+        comes from load_di
+        ---
+        find out number of DIs
+        """
+        logger.info(f"in load_di channel_ui")
+        # self.digital_input_channels.clear()
+        # logger.debug(f"di text: {self.digital_inputs[self.digital_input_hardware.currentRow()]}")
+        # val = self.digital_inputs[self.digital_input_hardware.currentRow()]
+        # delimiter = ":WCIB_RBV"
+        # cleaned_di = val.replace(delimiter, ":NUMDI_RBV")
+        # logger.debug(f"cleaned axis: {cleaned_di}")
+        # nums = fake_caget(self.pvDict, cleaned_di)
+        # self.digital_input_channels = int(nums) + 1
+
+        for pv in self.pvDict:
+            if pv.endswith("NUMDI_RBV"):
+                logger.debug(f"pv: {pv}")
+                self.loaded_di_channels_ui.append(pv)
+
+        # for i in range(1, int(nums) + 1):
+        #     self.digital_input_channels.addItem(str(i))
+        # # self.digital_input_channels.setCurrentRow(0)
+        # if not self.digital_input_channels.isEnabled():
+        #     self.digital_input_channels.setEnabled(True)
+
+    def load_axis_di_ui(self):
+        """ """
+        logger.info(f"in load_axis_di_ui")
+        self.digital_input_axis_ui.clear()
+
+        # self.digital_inputs = identify_inputs(
+        #     self.pvList, self.axis_list.currentItem().text()
+        # )
+
+        delimiter = ":Id_RBV"
+        # logger.debug(f"di_val: {axis_di}")
+        for item in self.axis:
+            logger.debug(f"axis: {item}")
+            # name = self.val_to_key(item)
+            # logger.debug(f"name: {name}")
+            # cleaned_di = name.replace(delimiter, "")
+            # logger.debug(f"cleaned item: {cleaned_di}")
+            # pv = fake_caget(self.pvDict, cleaned_di)
+            self.loaded_unique_di.append(identify_di(item, self.pvDict))
+
+            # self.digital_input_axis.addItem(val)
+        self.loaded_unique_di = [
+            item for sublist in self.loaded_unique_di for item in sublist
+        ]
+        logger.debug(f"val: {self.loaded_unique_di}")
+        # if not self.digital_input_axis.isEnabled():
+        #     self.digital_input_hardware.setEnabled(True)
+        # self.discover_di_channel()
+
+    def publish_axis_ui(self):
+        # update enum with axis pulled from .db file
+        logger.info(f"in populate axis_ui")
+        self.display_axis_ui.clear()
+        self.display_axis_ui.addItems(self.axis)
+        # idx = self.axis_list
+        # self.display_axis.setCurrentRow(self.axis_list.currentRow())
+        # self.display_axis.setSelectionMode(QAbstractItemView.NoSelection)
+        if not self.display_axis_ui.isEnabled():
+            self.display_axis_ui.setEnabled(True)
+        logger.debug(f"caput to: self.axis_selection")
+
+    def load_encoders_ui(self):
+        # update enum with drives pulled from .db file
+        logger.info(f"in populate enc_ui")
+        self.display_encoders_ui.clear()
+        self.display_encoders_ui.addItem("None")
+        # self.enocder_type = identify_enc(self.pvList, self.axis_list.currentItem().text())
+        delimiter = ":WCIB_RBV"
+        # logger.debug(f"encoder list size: {len(self.encoders)}")
+        encoders = self.encoders_ui
+        for item in encoders:
+            cleaned_item = item.replace(delimiter, ":Id_RBV")
+            logger.debug(f"cleaned item: {cleaned_item}")
+            val = fake_caget(self.pvDict, cleaned_item)
+            self.display_encoders_ui.addItem(val)
+        # self.display_encoders_ui.setCurrentRow(self.enocders_list.currentRow())
+        # self.display_encoders_ui.setSelectionMode(QAbstractItemView.NoSelection)
+        if not self.display_encoders_ui.isEnabled():
+            self.display_encoders_ui.setEnabled(True)
+        # print(self.encoder_selection)
+
+
+class LinkerWindow(DesignerDisplay, QWidget):
+    filename = "linker_tab.ui"
+    ui_dir = Path(__file__).parent / "ui"
+
+    # Linker Tab
+    plc_ioc_list: QComboBox
+    plc_ioc_label: PyDMLabel
+    axis_list_linker: QListWidget
+    digital_input_hardware: QListWidget
+    digital_input_channels: QListWidget
+    digital_input_axis: QListWidget
+    drives_list: QListWidget
+    encoders_list: QListWidget
+    confirm_mapping: QPushButton
+    view_logger: PyDMPushButton
+    load_ioc: QPushButton
+
+    def __init__(self, main_window, parent=None):
+        # Properly call the superclass __init__!
+        super().__init__(parent)
+        self.main_window = main_window
+        self.prefixName = ""
+        self.axis = []
+        # self.drives = []
+        self.pvDict = {}
+        self.store_di_selection = [[-1, -1], [-1, -1], [-1, -1]]
+        self.loaded_unique_di = []
+        self.drives_linker = ["None"]
+        self.encoders_linker = ["None"]
+        self.di_size = 0
+        self.digital_inputs_linker = ["None"]
+        self.digital_inputs_hardware_linker = ["None"]
+        self.loaded_di_channels_linker = []
+
+    def detect_linked_drv(self):
+        logger.info(f"in detect_linked_drv")
+        currAxisIdx = self.axis_list_linker.currentRow()
+        currAxis = val_to_key(self.axis[currAxisIdx], self.pvDict)
+        logger.debug(f"currAxis: {currAxis}")
+        if currAxis is None:
+            logger.warning("detect_linked_drv: no valid axis key found; skipping")
+            self.drives_list.setCurrentRow(0)
+            return
+
+        currAxis = strip_axis_id(currAxis)
+        if currAxis is None:
+            logger.warning("detect_linked_drv: strip_axis_id returned None; skipping")
+            self.drives_list.setCurrentRow(0)
+            return
+
+        detectableDRV = currAxis + ":SelG:DRV:Id_RBV"
+        drvValue = fake_caget(self.pvDict, detectableDRV)
+        logger.debug(f"drvValue: {drvValue}")
+
+        for i in range(0, self.drives_list.count()):
+            if drvValue == self.drives_list.item(i).text():
+                logger.debug(f"found drv: {self.drives_list.item(i).text()}")
+                self.drives_list.setCurrentRow(i)
+                break
+            else:
+                logger.debug("No link found, defaulting to None")
+                self.drives_list.setCurrentRow(0)
+
+    def detect_linked_enc(self):
+        logger.info(f"in detect_linked_enc")
+        currAxisIdx = self.axis_list_linker.currentRow()
+        currAxis = val_to_key(self.axis[currAxisIdx], self.pvDict)
+        logger.debug(f"currAxis: {currAxis}")
+        if currAxis is None:
+            logger.warning("detect_linked_enc: no valid axis key found; skipping")
+            self.encoders_list.setCurrentRow(0)
+            return
+
+        currAxis = strip_axis_id(currAxis)
+        if currAxis is None:
+            logger.warning("detect_linked_enc: strip_axis_id returned None; skipping")
+            self.encoders_list.setCurrentRow(0)
+            return
+
+        detectableENC = currAxis + ":SelG:ENC:Id_RBV"
+        encValue = fake_caget(self.pvDict, detectableENC)
+        logger.debug(f"encValue: {encValue}")
+
+        for i in range(0, self.encoders_list.count()):
+            currEnc = self.encoders_list.item(i).text()
+            logger.debug(f"currEnc: {currEnc}, sizeEnc: {len(self.encoders_list)}")
+            if encValue == currEnc:
+                logger.debug(f"found enc: {self.encoders_list.item(i).text()}")
+                self.encoders_list.setCurrentRow(i)
+                break
+            else:
+                logger.debug("No link found, defaulting to None")
+                self.encoders_list.setCurrentRow(0)
+
+    def publish_axis_di(self):
+        logger.info(f"in publish_axis_di")
+        # if self.axis_di_init:
+        self.digital_input_axis.clear()
+        numDI = 0
+
+        # currAxisIdx = self.axis_list.currentRow()
+        # logger.debug(f"currAxisIdx: {self.axis[currAxisIdx]}")
+        # currAxis = self.val_to_key(self.axis[currAxisIdx])
+        # logger.debug(f"currAxis: {currAxis}")
+
+        currAxis = val_to_key(self.axis_list_linker.currentItem().text(), self.pvDict)
+        logger.debug(f"currAxis: {currAxis}")
+        # for items in self.loaded_unique_di:
+        #     if items.startswith(currAxis):
+        #         numDI = numDI + 1
+        for i in range(0, 3):
+            self.digital_input_axis.addItem("0" + str(1 + i))
+            # self.axis_di_init = False
+        # elif self.axis_di_init is False:
+        # self.digital_input_axis.setCurrentRow(self.axis_di_idx)
+
+        self.select_di_channel()
+
+    def select_axis(self):
+        logger.info(f"in select_axis")
+        self.detect_linked_enc()
+        self.detect_linked_drv()
+        self.publish_axis_di()
+
+    def publish_axis(self):
+        """
+        Called from load_axis
+        ---
+
+        """
+        # update enum with axis pulled from .db file
+        logger.info(f"in populate axis")
+        self.axis_list_linker.clear()
+
+        # for item in self.axis:
+        #     self.axis_list.addItem(item)
+
+        self.axis_list_linker.addItems(self.axis)
+
+        if not self.axis_list_linker.isEnabled():
+            self.axis_list_linker.setEnabled(True)
+        # print(self.axis_selection)
+        # self.staged_mapping= [[] for _ in range(self.axis_list.count())]
+
+        # self.staged_mapping = [
+        #     [[""] for _ in range(3)] for _ in range(self.axis_list.count())
+        # ]
+
+        self.staged_mapping = [[["01"], ["02"], ["03"]]]
+        self.staged_de = [[["None"], ["None"]]]
+
+    def load_axis_di(self):
+        """ """
+        logger.info(f"in load_axis_di")
+        self.digital_input_axis.clear()
+
+        # self.digital_inputs = identify_inputs(
+        #     self.pvList, self.axis_list.currentItem().text()
+        # )
+
+        delimiter = ":Id_RBV"
+        # logger.debug(f"di_val: {axis_di}")
+        for item in self.axis:
+            logger.debug(f"axis: {item}")
+            # name = self.val_to_key(item)
+            # logger.debug(f"name: {name}")
+            # cleaned_di = name.replace(delimiter, "")
+            # logger.debug(f"cleaned item: {cleaned_di}")
+            # pv = fake_caget(self.pvDict, cleaned_di)
+            self.loaded_unique_di.append(self.identify_di(item))
+
+            # self.digital_input_axis.addItem(val)
+        self.loaded_unique_di = [
+            item for sublist in self.loaded_unique_di for item in sublist
+        ]
+        logger.debug(f"val: {self.loaded_unique_di}")
+        # if not self.digital_input_axis.isEnabled():
+        #     self.digital_input_hardware.setEnabled(True)
+        # self.discover_di_channel()
+
+    def identify_di(self, item):
+        val = val_to_key(item, self.pvDict)
+        if val is None:
+            logger.warning(f"identify_di: no axis key for item {item}")
+            return []
+
+        things = find_unique_keys(val + ":SelG:DI:", self.pvDict)
+        logger.debug(f"identify_config: item, {val}, DIs, {things}")
+
+        return things
+
+    def identify_drv(self, item):
+        val = val_to_key(item, self.pvDict)
+        if val is None:
+            logger.warning(f"identify_drv: no axis key for item {item}")
+            return []
+
+        things = find_unique_keys(val + ":SelG:DRV:", self.pvDict)
+        logger.debug(f"identify_config: item, {val}, DRVs, {things}")
+
+        return things
+
+    def identify_enc(self, item):
+        val = val_to_key(item, self.pvDict)
+        if val is None:
+            logger.warning(f"identify_enc: no axis key for item {item}")
+            return []
+
+        things = find_unique_keys(val + ":SelG:ENC:", self.pvDict)
+        logger.debug(f"identify_config: item, {val}, ENCs, {things}")
+
+        return things
+
+    def load_di(self):
+        """
+        comes from WCIB
+        needs to publish, and call discover_di_channel
+        """
+        logger.info(f"in load_di")
+        self.digital_input_hardware.clear()
+        self.digital_input_hardware.addItem("None")
+        # self.digital_inputs = identify_inputs(
+        #     self.pvList, self.axis_list.currentItem().text()
+        # )
+
+        delimiter = ":WCIB_RBV"
+        for item in self.digital_inputs_linker:
+            cleaned_di = item.replace(delimiter, ":Id_RBV")
+            logger.debug(f"cleaned item: {cleaned_di}")
+            val = fake_caget(self.pvDict, cleaned_di)
+            logger.debug(f"val: {val}")
+            self.digital_input_hardware.addItem(val)
+        # self.digital_input_hardware.setCurrentRow(0)
+        if not self.digital_input_hardware.isEnabled():
+            self.digital_input_hardware.setEnabled(True)
+        self.discover_di_channel()
+
+    def discover_di_channel(self):
+        """
+        comes from load_di
+        ---
+        find out number of DIs
+        """
+        logger.info(f"in load_di channel")
+        # self.digital_input_channels.clear()
+        # logger.debug(f"di text: {self.digital_inputs[self.digital_input_hardware.currentRow()]}")
+        # val = self.digital_inputs[self.digital_input_hardware.currentRow()]
+        # delimiter = ":WCIB_RBV"
+        # cleaned_di = val.replace(delimiter, ":NUMDI_RBV")
+        # logger.debug(f"cleaned axis: {cleaned_di}")
+        # nums = fake_caget(self.pvDict, cleaned_di)
+        # self.digital_input_channels = int(nums) + 1
+
+        for pv in self.pvDict:
+            if pv.endswith("NUMDI_RBV"):
+                logger.debug(f"pv: {pv}")
+                self.loaded_di_channels_linker.append(pv)
+
+    def select_di_channel(self):
+        logger.info(f" select_di_channel:")
+        # self.check_duplicate_di
+        axis_di_idx = self.digital_input_axis.currentRow()
+        logger.debug(f"axis_di_idx: {axis_di_idx}")
+        if axis_di_idx < 0:
+            logger.debug("please select a di")
+        else:
+            currAxisIdx = self.axis_list_linker.currentRow()
+            logger.debug(f"currAxisIdx: {currAxisIdx}")
+            logger.debug(f"axis: {self.axis[currAxisIdx]}")
+            currAxis = val_to_key(self.axis[currAxisIdx], self.pvDict)
+            logger.debug(f"currAxis: {currAxis}")
+            currAxis = strip_axis_id(currAxis)
+            detectableDi = currAxis + ":SelG:DI:" + ("0" + str(int(axis_di_idx) + 1))
+            logger.debug(f"link to check: {detectableDi}")
+            DI_hardware = fake_caget(self.pvDict, detectableDi + ":ID_RBV")
+            if DI_hardware == "":
+                DI_hardware = None
+            logger.debug(f"DI_hardware: {DI_hardware}")
+            DI_hardware_Channel = fake_caget(
+                self.pvDict, detectableDi + ":HardChNum_RBV"
+            )
+            logger.debug(f"DI_hardware_channel: {DI_hardware_Channel}")
+            # returnStatus = self.digital_input_hardware.findItems(value, Qt.MatchCaseSensitive)
+            # logger.debug(f"returnStatus: {returnStatus.text()}")
+
+            logger.debug("searching for DI hardware")
+            # detect DI hardware
+            for i in range(0, self.digital_input_hardware.count()):
+                if DI_hardware == self.digital_input_hardware.item(i).text():
+                    # logger.debug(f"currItem: {self.digital_input_hardware.item(i).text()}")
+                    logger.debug(
+                        f"found hardware: {self.digital_input_hardware.item(i).text()}"
+                    )
+                    self.digital_input_hardware.setCurrentRow(i)
+                elif DI_hardware == None:
+                    logger.debug("no hardware detected")
+                    self.digital_input_hardware.setCurrentRow(0)
+                else:
+                    logger.debug("something went wrong/thinking")
+
+            logger.debug("searching for di hardware channel")
+            for i in range(0, self.digital_input_channels.count()):
+                if DI_hardware_Channel == self.digital_input_channels.item(i).text():
+                    logger.debug(
+                        f"found channel: {self.digital_input_channels.item(i).text()}"
+                    )
+                    self.digital_input_channels.setCurrentRow(i)
+                elif DI_hardware_Channel == "0":
+                    logger.debug("something went wrong, should not be possible")
+                    self.digital_input_channels.setSelectionMode(
+                        QAbstractItemView.NoSelection
+                    )
+
+            if axis_di_idx == 0:
+                self.store_di_selection[0] = [
+                    self.digital_input_hardware.currentRow(),
+                    self.digital_input_channels.currentRow(),
+                ]
+            elif axis_di_idx == 1:
+                self.store_di_selection[1] = [
+                    self.digital_input_hardware.currentRow(),
+                    self.digital_input_channels.currentRow(),
+                ]
+            elif axis_di_idx == 2:
+                self.store_di_selection[2] = [
+                    self.digital_input_hardware.currentRow(),
+                    self.digital_input_channels.currentRow(),
+                ]
+
+    def load_di_channel(self):
+        logger.debug("load di_channel")
+        self.digital_input_channels.clear()
+        currDiIdx = self.digital_input_hardware.currentRow()
+        currDI = self.digital_inputs_linker[currDiIdx]
+        logger.debug(f"DI idx: {currDI}")
+        delimiter = ":WCIB_RBV"
+        cleaned_di = currDI.replace(delimiter, ":NUMDI_RBV")
+        logger.debug(f"cleaned axis: {cleaned_di}")
+        self.di_size = fake_caget(self.pvDict, cleaned_di)
+        logger.debug(f"di size: {self.di_size}")
+        if self.di_size is not None and self.di_size != 0:
+            for i in range(0, int(self.di_size)):
+                self.digital_input_channels.addItem(str(i + 1))
+        else:
+            self.digital_input_channels.clear()
+
+    def load_drives(self):
+        # update enum with drives pulled from .db file
+        logger.info(f"in load drives")
+        self.drives_list.clear()
+        self.drives_list.addItem("None")
+
+        # self.drives = identify_drive(self.pvList, self.axis_list.currentItem().text())
+
+        delimiter = ":WCIB_RBV"
+        for item in self.drives_linker:
+            cleaned_item = item.replace(delimiter, ":Id_RBV")
+            logger.debug(f"cleaned item: {cleaned_item}")
+            val = fake_caget(self.pvDict, cleaned_item)
+
+            # publish drive
+            self.drives_list.addItem(val)
+            # self.user_input_widget.display_drives_ui.addItem(val)
+        # self.drives_list.setCurrentRow(0)
+
+        if not self.drives_list.isEnabled():
+            self.drives_list.setEnabled(True)
+        # if not self.user_input_widget.display_drives_ui.isEnabled():
+        #     self.user_input_widget.display_drives_ui.setEnabled(True)
+
+        # print(self.drive_selection)
+
+    def load_encoders(self):
+        # update enum with drives pulled from .db file
+        logger.info(f"in load enc")
+        self.encoders_list.clear()
+        self.encoders_list.addItem("None")
+        # self.user_input_widget.display_encoders_ui.clear()
+        # self.user_input_widget.display_encoders_ui.addItem("None")
+        # self.enocder_type = identify_enc(self.pvList, self.axis_list.currentItem().text())
+        delimiter = ":WCIB_RBV"
+        # logger.debug(f"encoder list size: {len(self.encoders)}")
+        for item in self.encoders_linker:
+            cleaned_item = item.replace(delimiter, ":Id_RBV")
+            logger.debug(f"cleaned item: {cleaned_item}")
+            val = fake_caget(self.pvDict, cleaned_item)
+
+            # publish encoders
+            self.encoders_list.addItem(val)
+            # self.user_input_widget.display_encoders_ui.addItem(val)
+        # self.encoders_list.setCurrentRow(0)
+
+        if not self.encoders_list.isEnabled():
+            self.encoders_list.setEnabled(True)
+        # if not self.user_input_widget.display_encoders_ui.isEnabled():
+        #     self.user_input_widget.display_encoders_ui.setEnabled(True)
+        # print(self.encoder_selection)
+
+
+class ExpertWindow(DesignerDisplay, QWidget):
+    filename = "expert_tab.ui"
+    ui_dir = Path(__file__).parent / "ui"
+
+    # Expert Tab
+    expert_axis: QComboBox
+    param_tab: QTabWidget
+    param_list_tab: QTabWidget
+    expert_nc_param: QGroupBox
+
+
+class DiagnosticsWindow(DesignerDisplay, QWidget):
+    filename = "diagnostic_tab.ui"
+    ui_dir = Path(__file__).parent / "ui"
+
+    # Diagnostic Tab
+    diagnostic_axis_selection: QComboBox
+    diagnostic_hardware_selection: QListWidget
+    diagnostic_groupbox: QGroupBox
+    dianostic_params_groupbox: QGroupBox
+
+
+class SettingsWindow(DesignerDisplay, QWidget):
+    filename = "settings_tab.ui"
+    ui_dir = Path(__file__).parent / "ui"
+
+
+class MainWindow(DesignerDisplay, QWidget):
+    filename = "main_window_new.ui"
+    ui_dir = Path(__file__).parent / "ui"
+
+    # Main Window Widgets
+    reload_ioc: QPushButton
+    load_ioc: QPushButton
+    status_logger: QPlainTextEdit
+    main_tabs: QTabWidget
+
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+    ):
+        # Pass ONLY parent to super().__init__()
+        super().__init__(parent)
+        # Store macros yourself
+        # self.macros = macros
+
+        # user input
+        self.user_input_widget = UserInputWindow(self)
+        self.main_tabs.addTab(self.user_input_widget, "User Input")
+
+        # linker
+        self.linker_widget = LinkerWindow(self)
+        self.main_tabs.addTab(self.linker_widget, "Linker")
+
+        # expert
+        self.expert_widget = ExpertWindow()
+        self.main_tabs.addTab(self.expert_widget, "Expert")
+
+        # diagnostic
+        self.diagnostic_widget = DiagnosticsWindow()
+        self.main_tabs.addTab(self.diagnostic_widget, "Diagnostic")
+
+        # setting
+        self.setting_widget = SettingsWindow()
+        self.main_tabs.addTab(self.setting_widget, "Settings")
+
+        # Mapping message box
+        self.msg = QMessageBox()
+        self.isMsgActive = False
 
         # initialize vars
         init = True
@@ -181,19 +1046,19 @@ class MyDisplay(Display):
             self.plc_ioc_label = ""
             self.axis = []
             self.digital_inputs = ["None"]
-            self.digital_inputs_ui = ["None"]
+            # self.digital_inputs_ui = ["None"]
             self.digital_inputs_hardware = ["None"]
             self.digital_inputs_hardware_ui = ["None"]
-            self.drives = ["None"]
+            self.drives_linker = ["None"]
             self.encoders = ["None"]
             self.enocders_list = []
             self.list_WCIB = []
             self.cleaned_di = ""
             self.di_num_channels = 0
             self.loaded_unique_di = []
-            self.loaded_unique_di_ui = []
-            self.loaded_di_channels = []
-            self.loaded_di_channels_ui = []
+            # self.loaded_unique_di_ui = []
+            # self.loaded_di_channels = []
+            # self.loaded_di_channels_ui = []
             self.loaded_di_channel_inputs = []
             self.store_di_selection = [[-1, -1], [-1, -1], [-1, -1]]
             self.axis_di_idx = 0
@@ -214,176 +1079,268 @@ class MyDisplay(Display):
             self.ca_coe_encoder_list = []
             self.ca_dg_list = []
             self.param_connections = []
-
-            # Mapping message box
-            self.msg = QMessageBox()
-            self.isMsgActive = False
-
-        # finding children
-        # Linker Tab
-        self.plc_ioc_list = self.ui.findChild(QComboBox, "plc_ioc_list")
-        self.plc_ioc_label = self.ui.findChild(PyDMLabel, "ioc_label")
-        self.axis_list = self.ui.findChild(QListWidget, "axis_list_view")
-        self.digital_input_hardware = self.ui.findChild(
-            QListWidget, "digital_input_hardware"
-        )
-        self.digital_input_channels = self.ui.findChild(
-            QListWidget, "digital_input_channel"
-        )
-        self.digital_input_axis = self.ui.findChild(QListWidget, "digital_input_axis")
-        self.drives_list = self.ui.findChild(QListWidget, "drives_list_view")
-        self.enocders_list = self.ui.findChild(QListWidget, "encoders_list_view")
-        self.confirm_mapping = self.ui.findChild(QPushButton, "confirm_mapping")
-        self.view_logger = self.ui.findChild(PyDMPushButton, "view_logger_button")
-        self.load_ioc = self.ui.findChild(QPushButton, "load_ioc_pushButton")
+            self.ioc_path = "/reg/g/pcds/epics-dev/nlentz/lcls-plc-template-user-motors/iocBoot/ioc-lcls-plc-template-user-motors/lcls_plc_template_user_motors.db"
 
         """
         Load IOC pvs from ioc and update the axis list and identify PVs based on this
         """
 
         # Load IOC: load axis, Populate DI, DRV, ENC
-        for slot in [self.load_test_list, self.load_axis, self.populate_options]:
+        # for slot in [self.load_tabs, self.load_ioc_data, self.load_axis, self.populate_options]:
+        #     self.load_ioc.clicked.connect(slot)
+        for slot in [
+            self.load_ioc_data,
+            self.setup_tab_signals,
+            self.load_axis,
+            self.populate_options,
+        ]:
             self.load_ioc.clicked.connect(slot)
 
         # User Input Tab
-        self.display_axis = self.ui.findChild(QListWidget, "display_axis_ui")
-        self.display_drives = self.ui.findChild(QListWidget, "display_drives_ui")
-        self.ui_digital_input_axis = self.ui.findChild(
-            QListWidget, "ui_digital_input_axis"
+        # self.display_axis = self.ui.findChild(QListWidget, "display_axis_ui")
+        # self.display_drives = self.ui.findChild(QListxWidget, "display_drives_ui")
+        # self.ui_digital_input_axis = self.ui.findChild(
+        #     QListWidget, "ui_digital_input_axis"
+        # )
+        # self.ui_digital_input_hardware = self.ui.findChild(
+        #     QListWidget, "ui_digital_input_hardware"
+        # )
+        # self.ui_digital_input_channels = self.ui.findChild(
+        #     QListWidget, "ui_digital_input_channels"
+        # )
+        # self.display_encoders = self.ui.findChild(QListWidget, "display_encoders_ui")
+        # self.stage_settings = self.ui.findChild(QPushButton, "stage_settings")
+
+        # ## Expert Tab
+        # self.expert_axis = self.ui.findChild(QComboBox, "expert_axis")
+        # self.expert_nc_list = self.ui.findChild(QListWidget, "expert_nc_list")
+        # self.expert_drive_list = self.ui.findChild(QListWidget, "expert_drive_list")
+        # self.expert_enocder_list = self.ui.findChild(QListWidget, "expert_enocder_list")
+        # self.param_list = self.ui.findChild(QListWidget, "expert_param_list")
+        # self.expert_drive_param_list = self.ui.findChild(
+        #     QListWidget, "expert_coe_drive_list"
+        # )
+        # self.expert_encoder_param_list = self.ui.findChild(
+        #     QListWidget, "expert_coe_encoder_list"
+        # )
+        # self.nc_groupbox = self.ui.findChild(QGroupBox, "expert_nc_param")
+        # self.drive_groupbox = self.ui.findChild(QGroupBox, "expert_drive_param")
+        # self.encoder_groupbox = self.ui.findChild(QGroupBox, "expert_encoder_param")
+
+        # # Expert Tab -> NC Tab
+        # self.expert_nc_filter = FilteredListWidget(self.nc_groupbox)
+        # self.nc_groupbox.layout().addWidget(self.expert_nc_filter)
+
+        # # Drive Tab -> NC Tab
+        # self.expert_drive_filter = FilteredListWidget(self.drive_groupbox)
+        # self.drive_groupbox.layout().addWidget(self.expert_drive_filter)
+
+        # # Encoder Tab -> NC Tab
+        # self.expert_encoder_filter = FilteredListWidget(self.encoder_groupbox)
+        # self.encoder_groupbox.layout().addWidget(self.expert_encoder_filter)
+
+        # # Diagnostic Tab
+        # self.diagnostic_axis_selection = self.ui.findChild(
+        #     QComboBox, "diagnostic_axis_selection"
+        # )
+        # self.diagnostic_hardware_selection = self.ui.findChild(
+        #     QListWidget, "diagnostic_hardware_selection"
+        # )
+        # self.diagnostic_groupbox = self.ui.findChild(QGroupBox, "diagnostic_groupbox")
+
+        # self.diagnostic_param_filter = FilteredListWidget(self.diagnostic_groupbox)
+        # self.diagnostic_groupbox.layout().addWidget(self.diagnostic_param_filter)
+
+        # self.diagnostic_params_groupbox = self.ui.findChild(
+        #     QGroupBox, "diagnostic_params_groupbox"
+        # )
+
+        # # Mapping
+        # self.stage_mapping = self.ui.findChild(QPushButton, "stage_mapping")
+        # self.see_mapping = self.ui.findChild(QPushButton, "see_staged_mapping")
+        # self.clear_mapping = self.ui.findChild(QPushButton, "clear_mapping")
+
+        # # Logger
+
+        # if self.status_logger is not None:
+        #     handler = QPlainTextEditLoggerHandler(self.status_logger)
+        #     formatter = logging.Formatter("%(asctime)s - %(message)s")
+        #     handler.setFormatter(formatter)
+        #     logging.getLogger().addHandler(handler)
+        #     logging.getLogger().setLevel(logging.INFO)
+        # else:
+        #     logger.warning("status_logger QPlainTextEdit not found in UI.")
+        # self.duplicate_di_cb = self.ui.findChild(
+        #     QCheckBox, "settings_duplicate_di_warning"
+        # )
+
+        # self.duplicate_di_cb.stateChanged.connect(self.check_duplicate_di_flag)
+
+        # self.duplicate_drv_cb = self.ui.findChild(
+        #     QCheckBox, "settings_duplicate_drv_warning"
+        # )
+        # self.duplicate_drv_cb.stateChanged.connect(self.check_duplicate_drv_flag)
+
+        # self.duplicate_enc_cb = self.ui.findChild(
+        #     QCheckBox, "settings_duplicate_enc_warning"
+        # )
+        # self.duplicate_enc_cb.stateChanged.connect(self.check_duplicate_enc_flag)
+        # self.status_indicators = self.ui.findChild(QLabel, "status_indicators")
+
+        # """
+        # Signals
+        # """
+
+        # self.user_input_widget.display_axis_ui.currentRowChanged.connect(self.select_axis_ui)
+
+        # # axis signals
+        # self.axis_list.currentRowChanged.connect(self.isStagedMappingSet)
+        # self.diagnostic_axis_selection.currentIndexChanged.connect(
+        #     self.populate_diagnostic_hardware
+        # )
+        # self.diagnostic_hardware_selection.currentRowChanged.connect(
+        #     self.populate_diagnostic_coe
+        # )
+
+        # self.expert_nc_filter.currentIndexChanged.connect(self.highlight_nc_param)
+        # self.expert_drive_filter.currentIndexChanged.connect(
+        #     self.highlight_coe_drive_param
+        # )
+        # self.expert_encoder_filter.currentIndexChanged.connect(
+        #     self.highlight_coe_encoder_param
+        # )
+        # self.diagnostic_param_filter.currentIndexChanged.connect(
+        #     self.populate_diagnostic_widget
+        # )
+
+        # # digitial input handling signals
+        # self.digital_input_hardware.currentRowChanged.connect(self.load_di_channel)
+        # self.digital_input_axis.currentRowChanged.connect(self.select_di_channel)
+        # self.ui_digital_input_axis.currentRowChanged.connect(self.select_di_channel_ui)
+        # self.ui_digital_input_hardware.currentRowChanged.connect(
+        #     self.load_di_channel_ui
+        # )
+
+        # # mapping signals
+        # self.stage_mapping.clicked.connect(self.save_stage)
+        # self.see_mapping.clicked.connect(self.see_stage)
+        # self.clear_mapping.clicked.connect(self.clear_stage)
+
+        # # Misc Buttons
+        # self.stage_settings.clicked.connect(self.open_stage_settings)
+        # self.confirm_mapping.clicked.connect(self.update_links)
+
+        # for slot in [
+        #     self.expert_update_nc,
+        #     self.expert_update_drive,
+        #     self.expert_update_encoder,
+        # ]:
+        #     self.expert_axis.currentIndexChanged.connect(slot)
+
+    # def load_tabs(self):
+    # print("in load tabs")
+    # if self.main_tabs.count() < 4:
+    #     # user input
+    #     self.user_input_widget = UserInputWindow(self)
+    #     # ui_dir = Path(__file__).parent / "ui/user_input_tab.ui"
+    #     # loadUi(ui_dir, user_input_widget)
+    #     self.main_tabs.addTab(self.user_input_widget, "User Input")
+
+    #     # linker
+    #     self.linker_widget = LinkerWindow()
+    #     # linker_dir = Path(__file__).parent / "ui/linker_tab.ui"
+    #     # loadUi(linker_dir, linker_widget)
+    #     self.main_tabs.addTab(self.linker_widget, "Linker")
+
+    #     # expert
+    #     self.expert_widget = ExpertWindow()
+    #     # expert_dir = Path(__file__).parent / "ui/expert_tab.ui"
+    #     # loadUi(expert_dir, expert_widget)
+    #     self.main_tabs.addTab(self.expert_widget, "Expert")
+
+    #     # diagnostic
+    #     self.diagnostic_widget = DiagnosticsWindow()
+    #     # diagnostic_dir = Path(__file__).parent / "ui/diagnostic_tab.ui"
+    #     # loadUi(diagnostic_dir, diagnostic_widget)
+    #     self.main_tabs.addTab(self.diagnostic_widget, "Diagnostic")
+
+    #     # setting
+    #     self.setting_widget = SettingsWindow()
+    #     # setting_dir = Path(__file__).parent / "ui/settings_tab.ui"
+    #     # loadUi(setting_dir, setting_widget)
+    #     self.main_tabs.addTab(self.setting_widget, "Settings")
+
+    # else:
+    #     print("already loaded tabs skipping...")
+
+    def setup_tab_signals(self):
+        # self.user_input_widget.display_axis_ui.currentRowChanged.connect(self.select_axis_ui)
+        # self.user_input_widget.display_axis_ui.currentRowChanged.connect(self.user_input_widget.select_axis_ui)
+        # self.linker_widget.axis_list_linker.currentRowChanged.connect(self.isStagedMappingSet)
+        # self.user_input_widget.digital_input_hardware_ui.currentRowChanged.connect(
+        #     self.load_di_channel_ui
+        # )
+
+        # self.user_input_widget.display_axis_ui.currentRowChanged.connect(self.select_axis_ui)
+        # self.diagnostic_axis_selection.currentIndexChanged.connect(
+        #     self.populate_diagnostic_hardware
+        # )
+        # self.diagnostic_hardware_selection.currentRowChanged.connect(
+        #     self.populate_diagnostic_coe
+        # )
+
+        # SIGNALS
+        # Expert
+        # for slot in [
+        #     self.expert_update_nc,
+        #     self.expert_update_drive,
+        #     self.expert_update_encoder,
+        # ]:
+        #     self.expert_axis.currentIndexChanged.connect(slot)
+
+        # self.expert_nc_filter.currentIndexChanged.connect(self.highlight_nc_param)
+        # self.expert_drive_filter.currentIndexChanged.connect(
+        #     self.highlight_coe_drive_param
+        # )
+        # self.expert_encoder_filter.currentIndexChanged.connect(
+        #     self.highlight_coe_encoder_param
+        # )
+
+        # User Input
+        self.user_input_widget.display_axis_ui.currentRowChanged.connect(
+            self.user_input_widget.select_axis_ui
         )
-        self.ui_digital_input_hardware = self.ui.findChild(
-            QListWidget, "ui_digital_input_hardware"
+        self.user_input_widget.digital_input_axis_ui.currentRowChanged.connect(
+            self.user_input_widget.select_di_channel_ui
         )
-        self.ui_digital_input_channels = self.ui.findChild(
-            QListWidget, "ui_digital_input_channels"
-        )
-        self.display_encoders = self.ui.findChild(QListWidget, "display_encoders_ui")
-        self.stage_settings = self.ui.findChild(QPushButton, "stage_settings")
-
-        ## Expert Tab
-        self.expert_axis = self.ui.findChild(QComboBox, "expert_axis")
-        self.expert_nc_list = self.ui.findChild(QListWidget, "expert_nc_list")
-        self.expert_drive_list = self.ui.findChild(QListWidget, "expert_drive_list")
-        self.expert_enocder_list = self.ui.findChild(QListWidget, "expert_enocder_list")
-        self.param_list = self.ui.findChild(QListWidget, "expert_param_list")
-        self.expert_drive_param_list = self.ui.findChild(
-            QListWidget, "expert_coe_drive_list"
-        )
-        self.expert_encoder_param_list = self.ui.findChild(
-            QListWidget, "expert_coe_encoder_list"
-        )
-        self.nc_groupbox = self.ui.findChild(QGroupBox, "expert_nc_param")
-        self.drive_groupbox = self.ui.findChild(QGroupBox, "expert_drive_param")
-        self.encoder_groupbox = self.ui.findChild(QGroupBox, "expert_encoder_param")
-
-        # Expert Tab -> NC Tab
-        self.expert_nc_filter = FilteredListWidget(self.nc_groupbox)
-        self.nc_groupbox.layout().addWidget(self.expert_nc_filter)
-
-        # Drive Tab -> NC Tab
-        self.expert_drive_filter = FilteredListWidget(self.drive_groupbox)
-        self.drive_groupbox.layout().addWidget(self.expert_drive_filter)
-
-        # Encoder Tab -> NC Tab
-        self.expert_encoder_filter = FilteredListWidget(self.encoder_groupbox)
-        self.encoder_groupbox.layout().addWidget(self.expert_encoder_filter)
-
-        # Diagnostic Tab
-        self.diagnostic_axis_selection = self.ui.findChild(
-            QComboBox, "diagnostic_axis_selection"
-        )
-        self.diagnostic_hardware_selection = self.ui.findChild(
-            QListWidget, "diagnostic_hardware_selection"
-        )
-        self.diagnostic_groupbox = self.ui.findChild(QGroupBox, "diagnostic_groupbox")
-
-        self.diagnostic_param_filter = FilteredListWidget(self.diagnostic_groupbox)
-        self.diagnostic_groupbox.layout().addWidget(self.diagnostic_param_filter)
-
-        self.diagnostic_params_groupbox = self.ui.findChild(
-            QGroupBox, "diagnostic_params_groupbox"
+        self.user_input_widget.digital_input_hardware_ui.currentRowChanged.connect(
+            self.user_input_widget.load_di_channel_ui
         )
 
-        # Mapping
-        self.stage_mapping = self.ui.findChild(QPushButton, "stage_mapping")
-        self.see_mapping = self.ui.findChild(QPushButton, "see_staged_mapping")
-        self.clear_mapping = self.ui.findChild(QPushButton, "clear_mapping")
+        # Diagnostic
+        # self.diagnostic_hardware_selection.currentRowChanged.connect(
+        #     self.populate_diagnostic_coe
+        # )
 
-        # Logger
-        self.status_logger = self.ui.findChild(QPlainTextEdit, "status_logger")
-        if self.status_logger is not None:
-            handler = QPlainTextEditLoggerHandler(self.status_logger)
-            formatter = logging.Formatter("%(asctime)s - %(message)s")
-            handler.setFormatter(formatter)
-            logging.getLogger().addHandler(handler)
-            logging.getLogger().setLevel(logging.INFO)
-        else:
-            logger.warning("status_logger QPlainTextEdit not found in UI.")
+        # self.diagnostic_param_filter.currentIndexChanged.connect(
+        #     self.populate_diagnostic_widget
+        # )
+        # self.diagnostic_axis_selection.currentIndexChanged.connect(
+        #     self.populate_diagnostic_hardware
+        # )
 
-        """
-        Signals
-        """
-        for slot in [
-            self.expert_update_nc,
-            self.expert_update_drive,
-            self.expert_update_encoder,
-        ]:
-            self.expert_axis.currentIndexChanged.connect(slot)
-
-        self.display_axis.currentRowChanged.connect(self.select_axis_ui)
-
-        # axis signals
-        self.axis_list.currentRowChanged.connect(self.isStagedMappingSet)
-        self.diagnostic_axis_selection.currentIndexChanged.connect(
-            self.populate_diagnostic_hardware
-        )
-        self.diagnostic_hardware_selection.currentRowChanged.connect(
-            self.populate_diagnostic_coe
-        )
-
-        self.expert_nc_filter.currentIndexChanged.connect(self.highlight_nc_param)
-        self.expert_drive_filter.currentIndexChanged.connect(
-            self.highlight_coe_drive_param
-        )
-        self.expert_encoder_filter.currentIndexChanged.connect(
-            self.highlight_coe_encoder_param
-        )
-        self.diagnostic_param_filter.currentIndexChanged.connect(
-            self.populate_diagnostic_widget
-        )
-
+        # Linker
         # digitial input handling signals
-        self.digital_input_hardware.currentRowChanged.connect(self.load_di_channel)
-        self.digital_input_axis.currentRowChanged.connect(self.select_di_channel)
-        self.ui_digital_input_axis.currentRowChanged.connect(self.select_di_channel_ui)
-        self.ui_digital_input_hardware.currentRowChanged.connect(
-            self.load_di_channel_ui
+        self.linker_widget.digital_input_hardware.currentRowChanged.connect(
+            self.linker_widget.load_di_channel
         )
-
-        # mapping signals
-        self.stage_mapping.clicked.connect(self.save_stage)
-        self.see_mapping.clicked.connect(self.see_stage)
-        self.clear_mapping.clicked.connect(self.clear_stage)
-
-        # Misc Buttons
-        self.stage_settings.clicked.connect(self.open_stage_settings)
-        self.confirm_mapping.clicked.connect(self.update_links)
-
-        self.duplicate_di_cb = self.ui.findChild(
-            QCheckBox, "settings_duplicate_di_warning"
+        self.linker_widget.digital_input_axis.currentRowChanged.connect(
+            self.linker_widget.select_di_channel
         )
-        self.duplicate_di_cb.stateChanged.connect(self.check_duplicate_di_flag)
-
-        self.duplicate_drv_cb = self.ui.findChild(
-            QCheckBox, "settings_duplicate_drv_warning"
+        # axis signals
+        self.linker_widget.axis_list_linker.currentRowChanged.connect(
+            self.isStagedMappingSet
         )
-        self.duplicate_drv_cb.stateChanged.connect(self.check_duplicate_drv_flag)
-
-        self.duplicate_enc_cb = self.ui.findChild(
-            QCheckBox, "settings_duplicate_enc_warning"
-        )
-        self.duplicate_enc_cb.stateChanged.connect(self.check_duplicate_enc_flag)
-        self.status_indicators = self.ui.findChild(QLabel, "status_indicators")
 
     def filter_expert_nc_list(self, text):
         """
@@ -569,7 +1526,7 @@ class MyDisplay(Display):
         logger.debug(f"curr axis index: {self.qCurrAxis}")
         if not self.status_staged_mappings():
             logger.debug("There is nothing staged")
-            self.select_axis()
+            self.linker_widget.select_axis()
         else:
             logger.debug("There are some staged values")
             # self.configMappingWarningBox()
@@ -615,12 +1572,17 @@ class MyDisplay(Display):
 
     def check_caput(self, pv):
         pv = self.remove_name_rbv(pv)
-        goal_value = epics.caget(pv + ":Goal")
-        rbv_value = epics.caget(pv + ":Val_RBV")
-        if goal_value is rbv_value:
+
+        # Run blocking calls in a thread
+        goal_value = epics.caget, pv + ":Goal"
+        rbv_value = epics.caget, pv + ":Val_RBV"
+
+        if goal_value == rbv_value:
             print(f"goal and rbv match: {goal_value}, {rbv_value}")
+            return True
         else:
             print(f"goal and rbv DO NOT match: {goal_value}, {rbv_value}")
+            return False
 
     def configure_param_widgets(self, widget: QWidget, nc_pv):
         """
@@ -744,7 +1706,36 @@ class MyDisplay(Display):
         print(f"in when_param_changed")
         lineedit = self.param_connections[idx]
         print(f"Value for PV {pv} (index {idx}) is now {lineedit.text()}")
-        self.check_caput(pv)
+
+        # Define the function to run in a worker thread
+        def caput_check_task(pv):
+            pv = self.remove_name_rbv(pv)
+            goal_value = epics.caget(pv + ":Goal")
+            rbv_value = epics.caget(pv + ":Val_RBV")
+            return goal_value == rbv_value, goal_value, rbv_value
+
+        # Define what to do when the worker finishes
+        def on_result(result):
+            is_match, goal, rbv = result
+            if is_match:
+                print(f"goal and rbv match: {goal}, {rbv}")
+            else:
+                print(f"goal and rbv DO NOT match: {goal}, {rbv}")
+            print(f"bool: {is_match}")
+
+        # Define what to do on error
+        def on_error(exception):
+            print(f"Exception in caput_check_task: {exception}")
+
+        # Start the thread worker
+        worker = ThreadWorker(caput_check_task, pv)
+        worker.returned.connect(on_result)
+        worker.error_raised.connect(on_error)
+        # Keep a reference alive! Otherwise it might get garbage-collected!
+        if not hasattr(self, "_workers"):
+            self._workers = []
+        self._workers.append(worker)
+        worker.start()
 
     def status_staged_mappings(self):
         logger.info(f"in status_staged_mapping: checking if there is a staged mapping")
@@ -985,16 +1976,19 @@ class MyDisplay(Display):
         stageSettings = StageSettings(self)
         stageSettings.exec_()
 
-    def ui_filename(self):
-        return "./ui/user-motor-gui.ui"
+    # def ui_filename(self):
+    #     filename = "traj.ui"
+    #     ui_dir = Path(__file__).parent / "ui"
+    #     return 'ui/main_window.ui'
 
-    def ui_filepath(self):
-        return path.join(path.dirname(path.realpath(__file__)), self.ui_filename())
+    # def ui_filepath(self):
+    #     return path.join(path.dirname(path.realpath(__file__)), self.ui_filename())
 
-    def load_test_list(self):
+    def load_ioc_data(self):
         logger.info(f"in load test list")
         configured = "./unit_test_data.json"
         integration_test = "/cds/home/c/ctsoi/epics-dev/ioc/user_motors/lcls-plc-template-user-motors/iocBoot/ioc-lcls-plc-template-user-motors/lcls_plc_template_user_motors.db"
+        integration_box_test = "/reg/g/pcds/epics-dev/nlentz/lcls-plc-template-user-motors/iocBoot/ioc-lcls-plc-template-user-motors/lcls_plc_template_user_motors.db"
         unconfigured = "./unit_test_config.json"
         filepath2 = "./expert_unit_test.json"
         filepath1 = configured
@@ -1022,13 +2016,14 @@ class MyDisplay(Display):
         # self.prefixName = match.group(1)
 
         ## integration test
-        iocpath = integration_test
+        iocpath = integration_box_test
 
         # hard code ioc path
         self.pvList = discover_pvs("", usr_db_path=iocpath, find_makefile=True)
 
         # finding prefix at element 0
         self.prefixName = self.pvList[0]
+        self.user_input_widget.prefixName = self.prefixName
         print(self.prefixName)
         self.pvList = self.pvList[1:-1]
 
@@ -1039,6 +2034,9 @@ class MyDisplay(Display):
 
         # put pvs and cagets into a dictionary
         self.pvDict = dict(zip(self.pvList, pv_caget_list))
+        self.user_input_widget.pvDict = self.pvDict
+        self.linker_widget.pvDict = self.pvDict
+        # print(self.pvDict)
 
     def val_to_key(self, val):
         key = [key for key, value in self.pvDict.items() if value == val]
@@ -1112,6 +2110,7 @@ class MyDisplay(Display):
         3. there is a string but it doesnt match anything, something went wrong
         """
         logger.info(f"in identify_WCIB'")
+        self.clear_items()
         self.list_WCIB = []
         for pv in self.pvDict:
             if re.search(r".*:WCIB_RBV", pv):
@@ -1122,23 +2121,32 @@ class MyDisplay(Display):
             device_type = fake_caget(self.pvDict, pv)
             logger.debug(f"device_type: {device_type}")
             if re.search(r"DI", device_type):
-                self.digital_inputs.append(pv)
-                self.digital_inputs_ui.append(pv)
-            if re.search(r"DRV", device_type):
-                self.drives.append(pv)
-                # self.display_drives.append(pv)
+                self.linker_widget.digital_inputs_linker.append(pv)
+                self.user_input_widget.digital_inputs_ui.append(pv)
+            if re.search(r"DR", device_type):
+                self.linker_widget.drives_linker.append(pv)
+                self.user_input_widget.drives_ui.append(pv)
             if re.search(r"ENC", device_type):
-                self.encoders.append(pv)
-                # self.display_encoders.append(pv)
+                self.linker_widget.encoders_linker.append(pv)
+                self.user_input_widget.encoders_ui.append(pv)
 
         # Calling other methods
         # self.load_di()
-        self.load_axis_di()
-        self.load_axis_di_ui()
-        self.load_di()
-        self.load_di_ui()
-        self.load_drives()
-        self.load_encoders()
+        self.linker_widget.load_axis_di()
+        self.user_input_widget.load_axis_di_ui()
+        self.linker_widget.load_di()
+        self.user_input_widget.load_di_ui()
+        self.linker_widget.load_drives()
+        self.user_input_widget.load_drives_ui()
+        self.linker_widget.load_encoders()
+        self.user_input_widget.load_encoders_ui()
+
+    def clear_items(self):
+        self.list_WCIB.clear()
+        self.digital_inputs.clear()
+        self.user_input_widget.digital_inputs_ui.clear()
+        self.drives_linker.clear()
+        self.encoders.clear()
 
     def load_axis(self):
         """
@@ -1146,12 +2154,14 @@ class MyDisplay(Display):
         ---
         Calls publish axis
         """
-        logger.info(f"in get pvs from input")
+        logger.info(f"in load_axis")
         # print(self.ioc_name.text())
 
         self.axis = identify_axis(self.pvDict)
+        self.user_input_widget.axis = self.axis
+        self.linker_widget.axis = self.axis
         self.publish_axis()
-        self.publish_axis_ui()
+        self.user_input_widget.publish_axis_ui()
         self.publish_axis_expert()
         self.publish_axis_diagnostic()
 
@@ -1278,93 +2288,62 @@ class MyDisplay(Display):
     #     DI_hardware_Channel = fake_caget(self.pvDict, detectableDi + ":HardChNum_RBV")
     #     logger.debug(f"DI_hardware_channel: {DI_hardware_Channel}")
 
-    def detect_linked_drv(self):
-        logger.info(f"in detect_linked_drv")
-        currAxisIdx = self.axis_list.currentRow()
-        currAxis = self.val_to_key(self.axis[currAxisIdx])
-        detectableDRV = currAxis + ":SelG:DRV:Id_RBV"
-        drvValue = fake_caget(self.pvDict, detectableDRV)
-        logger.debug(f"drvValue: {drvValue}")
+    # def detect_linked_drv(self):
+    #     logger.info(f"in detect_linked_drv")
+    #     currAxisIdx = self.linker_widget.axis_list_linker.currentRow()
+    #     currAxis = self.val_to_key(self.axis[currAxisIdx])
+    #     logger.debug(f"currAxis: {currAxis}")
+    #     currAxis = strip_axis_id(currAxis)
+    #     detectableDRV = currAxis + ":SelG:DRV:Id_RBV"
+    #     drvValue = fake_caget(self.pvDict, detectableDRV)
+    #     logger.debug(f"drvValue: {drvValue}")
 
-        for i in range(0, self.drives_list.count()):
-            if drvValue == self.drives_list.item(i).text():
-                logger.debug(f"found drv: {self.drives_list.item(i).text()}")
-                self.drives_list.setCurrentRow(i)
-                break
-            else:
-                logger.debug("No link found, defaulting to None")
-                self.drives_list.setCurrentRow(0)
+    #     for i in range(0, self.linker_widget.drives_list.count()):
+    #         if drvValue == self.linker_widget.drives_list.item(i).text():
+    #             logger.debug(f"found drv: {self.linker_widget.drives_list.item(i).text()}")
+    #             self.linker_widget.drives_list.setCurrentRow(i)
+    #             break
+    #         else:
+    #             logger.debug("No link found, defaulting to None")
+    #             self.linker_widget.drives_list.setCurrentRow(0)
 
-    def detect_linked_drv_ui(self):
-        logger.info(f"in detect_linked_drv_ui")
-        currAxisIdx = self.display_axis.currentRow()
-        currAxis = self.val_to_key(self.axis[currAxisIdx])
-        detectableDRV = currAxis + ":SelG:DRV:Id_RBV"
-        logger.debug(f"detDRV: {detectableDRV}")
-        drvValue = fake_caget(self.pvDict, detectableDRV)
-        logger.debug(f"drvValue: {drvValue}")
+    # def detect_linked_enc(self):
+    #     logger.info(f"in detect_linked_enc")
+    #     currAxisIdx = self.linker_widget.axis_list_linker.currentRow()
+    #     currAxis = self.val_to_key(self.axis[currAxisIdx])
+    #     logger.debug(f"currAxis: {currAxis}")
+    #     currAxis = strip_axis_id(currAxis)
+    #     detectableENC = currAxis + ":SelG:ENC:Id_RBV"
+    #     encValue = fake_caget(self.pvDict, detectableENC)
+    #     logger.debug(f"encValue: {encValue}")
 
-        for i in range(0, self.display_drives.count()):
-            if drvValue == self.display_drives.item(i).text():
-                logger.debug(f"found drv: {self.display_drives.item(i).text()}")
-                self.display_drives.setCurrentRow(i)
-                break
-            else:
-                logger.debug("No link found, defaulting to None")
-                self.display_drives.setCurrentRow(0)
+    #     for i in range(0, self.linker_widget.encoders_list.count()):
+    #         currEnc = self.linker_widget.encoders_list.item(i).text()
+    #         logger.debug(f"currEnc: {currEnc}, sizeEnc: {len(self.enocders_list)}")
+    #         if encValue == currEnc:
+    #             logger.debug(f"found enc: {self.linker_widget.encoders_list.item(i).text()}")
+    #             self.linker_widget.encoders_list.setCurrentRow(i)
+    #             break
+    #         else:
+    #             logger.debug("No link found, defaulting to None")
+    #             self.linker_widget.encoders_list.setCurrentRow(0)
 
-    def detect_linked_enc(self):
-        logger.info(f"in detect_linked_enc")
-        currAxisIdx = self.axis_list.currentRow()
-        currAxis = self.val_to_key(self.axis[currAxisIdx])
-        detectableENC = currAxis + ":SelG:ENC:Id_RBV"
-        encValue = fake_caget(self.pvDict, detectableENC)
-        logger.debug(f"encValue: {encValue}")
+    # def select_axis(self):
+    #     logger.info(f"in select_axis")
+    #     self.detect_linked_enc()
+    #     self.detect_linked_drv()
+    #     self.publish_axis_di()
 
-        for i in range(0, self.enocders_list.count()):
-            currEnc = self.enocders_list.item(i).text()
-            logger.debug(f"currEnc: {currEnc}, sizeEnc: {len(self.enocders_list)}")
-            if encValue == currEnc:
-                logger.debug(f"found enc: {self.enocders_list.item(i).text()}")
-                self.enocders_list.setCurrentRow(i)
-                break
-            else:
-                logger.debug("No link found, defaulting to None")
-                self.enocders_list.setCurrentRow(0)
-
-    def detect_linked_enc_ui(self):
-        logger.info(f"in detect_linked_enc_ui")
-        currAxisIdx = self.display_axis.currentRow()
-        currAxis = self.val_to_key(self.axis[currAxisIdx])
-        detectableENC = currAxis + ":SelG:ENC:Id_RBV"
-        encValue = fake_caget(self.pvDict, detectableENC)
-        logger.debug(f"encValue: {encValue}")
-
-        for i in range(0, self.display_encoders.count()):
-            if encValue == self.display_encoders.item(i).text():
-                logger.debug(f"found drv: {self.display_encoders.item(i).text()}")
-                self.display_encoders.setCurrentRow(i)
-                break
-            else:
-                logger.debug("No link found, defaulting to None")
-                self.display_encoders.setCurrentRow(0)
-
-    def select_axis(self):
-        logger.info(f"in select_axis")
-        self.detect_linked_enc()
-        self.detect_linked_drv()
-        self.publish_axis_di()
-
-    def select_axis_ui(self):
-        logger.info(f"in select_axis_ui")
-        self.detect_linked_enc_ui()
-        self.detect_linked_drv_ui()
-        self.publish_axis_di_ui()
+    # def select_axis_ui(self):
+    #     logger.info(f"in select_axis_ui")
+    #     self.detect_linked_enc_ui()
+    #     self.detect_linked_drv_ui()
+    #     self.publish_axis_di_ui()
 
     def publish_axis_di(self):
         logger.info(f"in publish_axis_di")
         # if self.axis_di_init:
-        self.digital_input_axis.clear()
+        self.linker_widget.digital_input_axis.clear()
         numDI = 0
 
         # currAxisIdx = self.axis_list.currentRow()
@@ -1372,42 +2351,44 @@ class MyDisplay(Display):
         # currAxis = self.val_to_key(self.axis[currAxisIdx])
         # logger.debug(f"currAxis: {currAxis}")
 
-        currAxis = self.val_to_key(self.axis_list.currentItem().text())
-
-        for items in self.loaded_unique_di:
-            if items.startswith(currAxis):
-                numDI = numDI + 1
-        for i in range(0, numDI):
-            self.digital_input_axis.addItem("0" + str(1 + i))
+        currAxis = self.val_to_key(
+            self.linker_widget.axis_list_linker.currentItem().text()
+        )
+        logger.debug(f"currAxis: {currAxis}")
+        # for items in self.loaded_unique_di:
+        #     if items.startswith(currAxis):
+        #         numDI = numDI + 1
+        for i in range(0, 3):
+            self.linker_widget.digital_input_axis.addItem("0" + str(1 + i))
             # self.axis_di_init = False
         # elif self.axis_di_init is False:
         # self.digital_input_axis.setCurrentRow(self.axis_di_idx)
 
         self.select_di_channel()
 
-    def publish_axis_di_ui(self):
-        logger.info(f"in publish_axis_di_ui")
-        # if self.axis_di_init:
-        self.ui_digital_input_axis.clear()
-        numDI = 0
+    # def publish_axis_di_ui(self):
+    #     logger.info(f"in publish_axis_di_ui")
+    #     # if self.axis_di_init:
+    #     self.ui_digital_input_axis.clear()
+    #     numDI = 0
 
-        # currAxisIdx = self.axis_list.currentRow()
-        # logger.debug(f"currAxisIdx: {self.axis[currAxisIdx]}")
-        # currAxis = self.val_to_key(self.axis[currAxisIdx])
-        # logger.debug(f"currAxis: {currAxis}")
+    #     # currAxisIdx = self.axis_list.currentRow()
+    #     # logger.debug(f"currAxisIdx: {self.axis[currAxisIdx]}")
+    #     # currAxis = self.val_to_key(self.axis[currAxisIdx])
+    #     # logger.debug(f"currAxis: {currAxis}")
 
-        currAxis = self.val_to_key(self.display_axis.currentItem().text())
-        logger.debug(f"currAxis: {currAxis}")
-        for items in self.loaded_unique_di_ui:
-            if items.startswith(currAxis):
-                numDI = numDI + 1
-        for i in range(0, numDI):
-            self.ui_digital_input_axis.addItem("0" + str(1 + i))
-            # self.axis_di_init = False
-        # elif self.axis_di_init is False:
-        # self.digital_input_axis.setCurrentRow(self.axis_di_idx)
+    #     currAxis = self.val_to_key(self.display_axis.currentItem().text())
+    #     logger.debug(f"currAxis: {currAxis}")
+    #     for items in self.loaded_unique_di_ui:
+    #         if items.startswith(currAxis):
+    #             numDI = numDI + 1
+    #     for i in range(0, numDI):
+    #         self.ui_digital_input_axis.addItem("0" + str(1 + i))
+    #         # self.axis_di_init = False
+    #     # elif self.axis_di_init is False:
+    #     # self.digital_input_axis.setCurrentRow(self.axis_di_idx)
 
-        self.select_di_channel_ui()
+    #     self.select_di_channel_ui()
 
     def publish_axis(self):
         """
@@ -1417,15 +2398,15 @@ class MyDisplay(Display):
         """
         # update enum with axis pulled from .db file
         logger.info(f"in populate axis")
-        self.axis_list.clear()
+        self.linker_widget.axis_list_linker.clear()
 
         # for item in self.axis:
         #     self.axis_list.addItem(item)
 
-        self.axis_list.addItems(self.axis)
+        self.linker_widget.axis_list_linker.addItems(self.axis)
 
-        if not self.axis_list.isEnabled():
-            self.axis_list.setEnabled(True)
+        if not self.linker_widget.axis_list_linker.isEnabled():
+            self.linker_widget.axis_list_linker.setEnabled(True)
         # print(self.axis_selection)
         # self.staged_mapping= [[] for _ in range(self.axis_list.count())]
 
@@ -1439,7 +2420,7 @@ class MyDisplay(Display):
     def load_axis_di(self):
         """ """
         logger.info(f"in load_axis_di")
-        self.digital_input_axis.clear()
+        self.linker_widget.digital_input_axis.clear()
 
         # self.digital_inputs = identify_inputs(
         #     self.pvList, self.axis_list.currentItem().text()
@@ -1465,437 +2446,346 @@ class MyDisplay(Display):
         #     self.digital_input_hardware.setEnabled(True)
         # self.discover_di_channel()
 
-    def load_axis_di_ui(self):
-        """ """
-        logger.info(f"in load_axis_di_ui")
-        self.ui_digital_input_axis.clear()
+    # def load_axis_di_ui(self):
+    #     """ """
+    #     logger.info(f"in load_axis_di_ui")
+    #     self.user_input_widget.digital_input_axis_ui.clear()
 
-        # self.digital_inputs = identify_inputs(
-        #     self.pvList, self.axis_list.currentItem().text()
-        # )
+    #     # self.digital_inputs = identify_inputs(
+    #     #     self.pvList, self.axis_list.currentItem().text()
+    #     # )
 
-        delimiter = ":Id_RBV"
-        # logger.debug(f"di_val: {axis_di}")
-        for item in self.axis:
-            logger.debug(f"axis: {item}")
-            # name = self.val_to_key(item)
-            # logger.debug(f"name: {name}")
-            # cleaned_di = name.replace(delimiter, "")
-            # logger.debug(f"cleaned item: {cleaned_di}")
-            # pv = fake_caget(self.pvDict, cleaned_di)
-            self.loaded_unique_di_ui.append(self.identify_di(item))
+    #     delimiter = ":Id_RBV"
+    #     # logger.debug(f"di_val: {axis_di}")
+    #     for item in self.axis:
+    #         logger.debug(f"axis: {item}")
+    #         # name = self.val_to_key(item)
+    #         # logger.debug(f"name: {name}")
+    #         # cleaned_di = name.replace(delimiter, "")
+    #         # logger.debug(f"cleaned item: {cleaned_di}")
+    #         # pv = fake_caget(self.pvDict, cleaned_di)
+    #         self.loaded_unique_di_ui.append(self.identify_di(item))
 
-            # self.digital_input_axis.addItem(val)
-        self.loaded_unique_di_ui = [
-            item for sublist in self.loaded_unique_di_ui for item in sublist
-        ]
-        logger.debug(f"val: {self.loaded_unique_di_ui}")
-        # if not self.digital_input_axis.isEnabled():
-        #     self.digital_input_hardware.setEnabled(True)
-        # self.discover_di_channel()
+    #         # self.digital_input_axis.addItem(val)
+    #     self.loaded_unique_di_ui = [
+    #         item for sublist in self.loaded_unique_di_ui for item in sublist
+    #     ]
+    #     logger.debug(f"val: {self.loaded_unique_di_ui}")
+    #     # if not self.digital_input_axis.isEnabled():
+    #     #     self.digital_input_hardware.setEnabled(True)
+    #     # self.discover_di_channel()
 
-    def load_di(self):
-        """
-        comes from WCIB
-        needs to publish, and call discover_di_channel
-        """
-        logger.info(f"in load_di")
-        self.digital_input_hardware.clear()
-        self.digital_input_hardware.addItem("None")
-        # self.digital_inputs = identify_inputs(
-        #     self.pvList, self.axis_list.currentItem().text()
-        # )
+    # def load_di(self):
+    #     """
+    #     comes from WCIB
+    #     needs to publish, and call discover_di_channel
+    #     """
+    #     logger.info(f"in load_di")
+    #     self.linker_widget.digital_input_hardware.clear()
+    #     self.linker_widget.digital_input_hardware.addItem("None")
+    #     # self.digital_inputs = identify_inputs(
+    #     #     self.pvList, self.axis_list.currentItem().text()
+    #     # )
 
-        delimiter = ":WCIB_RBV"
-        for item in self.digital_inputs:
-            cleaned_di = item.replace(delimiter, ":Id_RBV")
-            logger.debug(f"cleaned item: {cleaned_di}")
-            val = fake_caget(self.pvDict, cleaned_di)
-            self.digital_input_hardware.addItem(val)
-        # self.digital_input_hardware.setCurrentRow(0)
-        if not self.digital_input_hardware.isEnabled():
-            self.digital_input_hardware.setEnabled(True)
-        self.discover_di_channel()
+    #     delimiter = ":WCIB_RBV"
+    #     for item in self.digital_inputs:
+    #         cleaned_di = item.replace(delimiter, ":Id_RBV")
+    #         logger.debug(f"cleaned item: {cleaned_di}")
+    #         val = fake_caget(self.pvDict, cleaned_di)
+    #         self.linker_widget.digital_input_hardware.addItem(val)
+    #     # self.digital_input_hardware.setCurrentRow(0)
+    #     if not self.linker_widget.digital_input_hardware.isEnabled():
+    #         self.linker_widget.digital_input_hardware.setEnabled(True)
+    #     self.discover_di_channel()
 
-    def load_di_ui(self):
-        """
-        comes from WCIB
-        needs to publish, and call discover_di_channel
-        """
-        logger.info(f"in load_di_ui")
-        self.ui_digital_input_hardware.clear()
-        self.ui_digital_input_hardware.addItem("None")
-        # self.digital_inputs = identify_inputs(
-        #     self.pvList, self.axis_list.currentItem().text()
-        # )
+    # def load_di_ui(self):
+    #     """
+    #     comes from WCIB
+    #     needs to publish, and call discover_di_channel
+    #     """
+    #     logger.info(f"in load_di_ui")
+    #     self.user_input_widget.digital_input_hardware_ui.clear()
+    #     self.user_input_widget.digital_input_hardware_ui.addItem("None")
+    #     # self.digital_inputs = identify_inputs(
+    #     #     self.pvList, self.axis_list.currentItem().text()
+    #     # )
 
-        delimiter = ":WCIB_RBV"
-        for item in self.digital_inputs_ui:
-            cleaned_di = item.replace(delimiter, ":Id_RBV")
-            logger.debug(f"cleaned item: {cleaned_di}")
-            val = fake_caget(self.pvDict, cleaned_di)
-            self.ui_digital_input_hardware.addItem(val)
-        # self.digital_input_hardware.setCurrentRow(0)
-        if not self.ui_digital_input_hardware.isEnabled():
-            self.ui_digital_input_hardware.setEnabled(True)
-        self.discover_di_channel_ui()
+    #     delimiter = ":WCIB_RBV"
+    #     for item in self.digital_inputs_ui:
+    #         cleaned_di = item.replace(delimiter, ":Id_RBV")
+    #         logger.debug(f"cleaned item: {cleaned_di}")
+    #         val = fake_caget(self.pvDict, cleaned_di)
+    #         self.user_input_widget.digital_input_hardware_ui.addItem(val)
+    #     # self.digital_input_hardware.setCurrentRow(0)
+    #     if not self.user_input_widget.digital_input_hardware_ui.isEnabled():
+    #         self.user_input_widget.digital_input_hardware_ui.setEnabled(True)
+    #     self.discover_di_channel_ui()
 
-    def discover_di_channel(self):
-        """
-        comes from load_di
-        ---
-        find out number of DIs
-        """
-        logger.info(f"in load_di channel")
-        # self.digital_input_channels.clear()
-        # logger.debug(f"di text: {self.digital_inputs[self.digital_input_hardware.currentRow()]}")
-        # val = self.digital_inputs[self.digital_input_hardware.currentRow()]
-        # delimiter = ":WCIB_RBV"
-        # cleaned_di = val.replace(delimiter, ":NUMDI_RBV")
-        # logger.debug(f"cleaned axis: {cleaned_di}")
-        # nums = fake_caget(self.pvDict, cleaned_di)
-        # self.digital_input_channels = int(nums) + 1
+    # def discover_di_channel(self):
+    #     """
+    #     comes from load_di
+    #     ---
+    #     find out number of DIs
+    #     """
+    #     logger.info(f"in load_di channel")
+    #     # self.digital_input_channels.clear()
+    #     # logger.debug(f"di text: {self.digital_inputs[self.digital_input_hardware.currentRow()]}")
+    #     # val = self.digital_inputs[self.digital_input_hardware.currentRow()]
+    #     # delimiter = ":WCIB_RBV"
+    #     # cleaned_di = val.replace(delimiter, ":NUMDI_RBV")
+    #     # logger.debug(f"cleaned axis: {cleaned_di}")
+    #     # nums = fake_caget(self.pvDict, cleaned_di)
+    #     # self.digital_input_channels = int(nums) + 1
 
-        for pv in self.pvDict:
-            if pv.endswith("NUMDI_RBV"):
-                logger.debug(f"pv: {pv}")
-                self.loaded_di_channels.append(pv)
+    #     for pv in self.pvDict:
+    #         if pv.endswith("NUMDI_RBV"):
+    #             logger.debug(f"pv: {pv}")
+    #             self.loaded_di_channels.append(pv)
 
-    def discover_di_channel_ui(self):
-        """
-        comes from load_di
-        ---
-        find out number of DIs
-        """
-        logger.info(f"in load_di channel_ui")
-        # self.digital_input_channels.clear()
-        # logger.debug(f"di text: {self.digital_inputs[self.digital_input_hardware.currentRow()]}")
-        # val = self.digital_inputs[self.digital_input_hardware.currentRow()]
-        # delimiter = ":WCIB_RBV"
-        # cleaned_di = val.replace(delimiter, ":NUMDI_RBV")
-        # logger.debug(f"cleaned axis: {cleaned_di}")
-        # nums = fake_caget(self.pvDict, cleaned_di)
-        # self.digital_input_channels = int(nums) + 1
+    # def discover_di_channel_ui(self):
+    #     """
+    #     comes from load_di
+    #     ---
+    #     find out number of DIs
+    #     """
+    #     logger.info(f"in load_di channel_ui")
+    #     # self.digital_input_channels.clear()
+    #     # logger.debug(f"di text: {self.digital_inputs[self.digital_input_hardware.currentRow()]}")
+    #     # val = self.digital_inputs[self.digital_input_hardware.currentRow()]
+    #     # delimiter = ":WCIB_RBV"
+    #     # cleaned_di = val.replace(delimiter, ":NUMDI_RBV")
+    #     # logger.debug(f"cleaned axis: {cleaned_di}")
+    #     # nums = fake_caget(self.pvDict, cleaned_di)
+    #     # self.digital_input_channels = int(nums) + 1
 
-        for pv in self.pvDict:
-            if pv.endswith("NUMDI_RBV"):
-                logger.debug(f"pv: {pv}")
-                self.loaded_di_channels_ui.append(pv)
+    #     for pv in self.pvDict:
+    #         if pv.endswith("NUMDI_RBV"):
+    #             logger.debug(f"pv: {pv}")
+    #             self.loaded_di_channels_ui.append(pv)
 
-        # for i in range(1, int(nums) + 1):
-        #     self.digital_input_channels.addItem(str(i))
-        # # self.digital_input_channels.setCurrentRow(0)
-        # if not self.digital_input_channels.isEnabled():
-        #     self.digital_input_channels.setEnabled(True)
+    #     # for i in range(1, int(nums) + 1):
+    #     #     self.digital_input_channels.addItem(str(i))
+    #     # # self.digital_input_channels.setCurrentRow(0)
+    #     # if not self.digital_input_channels.isEnabled():
+    #     #     self.digital_input_channels.setEnabled(True)
 
     # def publish_di_channel(self):
     #     self.digital_input_channels.clear()
 
-    def select_di_channel(self):
-        logger.info(f" select_di_channel:")
-        # self.check_duplicate_di
-        axis_di_idx = self.digital_input_axis.currentRow()
-        logger.debug(f"axis_di_idx: {axis_di_idx}")
-        currAxisIdx = self.axis_list.currentRow()
-        logger.debug(f"currAxisIdx: {currAxisIdx}")
-        logger.debug(f"axis: {self.axis[currAxisIdx]}")
-        currAxis = self.val_to_key(self.axis[currAxisIdx])
-        logger.debug(f"currAxis: {currAxis}")
-        detectableDi = currAxis + ":SelG:DI:" + ("0" + str(int(axis_di_idx) + 1))
-        logger.debug(f"link to check: {detectableDi}")
-        DI_hardware = fake_caget(self.pvDict, detectableDi + ":ID_RBV")
-        if DI_hardware == "":
-            DI_hardware = None
-        logger.debug(f"DI_hardware: {DI_hardware}")
-        DI_hardware_Channel = fake_caget(self.pvDict, detectableDi + ":HardChNum_RBV")
-        logger.debug(f"DI_hardware_channel: {DI_hardware_Channel}")
-        # returnStatus = self.digital_input_hardware.findItems(value, Qt.MatchCaseSensitive)
-        # logger.debug(f"returnStatus: {returnStatus.text()}")
+    # def select_di_channel(self):
+    #     logger.info(f" select_di_channel:")
+    #     # self.check_duplicate_di
+    #     axis_di_idx = self.linker_widget.digital_input_axis.currentRow()
+    #     logger.debug(f"axis_di_idx: {axis_di_idx}")
+    #     if axis_di_idx < 0:
+    #         logger.debug("please select a di")
+    #     else:
+    #         currAxisIdx = self.linker_widget.axis_list_linker.currentRow()
+    #         logger.debug(f"currAxisIdx: {currAxisIdx}")
+    #         logger.debug(f"axis: {self.axis[currAxisIdx]}")
+    #         currAxis = self.val_to_key(self.axis[currAxisIdx])
+    #         logger.debug(f"currAxis: {currAxis}")
+    #         currAxis = strip_axis_id(currAxis)
+    #         detectableDi = currAxis + ":SelG:DI:" + ("0" + str(int(axis_di_idx) + 1))
+    #         logger.debug(f"link to check: {detectableDi}")
+    #         DI_hardware = fake_caget(self.pvDict, detectableDi + ":ID_RBV")
+    #         if DI_hardware == "":
+    #             DI_hardware = None
+    #         logger.debug(f"DI_hardware: {DI_hardware}")
+    #         DI_hardware_Channel = fake_caget(self.pvDict, detectableDi + ":HardChNum_RBV")
+    #         logger.debug(f"DI_hardware_channel: {DI_hardware_Channel}")
+    #         # returnStatus = self.digital_input_hardware.findItems(value, Qt.MatchCaseSensitive)
+    #         # logger.debug(f"returnStatus: {returnStatus.text()}")
 
-        logger.debug("searching for DI hardware")
-        # detect DI hardware
-        for i in range(0, self.digital_input_hardware.count()):
-            if DI_hardware == self.digital_input_hardware.item(i).text():
-                # logger.debug(f"currItem: {self.digital_input_hardware.item(i).text()}")
-                logger.debug(
-                    f"found hardware: {self.digital_input_hardware.item(i).text()}"
-                )
-                self.digital_input_hardware.setCurrentRow(i)
-            elif DI_hardware == None:
-                logger.debug("no hardware detected")
-                self.digital_input_hardware.setCurrentRow(0)
-            else:
-                logger.debug("something went wrong/thinking")
+    #         logger.debug("searching for DI hardware")
+    #         # detect DI hardware
+    #         for i in range(0, self.linker_widget.digital_input_hardware.count()):
+    #             if DI_hardware == self.linker_widget.digital_input_hardware.item(i).text():
+    #                 # logger.debug(f"currItem: {self.digital_input_hardware.item(i).text()}")
+    #                 logger.debug(
+    #                     f"found hardware: {self.linker_widget.digital_input_hardware.item(i).text()}"
+    #                 )
+    #                 self.linker_widget.digital_input_hardware.setCurrentRow(i)
+    #             elif DI_hardware == None:
+    #                 logger.debug("no hardware detected")
+    #                 self.linker_widget.digital_input_hardware.setCurrentRow(0)
+    #             else:
+    #                 logger.debug("something went wrong/thinking")
 
-        logger.debug("searching for di hardware channel")
-        for i in range(0, self.digital_input_channels.count()):
-            if DI_hardware_Channel == self.digital_input_channels.item(i).text():
-                logger.debug(
-                    f"found channel: {self.digital_input_channels.item(i).text()}"
-                )
-                self.digital_input_channels.setCurrentRow(i)
-            elif DI_hardware_Channel == "0":
-                logger.debug("something went wrong, should not be possible")
-                self.digital_input_channels.selectionMode(QAbstractItemView.NoSelection)
+    #         logger.debug("searching for di hardware channel")
+    #         for i in range(0, self.linker_widget.digital_input_channels.count()):
+    #             if DI_hardware_Channel == self.linker_widget.digital_input_channels.item(i).text():
+    #                 logger.debug(
+    #                     f"found channel: {self.linker_widget.digital_input_channels.item(i).text()}"
+    #                 )
+    #                 self.linker_widget.digital_input_channels.setCurrentRow(i)
+    #             elif DI_hardware_Channel == "0":
+    #                 logger.debug("something went wrong, should not be possible")
+    #                 self.linker_widget.digital_input_channels.setSelectionMode(QAbstractItemView.NoSelection)
 
-        if axis_di_idx == 0:
-            self.store_di_selection[0] = [
-                self.digital_input_hardware.currentRow(),
-                self.digital_input_channels.currentRow(),
-            ]
-        elif axis_di_idx == 1:
-            self.store_di_selection[1] = [
-                self.digital_input_hardware.currentRow(),
-                self.digital_input_channels.currentRow(),
-            ]
-        elif axis_di_idx == 2:
-            self.store_di_selection[2] = [
-                self.digital_input_hardware.currentRow(),
-                self.digital_input_channels.currentRow(),
-            ]
+    #         if axis_di_idx == 0:
+    #             self.store_di_selection[0] = [
+    #                 self.linker_widget.digital_input_hardware.currentRow(),
+    #                 self.linker_widget.digital_input_channels.currentRow(),
+    #             ]
+    #         elif axis_di_idx == 1:
+    #             self.store_di_selection[1] = [
+    #                 self.linker_widget.digital_input_hardware.currentRow(),
+    #                 self.linker_widget.digital_input_channels.currentRow(),
+    #             ]
+    #         elif axis_di_idx == 2:
+    #             self.store_di_selection[2] = [
+    #                 self.linker_widget.digital_input_hardware.currentRow(),
+    #                 self.linker_widget.digital_input_channels.currentRow(),
+    #             ]
 
-    def select_di_channel_ui(self):
-        logger.info(f" select_di_channel_ui:")
-        # self.check_duplicate_di
-        axis_di_idx = self.ui_digital_input_axis.currentRow()
-        logger.debug(f"axis_di_idx: {axis_di_idx}")
-        currAxisIdx = self.display_axis.currentRow()
-        logger.debug(f"currAxisIdx: {currAxisIdx}")
-        logger.debug(f"axis: {self.axis[currAxisIdx]}")
-        currAxis = self.val_to_key(self.axis[currAxisIdx])
-        logger.debug(f"currAxis: {currAxis}")
-        detectableDi = currAxis + ":SelG:DI:" + ("0" + str(int(axis_di_idx) + 1))
-        logger.debug(f"link to check: {detectableDi}")
-        DI_hardware = fake_caget(self.pvDict, detectableDi + ":ID_RBV")
-        if DI_hardware == "":
-            DI_hardware = None
-        logger.debug(f"DI_hardware: {DI_hardware}")
-        DI_hardware_Channel = fake_caget(self.pvDict, detectableDi + ":HardChNum_RBV")
-        logger.debug(f"DI_hardware_channel: {DI_hardware_Channel}")
-        # returnStatus = self.digital_input_hardware.findItems(value, Qt.MatchCaseSensitive)
-        # logger.debug(f"returnStatus: {returnStatus.text()}")
+    # def load_di_channel(self):
+    #     logger.debug("load di_channel")
+    #     self.linker_widget.digital_input_channels.clear()
+    #     currDiIdx = self.linker_widget.digital_input_hardware.currentRow()
+    #     currDI = self.digital_inputs[currDiIdx]
+    #     logger.debug(f"DI idx: {currDI}")
+    #     delimiter = ":WCIB_RBV"
+    #     cleaned_di = currDI.replace(delimiter, ":NUMDI_RBV")
+    #     logger.debug(f"cleaned axis: {cleaned_di}")
+    #     self.di_size = fake_caget(self.pvDict, cleaned_di)
+    #     logger.debug(f"di size: {self.di_size}")
+    #     if self.di_size is not None and self.di_size != 0:
+    #         for i in range(0, int(self.di_size)):
+    #             self.linker_widget.digital_input_channels.addItem(str(i + 1))
+    #     else:
+    #         self.linker_widget.digital_input_channels.clear()
 
-        logger.debug("searching for DI hardware")
-        # detect DI hardware
-        for i in range(0, self.ui_digital_input_hardware.count()):
-            if DI_hardware == self.ui_digital_input_hardware.item(i).text():
-                # logger.debug(f"currItem: {self.digital_input_hardware.item(i).text()}")
-                print(
-                    f"found hardware: {self.ui_digital_input_hardware.item(i).text()}"
-                )
-                self.ui_digital_input_hardware.setCurrentRow(i)
-                break
-            elif DI_hardware == None:
-                logger.debug("no hardware detected")
-                self.ui_digital_input_hardware.setCurrentRow(0)
-            else:
-                logger.debug("something went wrong/thinking")
+    # def load_drives(self):
+    #     # update enum with drives pulled from .db file
+    #     logger.info(f"in load drives")
+    #     self.linker_widget.drives_list.clear()
+    #     self.linker_widget.drives_list.addItem("None")
 
-        logger.debug("searching for di hardware channel")
-        for i in range(0, self.ui_digital_input_channels.count()):
-            if DI_hardware_Channel == self.ui_digital_input_channels.item(i).text():
-                logger.debug(
-                    f"found channel: {self.ui_digital_input_channels.item(i).text()}"
-                )
-                self.ui_digital_input_channels.setCurrentRow(i)
-            elif DI_hardware_Channel == "0":
-                logger.debug("something went wrong, should not be possible")
-                self.ui_digital_input_channels.selectionMode(
-                    QAbstractItemView.NoSelection
-                )
+    #     # self.drives = identify_drive(self.pvList, self.axis_list.currentItem().text())
 
-        if axis_di_idx == 0:
-            self.store_di_selection[0] = [
-                self.digital_input_hardware.currentRow(),
-                self.ui_digital_input_channels.currentRow(),
-            ]
-        elif axis_di_idx == 1:
-            self.store_di_selection[1] = [
-                self.digital_input_hardware.currentRow(),
-                self.ui_digital_input_channels.currentRow(),
-            ]
-        elif axis_di_idx == 2:
-            self.store_di_selection[2] = [
-                self.digital_input_hardware.currentRow(),
-                self.ui_digital_input_channels.currentRow(),
-            ]
+    #     delimiter = ":WCIB_RBV"
+    #     for item in self.drives_linker:
+    #         cleaned_item = item.replace(delimiter, ":Id_RBV")
+    #         logger.debug(f"cleaned item: {cleaned_item}")
+    #         val = fake_caget(self.pvDict, cleaned_item)
 
-        # currDI = self.loaded_di_channels[currDiIdx]
-        # logger.debug(f"currDI: {currDI}")
-        # currDiChanIdx = self.digital_input_channels.currentRow()
+    #         # publish drive
+    #         self.linker_widget.drives_list.addItem(val)
+    #         # self.user_input_widget.display_drives_ui.addItem(val)
+    #     # self.drives_list.setCurrentRow(0)
 
-        # for di in self.digital_input_channels:
-        #     """
-        #     finish code here need to implement
-        #     when a di slot is selected save the selected mapping
-        #     in self.store_di_selection = {}
-        #     """
-        #     pass
+    #     if not self.linker_widget.drives_list.isEnabled():
+    #         self.linker_widget.drives_list.setEnabled(True)
+    #     # if not self.user_input_widget.display_drives_ui.isEnabled():
+    #     #     self.user_input_widget.display_drives_ui.setEnabled(True)
 
-    def load_di_channel(self):
-        logger.debug("load di_channel")
-        self.digital_input_channels.clear()
-        currDiIdx = self.digital_input_hardware.currentRow()
-        currDI = self.digital_inputs[currDiIdx]
-        logger.debug(f"DI idx: {currDI}")
-        delimiter = ":WCIB_RBV"
-        cleaned_di = currDI.replace(delimiter, ":NUMDI_RBV")
-        logger.debug(f"cleaned axis: {cleaned_di}")
-        self.di_size = fake_caget(self.pvDict, cleaned_di)
-        logger.debug(f"di size: {self.di_size}")
-        if self.di_size is not None and self.di_size != 0:
-            for i in range(0, int(self.di_size)):
-                self.digital_input_channels.addItem(str(i + 1))
-        else:
-            self.digital_input_channels.clear()
+    #     # print(self.drive_selection)
 
-    def load_di_channel_ui(self):
-        logger.info(f"in load di_channel_ui")
-        self.ui_digital_input_channels.clear()
-        currDiIdx = self.ui_digital_input_hardware.currentRow()
-        logger.debug(f"currDiIdx: {currDiIdx}")
-        currDI = self.digital_inputs_ui[currDiIdx]
-        logger.debug(f"DI idx: {currDI}")
-        delimiter = ":WCIB_RBV"
-        cleaned_di = currDI.replace(delimiter, ":NUMDI_RBV")
-        logger.debug(f"cleaned axis: {cleaned_di}")
-        self.di_size = fake_caget(self.pvDict, cleaned_di)
-        if self.di_size != 0 or self.di_size != None:
-            for i in range(0, int(self.di_size)):
-                self.ui_digital_input_channels.addItem(str(i + 1))
-        else:
-            self.ui_digital_input_channels.clear()
+    # def load_encoders(self):
+    #     # update enum with drives pulled from .db file
+    #     logger.info(f"in load enc")
+    #     self.linker_widget.encoders_list.clear()
+    #     self.linker_widget.encoders_list.addItem("None")
+    #     self.user_input_widget.display_encoders_ui.clear()
+    #     self.user_input_widget.display_encoders_ui.addItem("None")
+    #     # self.enocder_type = identify_enc(self.pvList, self.axis_list.currentItem().text())
+    #     delimiter = ":WCIB_RBV"
+    #     # logger.debug(f"encoder list size: {len(self.encoders)}")
+    #     for item in self.encoders:
+    #         cleaned_item = item.replace(delimiter, ":Id_RBV")
+    #         logger.debug(f"cleaned item: {cleaned_item}")
+    #         val = fake_caget(self.pvDict, cleaned_item)
 
-    def load_drives(self):
-        # update enum with drives pulled from .db file
-        logger.info(f"in load drives")
-        self.drives_list.clear()
-        self.drives_list.addItem("None")
-        self.display_drives.clear()
-        self.display_drives.addItem("None")
-        # self.drives = identify_drive(self.pvList, self.axis_list.currentItem().text())
+    #         # publish encoders
+    #         self.linker_widget.encoders_list.addItem(val)
+    #         self.user_input_widget.display_encoders_ui.addItem(val)
+    #     # self.encoders_list.setCurrentRow(0)
 
-        delimiter = ":WCIB_RBV"
-        for item in self.drives:
-            cleaned_item = item.replace(delimiter, ":Id_RBV")
-            logger.debug(f"cleaned item: {cleaned_item}")
-            val = fake_caget(self.pvDict, cleaned_item)
+    #     if not self.linker_widget.encoders_list.isEnabled():
+    #         self.linker_widget.encoders_list.setEnabled(True)
+    #     if not self.user_input_widget.display_encoders_ui.isEnabled():
+    #         self.user_input_widget.display_encoders_ui.setEnabled(True)
+    #     # print(self.encoder_selection)
 
-            # publish drive
-            self.drives_list.addItem(val)
-            self.display_drives.addItem(val)
-        # self.drives_list.setCurrentRow(0)
+    # def publish_axis_ui(self):
+    #     # update enum with axis pulled from .db file
+    #     logger.info(f"in populate axis_ui")
+    #     self.user_input_widget.display_axis_ui.clear()
+    #     self.user_input_widget.display_axis_ui.addItems(self.axis)
+    #     # idx = self.axis_list
+    #     # self.display_axis.setCurrentRow(self.axis_list.currentRow())
+    #     # self.display_axis.setSelectionMode(QAbstractItemView.NoSelection)
+    #     if not self.user_input_widget.display_axis_ui.isEnabled():
+    #         self.user_input_widget.display_axis_ui.setEnabled(True)
+    #     logger.debug(f"caput to: self.axis_selection")
 
-        if not self.drives_list.isEnabled():
-            self.drives_list.setEnabled(True)
-        if not self.display_drives.isEnabled():
-            self.display_drives.setEnabled(True)
+    # def load_drives_ui(self):
+    #     # update enum with drives pulled from .db file
+    #     logger.info(f"in populate drives_ui")
+    #     self.user_input_widget.display_drives_ui.clear()
+    #     # self.drives = identify_drive(self.pvList, self.axis_list.currentItem().text())
 
-        # print(self.drive_selection)
+    #     delimiter = ":WCIB_RBV"
+    #     drives = self.drives
+    #     for item in drives:
+    #         cleaned_item = item.replace(delimiter, ":Id_RBV")
+    #         # logger.debug(f"cleaned item: {cleaned_item}")
+    #         val = fake_caget(self.pvDict, cleaned_item)
+    #         self.user_input_widget.display_drives_ui.addItem(val)
+    #     self.user_input_widget.display_drives_ui.setCurrentRow(self.drives_list.currentRow())
+    #     self.user_input_widget.display_drives_ui.setSelectionMode(QAbstractItemView.NoSelection)
+    #     if not self.user_input_widget.display_drives_ui.isEnabled():
+    #         self.user_input_widget.display_drives_ui.setEnabled(True)
 
-    def load_encoders(self):
-        # update enum with drives pulled from .db file
-        logger.info(f"in load enc")
-        self.enocders_list.clear()
-        self.enocders_list.addItem("None")
-        self.display_encoders.clear()
-        self.display_encoders.addItem("None")
-        # self.enocder_type = identify_enc(self.pvList, self.axis_list.currentItem().text())
-        delimiter = ":WCIB_RBV"
-        # logger.debug(f"encoder list size: {len(self.encoders)}")
-        for item in self.encoders:
-            cleaned_item = item.replace(delimiter, ":Id_RBV")
-            logger.debug(f"cleaned item: {cleaned_item}")
-            val = fake_caget(self.pvDict, cleaned_item)
-
-            # publish encoders
-            self.enocders_list.addItem(val)
-            self.display_encoders.addItem(val)
-        # self.enocders_list.setCurrentRow(0)
-
-        if not self.enocders_list.isEnabled():
-            self.enocders_list.setEnabled(True)
-        if not self.display_encoders.isEnabled():
-            self.display_encoders.setEnabled(True)
-        # print(self.encoder_selection)
-
-    def publish_axis_ui(self):
-        # update enum with axis pulled from .db file
-        logger.info(f"in populate axis_ui")
-        self.display_axis.clear()
-        self.display_axis.addItems(self.axis)
-        # idx = self.axis_list
-        # self.display_axis.setCurrentRow(self.axis_list.currentRow())
-        # self.display_axis.setSelectionMode(QAbstractItemView.NoSelection)
-        if not self.display_axis.isEnabled():
-            self.display_axis.setEnabled(True)
-        logger.debug(f"caput to: self.axis_selection")
-
-    def load_drives_ui(self):
-        # update enum with drives pulled from .db file
-        logger.info(f"in populate drives_ui")
-        self.display_drives.clear()
-        # self.drives = identify_drive(self.pvList, self.axis_list.currentItem().text())
-
-        delimiter = ":WCIB_RBV"
-        drives = self.drives
-        for item in drives:
-            cleaned_item = item.replace(delimiter, ":Id_RBV")
-            # logger.debug(f"cleaned item: {cleaned_item}")
-            val = fake_caget(self.pvDict, cleaned_item)
-            self.display_drives.addItem(val)
-        self.display_drives.setCurrentRow(self.drives_list.currentRow())
-        self.display_drives.setSelectionMode(QAbstractItemView.NoSelection)
-        if not self.display_drives.isEnabled():
-            self.display_drives.setEnabled(True)
-
-    def load_encoders_ui(self):
-        # update enum with drives pulled from .db file
-        logger.info(f"in populate enc_ui")
-        self.display_encoders.clear()
-        # self.enocder_type = identify_enc(self.pvList, self.axis_list.currentItem().text())
-        delimiter = ":WCIB_RBV"
-        # logger.debug(f"encoder list size: {len(self.encoders)}")
-        encoders = self.encoders
-        for item in encoders:
-            cleaned_item = item.replace(delimiter, ":Id_RBV")
-            logger.debug(f"cleaned item: {cleaned_item}")
-            val = fake_caget(self.pvDict, cleaned_item)
-            self.display_encoders.addItem(val)
-        self.display_encoders.setCurrentRow(self.enocders_list.currentRow())
-        self.display_encoders.setSelectionMode(QAbstractItemView.NoSelection)
-        if not self.display_encoders.isEnabled():
-            self.display_encoders.setEnabled(True)
-        # print(self.encoder_selection)
+    # def load_encoders_ui(self):
+    #     # update enum with drives pulled from .db file
+    #     logger.info(f"in populate enc_ui")
+    #     self.display_encoders.clear()
+    #     # self.enocder_type = identify_enc(self.pvList, self.axis_list.currentItem().text())
+    #     delimiter = ":WCIB_RBV"
+    #     # logger.debug(f"encoder list size: {len(self.encoders)}")
+    #     encoders = self.encoders
+    #     for item in encoders:
+    #         cleaned_item = item.replace(delimiter, ":Id_RBV")
+    #         logger.debug(f"cleaned item: {cleaned_item}")
+    #         val = fake_caget(self.pvDict, cleaned_item)
+    #         self.display_encoders.addItem(val)
+    #     self.display_encoders.setCurrentRow(self.enocders_list.currentRow())
+    #     self.display_encoders.setSelectionMode(QAbstractItemView.NoSelection)
+    #     if not self.display_encoders.isEnabled():
+    #         self.display_encoders.setEnabled(True)
+    #     # print(self.encoder_selection)
 
     def publish_axis_expert(self):
         # update enum with axis pulled from .db file
         logger.info(f"in populate axis_expert")
-        self.expert_axis.clear()
+        self.expert_widget.expert_axis.clear()
         axis_list = self.axis
         for item in axis_list:
-            self.expert_axis.addItem(item)
+            self.expert_widget.expert_axis.addItem(item)
         # idx = self.axis_list
         # self.expert_axis.setCurrentRow(0)
-        if not self.expert_axis.isEnabled():
-            self.expert_axis.setEnabled(True)
+        if not self.expert_widget.expert_axis.isEnabled():
+            self.expert_widget.expert_axis.setEnabled(True)
         logger.debug(f"caput to: self.axis_selection")
 
     def publish_axis_diagnostic(self):
         # update enum with axis pulled from .db file
         logger.info(f"in publish_axis_diagnostic")
-        self.diagnostic_axis_selection.clear()
-        self.diagnostic_axis_selection.addItems(self.axis)
+        self.diagnostic_widget.diagnostic_axis_selection.clear()
+        self.diagnostic_widget.diagnostic_axis_selection.addItems(self.axis)
         # idx = self.axis_list
         # self.expert_axis.setCurrentRow(0)
-        if not self.diagnostic_axis_selection.isEnabled():
-            self.diagnostic_axis_selection.setEnabled(True)
+        if not self.diagnostic_widget.diagnostic_axis_selection.isEnabled():
+            self.diagnostic_widget.diagnostic_axis_selection.setEnabled(True)
         logger.debug(f"caput to: self.axis_selection")
 
     def expert_update_nc(self):
         logger.info("in expert_update_nc")
 
         axis_index = self.expert_axis.currentIndex()
+        print(f"axis: {axis_index}")
         axis = f"{self.prefixName}0{axis_index + 1}"
 
         # Clear previous items
@@ -1944,12 +2834,16 @@ class MyDisplay(Display):
 
         print(f"hardwareID after split: {hardwareID}")
         # Remove everything after the first underscore
-        if hardwareID and "_" in hardwareID:
-            hardwareID = hardwareID.split("_", 1)[0]
+        if hardwareID:
+            if "_" in hardwareID:
+                hardwareID = hardwareID.split("_", 1)[0]
+        else:
+            hardwareID = "None"
+
         print(f"hardwareID after split: {hardwareID}")
 
         self.coe_drive_list = identify_coe_drive_params(
-            axis + ":" + hardwareID, self.pvDict
+            f"{axis}:{hardwareID}", self.pvDict
         )
 
         self.ca_coe_drive_list = epics.caget_many(self.coe_drive_list, as_string=True)
@@ -1989,14 +2883,16 @@ class MyDisplay(Display):
         # TST:UM:01:SelG:DRV:Id_RBV
         hardwareID = epics.caget(axis + ":SelG:ENC:Id_RBV", as_string=True)
 
-        print(f"hardwareID after split: {hardwareID}")
-        # Remove everything after the first underscore
-        if hardwareID and "_" in hardwareID:
-            hardwareID = hardwareID.split("_", 1)[0]
+        if hardwareID:
+            if "_" in hardwareID:
+                hardwareID = hardwareID.split("_", 1)[0]
+        else:
+            hardwareID = "None"
+
         print(f"hardwareID after split: {hardwareID}")
 
         self.coe_encoder_list = identify_coe_enc_params(
-            axis + ":" + hardwareID, self.pvDict
+            f"{axis}:{hardwareID}", self.pvDict
         )
 
         self.ca_coe_encoder_list = epics.caget_many(
@@ -2032,12 +2928,20 @@ class MyDisplay(Display):
         hardwareDrvId = epics.caget(axis + ":SelG:DRV:Id_RBV", as_string=True)
         hardwareEncId = epics.caget(axis + ":SelG:ENC:Id_RBV", as_string=True)
         print(f"drv id: {hardwareDrvId}, enc id: {hardwareEncId}")
-        if hardwareDrvId and "_" in hardwareDrvId:
-            hardwareDrvId = hardwareDrvId.split("_", 1)[0]
-        if hardwareEncId and "_" in hardwareEncId:
-            hardwareEncId = hardwareEncId.split("_", 1)[0]
-        axis_w_drv = axis + ":" + hardwareDrvId
-        axis_w_enc = axis + ":" + hardwareEncId
+        if hardwareDrvId:
+            if "_" in hardwareDrvId:
+                hardwareDrvId = hardwareDrvId.split("_", 1)[0]
+        else:
+            hardwareDrvId = "None"
+
+        if hardwareEncId:
+            if "_" in hardwareEncId:
+                hardwareEncId = hardwareEncId.split("_", 1)[0]
+        else:
+            hardwareEncId = "None"
+
+        axis_w_drv = f"{axis}:{hardwareDrvId}"
+        axis_w_enc = f"{axis}:{hardwareEncId}"
         self.diagnostic_hardware_selection.addItems([axis_w_drv, axis_w_enc])
 
     def populate_diagnostic_coe(self):
@@ -2199,6 +3103,6 @@ class MyDisplay(Display):
 
 if __name__ == "__main__":
     app = QApplication([])
-    gui = MyDisplay()
+    gui = MainWindow()
     gui.show()
     sys.exit(app.exec_())

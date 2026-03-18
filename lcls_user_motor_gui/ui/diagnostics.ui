@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Form</class>
+ <widget class="QWidget" name="Form">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>419</width>
+    <height>312</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <layout class="QGridLayout" name="gridLayout">
+   <item row="0" column="0">
+    <layout class="QVBoxLayout" name="verticalLayout">
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout">
+       <item>
+        <widget class="QLabel" name="label">
+         <property name="text">
+          <string>Goal</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="PyDMLabel" name="goal">
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="frameShape">
+          <enum>QFrame::Box</enum>
+         </property>
+         <property name="precision" stdset="0">
+          <number>0</number>
+         </property>
+         <property name="showUnits" stdset="0">
+          <bool>false</bool>
+         </property>
+         <property name="precisionFromPV" stdset="0">
+          <bool>true</bool>
+         </property>
+         <property name="alarmSensitiveContent" stdset="0">
+          <bool>false</bool>
+         </property>
+         <property name="alarmSensitiveBorder" stdset="0">
+          <bool>true</bool>
+         </property>
+         <property name="PyDMToolTip" stdset="0">
+          <string/>
+         </property>
+         <property name="channel" stdset="0">
+          <string/>
+         </property>
+         <property name="enableRichText" stdset="0">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_4">
+       <item>
+        <widget class="QLabel" name="label_2">
+         <property name="text">
+          <string>Value</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="PyDMLabel" name="value">
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="frameShape">
+          <enum>QFrame::Box</enum>
+         </property>
+         <property name="precision" stdset="0">
+          <number>0</number>
+         </property>
+         <property name="showUnits" stdset="0">
+          <bool>false</bool>
+         </property>
+         <property name="precisionFromPV" stdset="0">
+          <bool>true</bool>
+         </property>
+         <property name="alarmSensitiveContent" stdset="0">
+          <bool>false</bool>
+         </property>
+         <property name="alarmSensitiveBorder" stdset="0">
+          <bool>true</bool>
+         </property>
+         <property name="PyDMToolTip" stdset="0">
+          <string/>
+         </property>
+         <property name="channel" stdset="0">
+          <string/>
+         </property>
+         <property name="enableRichText" stdset="0">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_5">
+       <item>
+        <widget class="QLabel" name="label_3">
+         <property name="text">
+          <string>Access</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="PyDMLabel" name="access">
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="frameShape">
+          <enum>QFrame::Box</enum>
+         </property>
+         <property name="precision" stdset="0">
+          <number>0</number>
+         </property>
+         <property name="showUnits" stdset="0">
+          <bool>false</bool>
+         </property>
+         <property name="precisionFromPV" stdset="0">
+          <bool>true</bool>
+         </property>
+         <property name="alarmSensitiveContent" stdset="0">
+          <bool>false</bool>
+         </property>
+         <property name="alarmSensitiveBorder" stdset="0">
+          <bool>true</bool>
+         </property>
+         <property name="PyDMToolTip" stdset="0">
+          <string/>
+         </property>
+         <property name="channel" stdset="0">
+          <string/>
+         </property>
+         <property name="enableRichText" stdset="0">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_6">
+       <item>
+        <widget class="QLabel" name="label_4">
+         <property name="text">
+          <string>Description</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="PyDMLabel" name="description">
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="frameShape">
+          <enum>QFrame::Box</enum>
+         </property>
+         <property name="precision" stdset="0">
+          <number>0</number>
+         </property>
+         <property name="showUnits" stdset="0">
+          <bool>false</bool>
+         </property>
+         <property name="precisionFromPV" stdset="0">
+          <bool>true</bool>
+         </property>
+         <property name="alarmSensitiveContent" stdset="0">
+          <bool>false</bool>
+         </property>
+         <property name="alarmSensitiveBorder" stdset="0">
+          <bool>true</bool>
+         </property>
+         <property name="PyDMToolTip" stdset="0">
+          <string/>
+         </property>
+         <property name="channel" stdset="0">
+          <string/>
+         </property>
+         <property name="enableRichText" stdset="0">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_7">
+       <item>
+        <widget class="QLabel" name="label_5">
+         <property name="text">
+          <string>TLastUp</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="PyDMLabel" name="tlastup">
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="frameShape">
+          <enum>QFrame::Box</enum>
+         </property>
+         <property name="precision" stdset="0">
+          <number>0</number>
+         </property>
+         <property name="showUnits" stdset="0">
+          <bool>false</bool>
+         </property>
+         <property name="precisionFromPV" stdset="0">
+          <bool>true</bool>
+         </property>
+         <property name="alarmSensitiveContent" stdset="0">
+          <bool>false</bool>
+         </property>
+         <property name="alarmSensitiveBorder" stdset="0">
+          <bool>true</bool>
+         </property>
+         <property name="PyDMToolTip" stdset="0">
+          <string/>
+         </property>
+         <property name="channel" stdset="0">
+          <string/>
+         </property>
+         <property name="enableRichText" stdset="0">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_8">
+       <item>
+        <widget class="QLabel" name="label_6">
+         <property name="text">
+          <string>EU</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="PyDMLabel" name="eu">
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="frameShape">
+          <enum>QFrame::Box</enum>
+         </property>
+         <property name="precision" stdset="0">
+          <number>0</number>
+         </property>
+         <property name="showUnits" stdset="0">
+          <bool>false</bool>
+         </property>
+         <property name="precisionFromPV" stdset="0">
+          <bool>true</bool>
+         </property>
+         <property name="alarmSensitiveContent" stdset="0">
+          <bool>false</bool>
+         </property>
+         <property name="alarmSensitiveBorder" stdset="0">
+          <bool>true</bool>
+         </property>
+         <property name="PyDMToolTip" stdset="0">
+          <string/>
+         </property>
+         <property name="channel" stdset="0">
+          <string/>
+         </property>
+         <property name="enableRichText" stdset="0">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>PyDMLabel</class>
+   <extends>QLabel</extends>
+   <header>pydm.widgets.label</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>
