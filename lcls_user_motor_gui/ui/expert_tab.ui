@@ -57,7 +57,7 @@
               </attribute>
               <layout class="QVBoxLayout" name="verticalLayout_19">
                <item>
-                <widget class="QGroupBox" name="expert_nc_param">
+                <widget class="QGroupBox" name="expert_nc_filter">
                  <property name="title">
                   <string>Parameters</string>
                  </property>
@@ -72,7 +72,7 @@
               </attribute>
               <layout class="QVBoxLayout" name="verticalLayout_20">
                <item>
-                <widget class="QGroupBox" name="expert_drive_param">
+                <widget class="QGroupBox" name="expert_drive_filter">
                  <property name="title">
                   <string>Parameters</string>
                  </property>
@@ -87,7 +87,7 @@
               </attribute>
               <layout class="QVBoxLayout" name="verticalLayout_21">
                <item>
-                <widget class="QGroupBox" name="expert_encoder_param">
+                <widget class="QGroupBox" name="expert_encoder_filter">
                  <property name="title">
                   <string>Parameters</string>
                  </property>
@@ -134,7 +134,7 @@
              <item>
               <layout class="QVBoxLayout" name="verticalLayout_40">
                <item>
-                <widget class="QListWidget" name="expert_param_list"/>
+                <widget class="QListWidget" name="expert_nc_filter_list"/>
                </item>
               </layout>
              </item>
@@ -148,7 +148,7 @@
              <item>
               <layout class="QVBoxLayout" name="verticalLayout_42">
                <item>
-                <widget class="QListWidget" name="expert_coe_drive_list"/>
+                <widget class="QListWidget" name="expert_coe_drive_filter_list"/>
                </item>
               </layout>
              </item>
@@ -162,7 +162,7 @@
              <item>
               <layout class="QVBoxLayout" name="verticalLayout_44">
                <item>
-                <widget class="QListWidget" name="expert_coe_encoder_list"/>
+                <widget class="QListWidget" name="expert_coe_encoder_filter_list"/>
                </item>
               </layout>
              </item>

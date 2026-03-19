@@ -113,13 +113,6 @@
              </property>
             </widget>
            </item>
-           <item>
-            <widget class="PyDMPushButton" name="view_logger_button">
-             <property name="text">
-              <string>View Logger</string>
-             </property>
-            </widget>
-           </item>
           </layout>
          </item>
          <item row="1" column="0">
@@ -218,11 +211,6 @@
    <class>PyDMLabel</class>
    <extends>QLabel</extends>
    <header>pydm.widgets.label</header>
-  </customwidget>
-  <customwidget>
-   <class>PyDMPushButton</class>
-   <extends>QPushButton</extends>
-   <header>pydm.widgets.pushbutton</header>
   </customwidget>
  </customwidgets>
  <resources/>
