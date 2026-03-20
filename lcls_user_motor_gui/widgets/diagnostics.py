@@ -63,6 +63,8 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
         self.main_window = main_window
         self.prefixName = ""
         self.pvDict = {}
+        self.axis = []
+        self.dg_list = []
 
         self.diagnostic_param_filter = FilteredListWidget(self.diagnostic_groupbox)
         self.diagnostic_groupbox.layout().addWidget(self.diagnostic_param_filter)
@@ -83,7 +85,7 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
         # Get current axis
         self.diagnostic_hardware_selection.clear()
         axis_index = self.diagnostic_axis_selection.currentIndex()
-        axis = f"{self.prefixName}0{axis_index + 1}"
+        axis = f"{self.prefixName}:0{axis_index + 1}"
         print(f"axis: {axis}")
         print(f'caget: {axis + ":SelG:ENC:Id_RBV"}')
         hardwareDrvId = epics.caget(axis + ":SelG:DRV:Id_RBV", as_string=True)
@@ -152,7 +154,7 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
             print(f"item: {thing}")
             name = self.remove_name_rbv(thing)
             param_widget = uic.loadUi(
-                path.join(path.dirname(path.realpath(__file__)), "./ui/diagnostics.ui")
+                str(Path(__file__).parent / "./../ui" / "diagnostics.ui")
             )
             self.configure_diagnostic_widgets(param_widget, name)
             self.diagnostic_params_groupbox.layout().addWidget(param_widget)
@@ -192,3 +194,9 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
         tlastup.setText(ca_vals[4])
         eu = widget.findChild(PyDMLabel, "eu")
         eu.setText(ca_vals[5])
+
+    def remove_name_rbv(self, pv_name):
+        suffix = ":Name_RBV"
+        if pv_name.endswith(suffix):
+            return pv_name[: -len(suffix)]
+        return pv_name

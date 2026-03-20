@@ -1,6 +1,7 @@
 import logging
 from pathlib import Path
 
+import epics
 from pcdsutils.qt.designer_display import DesignerDisplay
 from processing.parse_pvs import (
     fake_caget,
@@ -915,3 +916,141 @@ class LinkerWindow(DesignerDisplay, QWidget):
         # if not self.user_input_widget.display_encoders_ui.isEnabled():
         #     self.user_input_widget.display_encoders_ui.setEnabled(True)
         # print(self.encoder_selection)
+
+    def update_links(self):
+        self.logger.info(f"in update links")
+        di_hardware_pv = ""
+        di_channel_pv = ""
+        drv_pv = ""
+        enc_pv = ""
+        # caput staged changes to axis
+        for axis in self.staged_mapping:
+            for di in axis:
+                print(f"di: {di}")
+                if len(di) > 1:
+                    print(f"Found changes in di: {di}")
+
+                    try:
+                        # Construct the Process Variable (PV) strings
+                        # TST:UM:03:SelG:DI:01:ID
+                        di_hardware_pv = (
+                            self.prefixName
+                            + "0"
+                            + str(self.axis_list_linker.currentRow() + 1)
+                            + ":SelG:DI:"
+                            + di[0]
+                            + ":ID"
+                        )
+                        di_channel_pv = (
+                            self.prefixName
+                            + "0"
+                            + str(self.axis_list_linker.currentRow() + 1)
+                            + ":SelG:DI:"
+                            + di[0]
+                            + ":HardChNum"
+                        )
+
+                        # Set di_hardware to the second element of di
+                        if len(di) > 1:
+                            di_hardware = di[1]  # This is expected to be 'EL7047_2'
+                        else:
+                            raise ValueError(
+                                "di does not have enough elements to retrieve di_hardware."
+                            )
+
+                        # Set di_channel to the element after di_hardware ('EL7047_2')
+                        if len(di) > 2:
+                            # Find the index of 'EL7047_2' and get the next element
+                            if di_hardware in di:
+                                index = di.index(di_hardware)
+                                if index + 1 < len(di):
+                                    di_channel = di[index + 1]  # Get the next element
+                                else:
+                                    raise ValueError(
+                                        f"No element found after {di_hardware} in {di}."
+                                    )
+                            else:
+                                raise ValueError(f"{di_hardware} not found in di.")
+                        else:
+                            raise ValueError(
+                                "di does not have enough elements to retrieve di_channel."
+                            )
+
+                        print(
+                            f"di_hardware_pv: {di_hardware_pv}, di hardware: {di_hardware}"
+                        )
+                        print(
+                            f"di_channel_pv: {di_channel_pv}, di channel: {di_channel}"
+                        )
+
+                        # Example operation that may raise an exception
+                        try:
+                            print("trying to caput di hardware")
+                            status_di_hardware = epics.caput(
+                                di_hardware_pv, di_hardware
+                            )
+                            if status_di_hardware == 0:
+                                print("di hardware caput succeded")
+                            elif status_di_hardware < 0:
+                                raise ValueError(
+                                    f"DI Hardware caput failed: {status_di_hardware}"
+                                )
+                        except ValueError as e:
+                            print(f"Value error for di: {di}")
+
+                        try:
+                            print("trying to caput di channel")
+                            status_di_channel = epics.caput(di_channel_pv, di_channel)
+                            if status_di_channel == 0:
+                                print("di channel caput succeded")
+                            elif status_di_channel < 0:
+                                raise ValueError(
+                                    f"DI Hardware caput failed: {status_di_channel}"
+                                )
+                        except ValueError as e:
+                            print(f"Value error for di: {di}")
+
+                    except IndexError as e:
+                        print(
+                            f"IndexError for di {di}: {e}. Ensure di has enough elements."
+                        )
+                    except ValueError as e:
+                        print(f"ValueError for di {di}: {e}")
+                    except Exception as e:
+                        print(f"An unexpected error occurred for di {di}: {e}")
+                else:
+                    print(f"no changes in di: {di}")
+        # for sublist in self.staged_de:
+        for item in self.staged_de:
+            print(f"item: {item}")
+            if len(item) > 1:
+                # TST:UM:03:SelG:ENC:Id
+                drv_pv = (
+                    self.prefixName
+                    + "0"
+                    + str(self.axis_list_linker.currentRow() + 1)
+                    + ":SelG:DRV:Id"
+                )
+                enc_pv = (
+                    self.prefixName
+                    + "0"
+                    + str(self.axis_list_linker.currentRow() + 1)
+                    + ":SelG:ENC:Id"
+                )
+                print(f"drv_pv: {drv_pv}, drv: {item[0][0]}, enc: {item[1][0]}")
+                try:
+                    status_drv = epics.caput(drv_pv, item[0][0])
+                    if status_drv == 1:
+                        print("drv caput succeded")
+                    elif status_drv < 0:
+                        raise ValueError(f"Drv caput failed: {status_drv}")
+                except ValueError as e:
+                    print(f"Value error for drv: {item[0][0]}")
+                try:
+                    status_enc = epics.caput(enc_pv, item[1][0])
+                    if status_enc == 1:
+                        print("enc caput succeded")
+                    elif status_enc < 0:
+                        raise ValueError(f"Enc caput failed: {status_enc}")
+                except ValueError as e:
+                    print(f"Value error for enc: {item[1][0]}")

@@ -59,6 +59,7 @@ class UserInputWindow(DesignerDisplay, QWidget):
     digital_input_axis_ui: QListWidget
     digital_input_hardware_ui: QListWidget
     digital_input_channels_ui: QListWidget
+    stage_settings: QPushButton
 
     def __init__(self, main_window, parent=None, logger=None):
         # Properly call the superclass __init__!
