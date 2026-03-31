@@ -14,20 +14,6 @@ import numpy as np
 # import epics
 from epics import PV, caget, caput
 from pcdsutils.qt.designer_display import DesignerDisplay
-from processing.discover_pvs import discover_pvs
-from processing.parse_pvs import (
-    fake_caget,
-    identify_axis,
-    identify_coe_drive_params,
-    identify_coe_enc_params,
-    identify_dg_params,
-    identify_drive,
-    identify_enc,
-    identify_inputs,
-    identify_nc_params,
-    strip_key,
-    what_can_i_be,
-)
 
 # from epics import PV, fake_caget, cainfo, caput
 from pydm import Display
@@ -37,7 +23,6 @@ from pydm.widgets.line_edit import PyDMLineEdit
 from pydm.widgets.pushbutton import PyDMPushButton
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtWidgets import QCompleter, QLineEdit, QListView, QVBoxLayout, QWidget
-from qt_helpers import ThreadWorker
 from qtpy import QtCore, uic
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
@@ -64,7 +49,23 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from qtpy.uic import loadUi
-from utils.dict_tools import (
+
+from .processing.discover_pvs import discover_pvs
+from .processing.parse_pvs import (
+    fake_caget,
+    identify_axis,
+    identify_coe_drive_params,
+    identify_coe_enc_params,
+    identify_dg_params,
+    identify_drive,
+    identify_enc,
+    identify_inputs,
+    identify_nc_params,
+    strip_key,
+    what_can_i_be,
+)
+from .qt_helpers import ThreadWorker
+from .utils.dict_tools import (
     find_unique_keys,
     identify_di,
     identify_drv,
@@ -72,10 +73,10 @@ from utils.dict_tools import (
     strip_axis_id,
     val_to_key,
 )
-from widgets.diagnostics import DiagnosticsWindow
-from widgets.expert import ExpertWindow
-from widgets.linker import LinkerWindow
-from widgets.user_input import UserInputWindow
+from .widgets.diagnostics import DiagnosticsWindow
+from .widgets.expert import ExpertWindow
+from .widgets.linker import LinkerWindow
+from .widgets.user_input import UserInputWindow
 
 logging.basicConfig(
     level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -381,6 +382,17 @@ class MainWindow(DesignerDisplay, QWidget):
         #     self.populate_diagnostic_coe
         # )
 
+        self.setting_widget.settings_duplicate_di_warning.stateChanged.connect(
+            self.check_duplicate_di_flag
+        )
+        self.setting_widget.settings_duplicate_drv_warning.stateChanged.connect(
+            self.check_duplicate_drv_flag
+        )
+        self.setting_widget.settings_duplicate_enc_warning.stateChanged.connect(
+            self.check_duplicate_enc_flag
+        )
+        # self.status_indicators = self.ui.findChild(QLabel, "status_indicators")
+
         # SIGNALS
         # Expert
         for slot in [
@@ -449,26 +461,26 @@ class MainWindow(DesignerDisplay, QWidget):
             self.linker_widget.update_links
         )
 
-    def check_duplicate_di_flag(self):
-        logger.info(f"in check dup di")
+    # def check_duplicate_di_flag(self):
+    #     logger.info(f"in check dup di")
 
-        self.duplicate_di_cb_flag = self.duplicate_di_cb.isChecked()
+    #     self.duplicate_di_cb_flag = self.setting_widget.settings_duplicate_di_warning.isChecked()
 
-        logger.debug(f"isDuplicateDIWarning: {self.duplicate_di_cb_flag}")
+    #     logger.debug(f"isDuplicateDIWarning: {self.duplicate_di_cb_flag}")
 
-    def check_duplicate_drv_flag(self):
-        logger.info(f"in check dup drv")
+    # def check_duplicate_drv_flag(self):
+    #     logger.info(f"in check dup drv")
 
-        self.duplicate_drv_cb_flag = self.duplicate_drv_cb.isChecked()
+    #     self.duplicate_drv_cb_flag = self.setting_widget.settings_duplicate_drv_warning.isChecked()
 
-        logger.debug(f"isDuplicateDIWarning: {self.duplicate_drv_cb_flag}")
+    #     logger.debug(f"isDuplicateDIWarning: {self.duplicate_drv_cb_flag}")
 
-    def check_duplicate_enc_flag(self):
-        logger.info(f"in check dup enc")
+    # def check_duplicate_enc_flag(self):
+    #     logger.info(f"in check dup enc")
 
-        self.duplicate_enc_cb_flag = self.duplicate_enc_cb.isChecked()
+    #     self.duplicate_enc_cb_flag = self.setting_widget.settings_duplicate_enc_warning.isChecked()
 
-        logger.debug(f"isDuplicateDIWarning: {self.duplicate_enc_cb_flag}")
+    #     logger.debug(f"isDuplicateDIWarning: {self.duplicate_enc_cb_flag}")
 
     def extract_unique_parts(self, pv_names):
         unique_parts = set()
@@ -842,13 +854,14 @@ class MainWindow(DesignerDisplay, QWidget):
         self.clear_items()
         self.list_WCIB = []
         for pv in self.pvDict:
+            logger.debug(f"pv: {pv}")
             if re.search(r".*:WCIB_RBV", pv):
                 self.list_WCIB.append(pv)
         for pv in self.list_WCIB:
             # fake_caget output is of type string seperated by comma
             # device_type = epics.caget(pv, as_string=True)
             device_type = fake_caget(self.pvDict, pv)
-            logger.debug(f"device_type: {device_type}")
+            logger.debug(f"device_type: {device_type}, pv: {pv}")
             if isinstance(device_type, str) and re.search(r"DI", device_type):
                 self.linker_widget.digital_inputs_linker.append(pv)
                 self.user_input_widget.digital_inputs_ui.append(pv)

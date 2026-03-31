@@ -2,19 +2,6 @@ import logging
 from pathlib import Path
 
 from pcdsutils.qt.designer_display import DesignerDisplay
-from processing.parse_pvs import (
-    fake_caget,
-    identify_axis,
-    identify_coe_drive_params,
-    identify_coe_enc_params,
-    identify_dg_params,
-    identify_drive,
-    identify_enc,
-    identify_inputs,
-    identify_nc_params,
-    strip_key,
-    what_can_i_be,
-)
 from qtpy.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -38,11 +25,26 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from utils.dict_tools import (
+
+from ..processing.parse_pvs import (
+    fake_caget,
+    identify_axis,
+    identify_coe_drive_params,
+    identify_coe_enc_params,
+    identify_dg_params,
+    identify_drive,
+    identify_enc,
+    identify_inputs,
+    identify_nc_params,
+    strip_key,
+    what_can_i_be,
+)
+from ..utils.dict_tools import (
     find_unique_keys,
     identify_di,
     identify_drv,
     identify_enc,
+    keep_prefix,
     strip_axis_id,
     val_to_key,
 )
@@ -282,7 +284,10 @@ class UserInputWindow(DesignerDisplay, QWidget):
 
         delimiter = ":WCIB_RBV"
         for item in self.digital_inputs_ui:
-            cleaned_di = item.replace(delimiter, ":Id_RBV")
+            print(f"item: {item}")
+            # cleaned_di = item.replace(delimiter, ":Id_RBV")
+            cleaned_di = keep_prefix(item, 4)
+            cleaned_di = cleaned_di + ":Id_RBV"
             self.logger.debug(f"cleaned item: {cleaned_di}")
             val = fake_caget(self.pvDict, cleaned_di)
             self.logger.debug(f"val: {val}")

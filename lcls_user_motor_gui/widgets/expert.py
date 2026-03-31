@@ -4,19 +4,6 @@ from pathlib import Path
 
 import epics
 from pcdsutils.qt.designer_display import DesignerDisplay
-from processing.parse_pvs import (
-    fake_caget,
-    identify_axis,
-    identify_coe_drive_params,
-    identify_coe_enc_params,
-    identify_dg_params,
-    identify_drive,
-    identify_enc,
-    identify_inputs,
-    identify_nc_params,
-    strip_key,
-    what_can_i_be,
-)
 from pydm.widgets.label import PyDMLabel
 from pydm.widgets.line_edit import PyDMLineEdit
 from qtpy import QtCore, uic
@@ -44,6 +31,19 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
+from ..processing.parse_pvs import (
+    fake_caget,
+    identify_axis,
+    identify_coe_drive_params,
+    identify_coe_enc_params,
+    identify_dg_params,
+    identify_drive,
+    identify_enc,
+    identify_inputs,
+    identify_nc_params,
+    strip_key,
+    what_can_i_be,
+)
 from .filtered_list import FilteredListWidget
 
 

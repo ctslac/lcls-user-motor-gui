@@ -3,23 +3,11 @@ from pathlib import Path
 
 import epics
 from pcdsutils.qt.designer_display import DesignerDisplay
-from processing.parse_pvs import (
-    fake_caget,
-    identify_axis,
-    identify_coe_drive_params,
-    identify_coe_enc_params,
-    identify_dg_params,
-    identify_drive,
-    identify_enc,
-    identify_inputs,
-    identify_nc_params,
-    strip_key,
-    what_can_i_be,
-)
 from pydm.widgets.enum_combo_box import PyDMEnumComboBox
 from pydm.widgets.label import PyDMLabel
 from pydm.widgets.line_edit import PyDMLineEdit
 from pydm.widgets.pushbutton import PyDMPushButton
+from PyQt5.QtCore import QObject, QThread, pyqtSignal
 from qtpy.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -43,7 +31,21 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from utils.dict_tools import (
+
+from ..processing.parse_pvs import (
+    fake_caget,
+    identify_axis,
+    identify_coe_drive_params,
+    identify_coe_enc_params,
+    identify_dg_params,
+    identify_drive,
+    identify_enc,
+    identify_inputs,
+    identify_nc_params,
+    strip_key,
+    what_can_i_be,
+)
+from ..utils.dict_tools import (
     find_unique_keys,
     identify_di,
     identify_drv,
@@ -53,6 +55,25 @@ from utils.dict_tools import (
 )
 
 
+class CaputWorker(QObject):
+    result = pyqtSignal(str, bool, object)  # PV name, success, new value
+    finished = pyqtSignal()
+
+    def __init__(self, pv_name, value):
+        super().__init__()
+        self.pv_name = pv_name
+        self.value = value
+
+    def do_caput(self):
+        # Perform caput operation
+        success = epics.caput(self.pv_name, self.value, wait=True, timeout=2)
+        # Optionally read back the value
+        pv = epics.PV(self.pv_name)
+        new_value = pv.get()
+        self.result.emit(self.pv_name, success, new_value)
+        self.finished.emit()
+
+
 class SettingsWindow(DesignerDisplay, QWidget):
     filename = "settings_tab.ui"
     ui_dir = Path(__file__).parent / "./../ui"
@@ -60,6 +81,12 @@ class SettingsWindow(DesignerDisplay, QWidget):
     settings_duplicate_di_warning: QCheckBox
     settings_duplicate_drv_warning: QCheckBox
     settings_duplicate_enc_warning: QCheckBox
+
+    def __init__(self, main_window, parent=None, logger=None):
+        # Properly call the superclass __init__!
+        super().__init__(parent)
+        self.logger = logger
+        self.main_window = main_window
 
 
 class MappingWindow(DesignerDisplay, QDialog):
@@ -200,7 +227,9 @@ class LinkerWindow(DesignerDisplay, QWidget):
     def check_duplicate_di_flag(self):
         self.logger.info(f"in check dup di")
 
-        self.duplicate_di_cb_flag = self.duplicate_di_cb.isChecked()
+        self.duplicate_di_cb_flag = (
+            self.settings_window.settings_duplicate_di_warning.isChecked()
+        )
 
         self.logger.debug(f"isDuplicateDIWarning: {self.duplicate_di_cb_flag}")
 
@@ -917,6 +946,17 @@ class LinkerWindow(DesignerDisplay, QWidget):
         #     self.user_input_widget.display_encoders_ui.setEnabled(True)
         # print(self.encoder_selection)
 
+    def caput_async(self, pv_name, value):
+        worker = CaputWorker(pv_name, value)
+        thread = QThread()
+        worker.moveToThread(thread)
+        thread.started.connect(worker.do_caput)
+        worker.result.connect(self.handle_caput_result)
+        worker.finished.connect(thread.quit)
+        thread.finished.connect(thread.deleteLater)
+        worker.finished.connect(worker.deleteLater)
+        thread.start()
+
     def update_links(self):
         self.logger.info(f"in update links")
         di_hardware_pv = ""
@@ -1038,19 +1078,9 @@ class LinkerWindow(DesignerDisplay, QWidget):
                     + ":SelG:ENC:Id"
                 )
                 print(f"drv_pv: {drv_pv}, drv: {item[0][0]}, enc: {item[1][0]}")
-                try:
-                    status_drv = epics.caput(drv_pv, item[0][0])
-                    if status_drv == 1:
-                        print("drv caput succeded")
-                    elif status_drv < 0:
-                        raise ValueError(f"Drv caput failed: {status_drv}")
-                except ValueError as e:
-                    print(f"Value error for drv: {item[0][0]}")
-                try:
-                    status_enc = epics.caput(enc_pv, item[1][0])
-                    if status_enc == 1:
-                        print("enc caput succeded")
-                    elif status_enc < 0:
-                        raise ValueError(f"Enc caput failed: {status_enc}")
-                except ValueError as e:
-                    print(f"Value error for enc: {item[1][0]}")
+                drv = item[0][0] if item[0] and item[0][0] != "None" else None
+            enc = item[1][0] if item[1] and item[1][0] != "None" else None
+            if drv:
+                self.caput_async(drv_pv, drv)
+            if enc:
+                self.caput_async(enc_pv, enc)

@@ -1,4 +1,4 @@
-from processing.parse_pvs import strip_key
+from ..processing.parse_pvs import strip_key
 
 
 def val_to_key(val, pvDict):
@@ -79,3 +79,12 @@ def strip_axis_id(item: str):
 
     result = item.split(":SelG")[0]
     return result
+
+
+def keep_prefix(code, num_segments=4):
+    """
+    Keeps only the first `num_segments` colon-separated parts of the code.
+    Example: keep_prefix('TST:UM:EL1429:02:WCIB_RBV', 4) -> 'TST:UM:EL1429:02'
+    """
+    segments = code.split(":")
+    return ":".join(segments[:num_segments])
