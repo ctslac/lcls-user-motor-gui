@@ -1,6 +1,7 @@
 import logging
 from pathlib import Path
 
+import epics
 from pcdsutils.qt.designer_display import DesignerDisplay
 from qtpy.QtWidgets import (
     QAbstractItemView,
@@ -61,6 +62,7 @@ class UserInputWindow(DesignerDisplay, QWidget):
     digital_input_axis_ui: QListWidget
     digital_input_hardware_ui: QListWidget
     digital_input_channels_ui: QListWidget
+    digital_input_channel_slot_ui: QListWidget
     stage_settings: QPushButton
 
     def __init__(self, main_window, parent=None, logger=None):
@@ -84,18 +86,23 @@ class UserInputWindow(DesignerDisplay, QWidget):
 
     def select_axis_ui(self):
         self.logger.info(f"in select_axis_ui")
+        # self.populate_di()
         self.detect_linked_enc_ui()
         self.detect_linked_drv_ui()
         self.publish_axis_di_ui()
 
     def detect_linked_enc_ui(self):
         self.logger.info(f"in detect_linked_enc_ui")
-        currAxisIdx = self.display_axis_ui.currentRow()
-        currAxis = val_to_key(self.axis[currAxisIdx], self.pvDict)
+        # currAxisIdx = self.display_axis_ui.currentRow()
+        # currAxis = val_to_key(self.axis[currAxisIdx], self.pvDict)
+        currAxis = self.display_axis_ui.currentRow()
         self.logger.debug(f"currAxis: {currAxis}")
-        currAxis = strip_axis_id(currAxis)
-        detectableENC = currAxis + ":SelG:ENC:Id_RBV"
-        encValue = fake_caget(self.pvDict, detectableENC)
+        # currAxis = strip_axis_id(currAxis)
+        detectableENC = (
+            self.prefixName + ":AXIS:0" + str(currAxis + 1) + ":SelG:ENC:Id_RBV"
+        )
+        encValue = epics.caget(detectableENC, as_string=True)
+        self.logger.debug(f"detectableENC: {detectableENC}")
         self.logger.debug(f"encValue: {encValue}")
 
         for i in range(0, self.display_encoders_ui.count()):
@@ -111,13 +118,16 @@ class UserInputWindow(DesignerDisplay, QWidget):
 
     def detect_linked_drv_ui(self):
         self.logger.info(f"in detect_linked_drv_ui")
-        currAxisIdx = self.display_axis_ui.currentRow()
-        currAxis = val_to_key(self.axis[currAxisIdx], self.pvDict)
+        currAxis = self.display_axis_ui.currentRow()
+        # currAxis = val_to_key(self.axis[currAxisIdx], self.pvDict)
         self.logger.debug(f"currAxis: {currAxis}")
-        currAxis = strip_axis_id(currAxis)
-        detectableDRV = currAxis + ":SelG:DRV:Id_RBV"
+        # currAxis = strip_axis_id(currAxis)
+        detectableDRV = (
+            self.prefixName + ":AXIS:0" + str(currAxis + 1) + ":SelG:DRV:Id_RBV"
+        )
+
+        drvValue = epics.caget(detectableDRV, as_string=True)
         self.logger.debug(f"detDRV: {detectableDRV}")
-        drvValue = fake_caget(self.pvDict, detectableDRV)
         self.logger.debug(f"drvValue: {drvValue}")
 
         found_drv = False
@@ -188,7 +198,10 @@ class UserInputWindow(DesignerDisplay, QWidget):
 
     def select_di_channel_ui(self):
         self.logger.info(f" select_di_channel_ui:")
+        # self.digital_input_channel_slot_ui.clear()
         # self.check_duplicate_di
+        DI_hardware_Channel = 0
+        DI_hardware_Channel_Slots = 0
         axis_di_idx = self.digital_input_axis_ui.currentRow()
         self.logger.debug(f"axis_di_idx: {axis_di_idx}")
         if axis_di_idx < 0:
@@ -197,24 +210,33 @@ class UserInputWindow(DesignerDisplay, QWidget):
             currAxisIdx = self.display_axis_ui.currentRow()
             self.logger.debug(f"currAxisIdx: {currAxisIdx}")
             self.logger.debug(f"axis: {self.axis[currAxisIdx]}")
-            currAxis = val_to_key(self.axis[currAxisIdx], self.pvDict)
-            self.logger.debug(f"currAxis: {currAxis}")
-            currAxis = strip_axis_id(currAxis)
-            detectableDi = currAxis + ":SelG:DI:" + ("0" + str(int(axis_di_idx) + 1))
+            # currAxis = val_to_key(self.axis[currAxisIdx], self.pvDict)
+            # self.logger.debug(f"currAxis: {currAxis}")
+            # currAxis = strip_axis_id(currAxis)
+            currAxis = self.prefixName + ":AXIS:0" + str(currAxisIdx + 1)
+            detectableDi = (
+                currAxis + ":SelG:DI:" + ("0" + str(int(axis_di_idx) + 1)) + ":Id_RBV"
+            )
             self.logger.debug(f"link to check: {detectableDi}")
-            DI_hardware = fake_caget(self.pvDict, detectableDi + ":ID_RBV")
-            if DI_hardware == "":
+            # DI_hardware = fake_caget(self.pvDict, detectableDi + ":ID_RBV")
+            DI_hardware = epics.caget(detectableDi, as_string=True)
+            if DI_hardware == 0:
                 DI_hardware = None
             self.logger.debug(f"DI_hardware: {DI_hardware}")
-            DI_hardware_Channel = fake_caget(
-                self.pvDict, detectableDi + ":HardChNum_RBV"
-            )
-            self.logger.debug(f"DI_hardware_channel: {DI_hardware_Channel}")
+
+            # self.logger.debug(f"DI_hardware_channel: {DI_hardware_Channel}")
             # returnStatus = self.digital_input_hardware.findItems(value, Qt.MatchCaseSensitive)
             # self.logger.debug(f"returnStatus: {returnStatus.text()}")
 
             self.logger.debug("searching for DI hardware")
-            # detect DI hardware
+            """
+            detect DI hardware, here this is any slice
+            the next thing that needs to happen is parse by slice type and check mains and sub-mains
+            ie.
+            ID = 1429 -> 1 main -> 1 submain
+            ID = 7062 -> 2 mains -> 2 submains per main
+            ID = 7047 -> 1 main -> 1 submain
+            """
             for i in range(0, self.digital_input_hardware_ui.count()):
                 if DI_hardware == self.digital_input_hardware_ui.item(i).text():
                     # self.logger.debug(f"currItem: {self.digital_input_hardware.item(i).text()}")
@@ -229,11 +251,69 @@ class UserInputWindow(DesignerDisplay, QWidget):
                 else:
                     self.logger.debug("something went wrong/thinking")
 
-            self.logger.debug("searching for di hardware channel")
+            ### START HERE ###
+            """
+            I need to implement ways for checking what the slice type is
+            if the slice type is something that contains more than 1 main then I need to check the submain
+            """
+            # di_s = currAxis + ":NUMDI_RBV"
+            # DI_hardware_Channel = epics.caget(num_di, )
+            # if "7062" in DI_hardware:
+            #     self.logger.debug("di slice is 7062")
+            #     di_chan = currAxis + ":SelG:DI:" + ("0" + str(int(axis_di_idx) + 1)) + ':SUB_RBV'
+            #     di_chan_slot = currAxis + ":SelG:DI:" + ("0" + str(int(axis_di_idx) + 1)) + ':MAIN_RBV'
+            #     DI_hardware_Channel_Slots = epics.caget(di_chan_slot, as_string=True)
+            #     DI_hardware_Channel = epics.caget(di_chan, as_string=True)
+            #     self.logger.debug(f"DI_hardware_Channel: {int(DI_hardware_Channel)}")
+            #     self.logger.debug(f"DI_hardware_Channel Slot: {int(DI_hardware_Channel_Slots)}")
+            #     # for i in range(0, DI_hardware_Channel_Slots):
+            #     #     self.digital_input_channel_slot_ui.addItem(str(i+1))
+            # elif "1429" in DI_hardware:
+            #     self.logger.debug("di slice is 1429")
+            #     di_chan = currAxis + ":SelG:DI:" + ("0" + str(int(axis_di_idx) + 1)) + ':SUB_RBV'
+            #     di_chan_slot = currAxis + ":SelG:DI:" + ("0" + str(int(axis_di_idx) + 1)) + ':MAIN_RBV'
+            #     DI_hardware_Channel_Slots = epics.caget(di_chan_slot, as_string=True)
+            #     DI_hardware_Channel = epics.caget(di_chan, as_string=True)
+            #     self.logger.debug(f"DI_hardware_Channel: {int(DI_hardware_Channel)}")
+            #     self.logger.debug(f"DI_hardware_Channel Slot: {int(DI_hardware_Channel_Slots)}")
+            #     # for i in range(0, int(DI_hardware_Channel_Slots)):
+            #     #     self.digital_input_channel_slot_ui.addItem(str(i+1))
+
+            self.logger.debug("searching for DI hardware channel slot")
+            di_chan_slot = (
+                currAxis + ":SelG:DI:" + ("0" + str(int(axis_di_idx) + 1)) + ":MAIN_RBV"
+            )
+            DI_hardware_Channel_Slots = epics.caget(di_chan_slot, as_string=True)
+            self.logger.debug(
+                f"DI_hardware_Channel Slot: {int(DI_hardware_Channel_Slots)}"
+            )
+
+            for i in range(0, self.digital_input_channel_slot_ui.count()):
+                if (
+                    DI_hardware_Channel_Slots
+                    == self.digital_input_channel_slot_ui.item(i).text()
+                ):
+                    self.logger.debug(
+                        f"found channel main: {self.digital_input_channel_slot_ui.item(i).text()}"
+                    )
+                    self.digital_input_channel_slot_ui.setCurrentRow(i)
+                elif DI_hardware_Channel_Slots == "0":
+                    self.logger.debug("something went wrong, should not be possible")
+                    self.digital_input_channel_slot_ui.selectionMode(
+                        QAbstractItemView.NoSelection
+                    )
+
+            self.logger.debug("searching for DI hardware channel")
+            di_chan = (
+                currAxis + ":SelG:DI:" + ("0" + str(int(axis_di_idx) + 1)) + ":SUB_RBV"
+            )
+            DI_hardware_Channel = epics.caget(di_chan, as_string=True)
+            self.logger.debug(f"DI_hardware_Channel: {int(DI_hardware_Channel)}")
+
             for i in range(0, self.digital_input_channels_ui.count()):
                 if DI_hardware_Channel == self.digital_input_channels_ui.item(i).text():
                     self.logger.debug(
-                        f"found channel: {self.digital_input_channels_ui.item(i).text()}"
+                        f"found channel main: {self.digital_input_channels_ui.item(i).text()}"
                     )
                     self.digital_input_channels_ui.setCurrentRow(i)
                 elif DI_hardware_Channel == "0":
@@ -282,25 +362,31 @@ class UserInputWindow(DesignerDisplay, QWidget):
         #     self.pvList, self.axis_list.currentItem().text()
         # )
 
-        delimiter = ":WCIB_RBV"
+        replaced_items = []
         for item in self.digital_inputs_ui:
             print(f"item: {item}")
+            replaced_items.append(item.replace("WCIB_RBV", "Id_RBV"))
+
             # cleaned_di = item.replace(delimiter, ":Id_RBV")
-            cleaned_di = keep_prefix(item, 4)
-            cleaned_di = cleaned_di + ":Id_RBV"
-            self.logger.debug(f"cleaned item: {cleaned_di}")
-            val = fake_caget(self.pvDict, cleaned_di)
-            self.logger.debug(f"val: {val}")
-            self.digital_input_hardware_ui.addItem(val)
+            # cleaned_di = keep_prefix(item, 4)
+            # cleaned_di = cleaned_di + ":Id_RBV"
+            # self.logger.debug(f"cleaned item: {cleaned_di}")
+            # val = fake_caget(self.pvDict, cleaned_di)
+            # self.logger.debug(f"val: {val}")
+            # self.digital_input_hardware_ui.addItem(val)
         # self.digital_input_hardware.setCurrentRow(0)
+        val = epics.caget_many(replaced_items, as_string=True)
+        self.digital_inputs_ui[:] = val[0:]
+        self.digital_input_hardware_ui.addItems(self.digital_inputs_ui)
         if not self.digital_input_hardware_ui.isEnabled():
             self.digital_input_hardware_ui.setEnabled(True)
-        self.discover_di_channel_ui()
+        # self.discover_di_channel_ui()
+        # self.load_di_channel_ui
 
     def load_di_channel_ui(self):
         self.logger.info(f"in load di_channel_ui")
         self.digital_input_channels_ui.clear()
-
+        self.digital_input_channel_slot_ui.clear()
         current_item = self.digital_input_hardware_ui.currentItem()
         if current_item is None:
             self.logger.warning("No digital input hardware item selected")
@@ -315,12 +401,27 @@ class UserInputWindow(DesignerDisplay, QWidget):
 
         currDI = currDI.split("_")[0]
         self.logger.debug(f"DI Slice: {currDI}")
+        currAxisIdx = self.display_axis_ui.currentRow()
+        axis_di_idx = self.digital_input_axis_ui.currentRow()
+        currAxis = self.prefixName + ":AXIS:0" + str(currAxisIdx + 1)
         if currDI.startswith("EL7062"):
-            self.di_size = 2
+            # di_chan = currAxis + ":SelG:DI:" + ("0" + str(int(axis_di_idx) + 1)) + ':SUB_RBV'
+            # self.di_size = epics.caget(di_chan)
+            for i in range(0, int(2)):
+                self.digital_input_channel_slot_ui.addItem(str(i + 1))
+            for i in range(0, int(2)):
+                self.digital_input_channels_ui.addItem(str(i + 1))
         elif currDI.startswith("EL1429"):
-            self.di_size = 16
+            di_chan = (
+                currAxis + ":SelG:DI:" + ("0" + str(int(axis_di_idx) + 1)) + ":SUB_RBV"
+            )
+            self.di_size = epics.caget(di_chan)
+            for i in range(0, int(16)):
+                self.digital_input_channel_slot_ui.addItem(str(i + 1))
+            for i in range(0, int(1)):
+                self.digital_input_channels_ui.addItem(str(i + 1))
         else:
-            self.logger.debug("check currDI")
+            self.logger.debug("Slice Unknown")
         # cleaned_di = self.prefixName + ':0' + str(self.display_axis_ui.currentRow()+1) +':'+ currDI +  ":NUMDI_RBV"
         # cleaned_di = self.prefixName + ':0' + str(self.display_axis_ui.currentRow()+1) + ':0' + str(self.digital_input_axis_ui.currentRow()) + ":NUMDI_RBV"
         # self.logger.debug(f"cleaned axis: {cleaned_di}")
@@ -336,27 +437,29 @@ class UserInputWindow(DesignerDisplay, QWidget):
         #     self.logger.error(f"Invalid NUMDI_RBV value for {cleaned_di}: {self.di_size}")
         #     return
 
-        if self.di_size > 0:
-            for i in range(self.di_size):
-                self.digital_input_channels_ui.addItem(str(i + 1))
-        else:
-            self.digital_input_channels_ui.clear()
+        # if self.di_size > 0:
+        #     for i in range(self.di_size):
+        #         self.digital_input_channel_slot_ui.addItem(str(i + 1))
+        # else:
+        #     self.digital_input_channel_slot_ui.clear()
 
     def load_drives_ui(self):
         # update enum with drives pulled from .db file
         self.logger.info(f"in populate drives_ui")
         self.display_drives_ui.clear()
         # self.user_input_widget.display_drives_ui.clear()
-        self.display_drives_ui.addItem("None")
+        # self.display_drives_ui.addItem("None")
         # self.drives = identify_drive(self.pvList, self.axis_list.currentItem().text())
-
-        delimiter = ":WCIB_RBV"
-        drives = self.drives_ui
-        for item in drives:
-            cleaned_item = item.replace(delimiter, ":Id_RBV")
+        replaced_items = []
+        # drives = self.drives_ui
+        for item in self.drives_ui[1:]:
+            print(f"drives: {item}")
+            replaced_items.append(item.replace("WCIB_RBV", "Id_RBV"))
             # self.logger.debug(f"cleaned item: {cleaned_item}")
-            val = fake_caget(self.pvDict, cleaned_item)
-            self.display_drives_ui.addItem(val)
+        # self.drives_ui[1:-1] = replaced_items
+        val = epics.caget_many(replaced_items, as_string=True)
+        self.drives_ui[1:] = val[0:]
+        self.display_drives_ui.addItems(self.drives_ui)
         # self.display_drives_ui.setCurrentRow(self.drives_list.currentRow())
         # self.display_drives_ui.setSelectionMode(QAbstractItemView.NoSelection)
         if not self.display_drives_ui.isEnabled():
@@ -422,28 +525,36 @@ class UserInputWindow(DesignerDisplay, QWidget):
         # update enum with axis pulled from .db file
         self.logger.info(f"in populate axis_ui")
         self.display_axis_ui.clear()
+        # display_items = []
+        # for item in self.axis:
+        #     item = fake_caget(self.pvDict, item)
+        for item in self.axis:
+            print(f"axis: {item}")
         self.display_axis_ui.addItems(self.axis)
         # idx = self.axis_list
         # self.display_axis.setCurrentRow(self.axis_list.currentRow())
         # self.display_axis.setSelectionMode(QAbstractItemView.NoSelection)
         if not self.display_axis_ui.isEnabled():
             self.display_axis_ui.setEnabled(True)
-        self.logger.debug(f"caput to: self.axis_selection")
+        # self.logger.debug(f"caput to: self.axis_selection")
 
     def load_encoders_ui(self):
         # update enum with drives pulled from .db file
         self.logger.info(f"in populate enc_ui")
         self.display_encoders_ui.clear()
-        self.display_encoders_ui.addItem("None")
+        # self.display_encoders_ui.addItem("None")
         # self.enocder_type = identify_enc(self.pvList, self.axis_list.currentItem().text())
-        delimiter = ":WCIB_RBV"
         # self.logger.debug(f"encoder list size: {len(self.encoders)}")
-        encoders = self.encoders_ui
-        for item in encoders:
-            cleaned_item = item.replace(delimiter, ":Id_RBV")
-            self.logger.debug(f"cleaned item: {cleaned_item}")
-            val = fake_caget(self.pvDict, cleaned_item)
-            self.display_encoders_ui.addItem(val)
+        replaced_items = []
+        # drives = self.drives_ui
+        for item in self.encoders_ui[1:]:
+            print(f"drives: {item}")
+            replaced_items.append(item.replace("WCIB_RBV", "Id_RBV"))
+            # self.logger.debug(f"cleaned item: {cleaned_item}")
+        # self.drives_ui[1:-1] = replaced_items
+        val = epics.caget_many(replaced_items, as_string=True)
+        self.encoders_ui[1:] = val[0:]
+        self.display_encoders_ui.addItems(self.encoders_ui)
         # self.display_encoders_ui.setCurrentRow(self.enocders_list.currentRow())
         # self.display_encoders_ui.setSelectionMode(QAbstractItemView.NoSelection)
         if not self.display_encoders_ui.isEnabled():

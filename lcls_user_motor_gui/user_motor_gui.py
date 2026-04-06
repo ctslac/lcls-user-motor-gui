@@ -52,6 +52,7 @@ from qtpy.uic import loadUi
 
 from .processing.discover_pvs import discover_pvs
 from .processing.parse_pvs import (
+    axis_wcib_to_id,
     fake_caget,
     identify_axis,
     identify_coe_drive_params,
@@ -191,6 +192,7 @@ class MainWindow(DesignerDisplay, QWidget):
             self.plc_ioc_list = []
             self.plc_ioc_label = ""
             self.axis = []
+            self.drives = []
             self.digital_inputs = ["None"]
             # self.digital_inputs_ui = ["None"]
             self.digital_inputs_hardware = ["None"]
@@ -213,6 +215,9 @@ class MainWindow(DesignerDisplay, QWidget):
             # self.staged_mapping = []
             # self.staged_de = []
             # self.qCurrAxis = 0
+            self.ncList = []
+            self.coeList = []
+            self.wcibList = []
 
             # self.dg_list = []
             self.ca_nc_list = []
@@ -232,8 +237,8 @@ class MainWindow(DesignerDisplay, QWidget):
         for slot in [
             self.load_ioc_data,
             self.setup_tab_signals,
-            self.load_axis,
             self.populate_options,
+            # self.load_axis,
         ]:
             self.load_ioc.clicked.connect(slot)
 
@@ -367,6 +372,7 @@ class MainWindow(DesignerDisplay, QWidget):
         #     self.expert_axis.currentIndexChanged.connect(slot)
 
     def setup_tab_signals(self):
+        print(f"in setup_tab_signals")
         # self.user_input_widget.display_axis_ui.currentRowChanged.connect(self.select_axis_ui)
         # self.user_input_widget.display_axis_ui.currentRowChanged.connect(self.user_input_widget.select_axis_ui)
         # self.linker_widget.axis_list_linker.currentRowChanged.connect(self.isStagedMappingSet)
@@ -382,35 +388,35 @@ class MainWindow(DesignerDisplay, QWidget):
         #     self.populate_diagnostic_coe
         # )
 
-        self.setting_widget.settings_duplicate_di_warning.stateChanged.connect(
-            self.check_duplicate_di_flag
-        )
-        self.setting_widget.settings_duplicate_drv_warning.stateChanged.connect(
-            self.check_duplicate_drv_flag
-        )
-        self.setting_widget.settings_duplicate_enc_warning.stateChanged.connect(
-            self.check_duplicate_enc_flag
-        )
+        # self.setting_widget.settings_duplicate_di_warning.stateChanged.connect(
+        #     self.check_duplicate_di_flag
+        # )
+        # self.setting_widget.settings_duplicate_drv_warning.stateChanged.connect(
+        #     self.check_duplicate_drv_flag
+        # )
+        # self.setting_widget.settings_duplicate_enc_warning.stateChanged.connect(
+        #     self.check_duplicate_enc_flag
+        # )
         # self.status_indicators = self.ui.findChild(QLabel, "status_indicators")
 
         # SIGNALS
-        # Expert
-        for slot in [
-            self.expert_widget.expert_update_nc,
-            self.expert_widget.expert_update_drive,
-            self.expert_widget.expert_update_encoder,
-        ]:
-            self.expert_widget.expert_axis.currentIndexChanged.connect(slot)
+        # # Expert
+        # for slot in [
+        #     self.expert_widget.expert_update_nc,
+        #     self.expert_widget.expert_update_drive,
+        #     self.expert_widget.expert_update_encoder,
+        # ]:
+        #     self.expert_widget.expert_axis.currentIndexChanged.connect(slot)
 
-        self.expert_widget.expert_nc_widget.currentIndexChanged.connect(
-            self.expert_widget.highlight_nc_param
-        )
-        self.expert_widget.expert_drive_widget.currentIndexChanged.connect(
-            self.expert_widget.highlight_coe_drive_param
-        )
-        self.expert_widget.expert_encoder_widget.currentIndexChanged.connect(
-            self.expert_widget.highlight_coe_encoder_param
-        )
+        # self.expert_widget.expert_nc_widget.currentIndexChanged.connect(
+        #     self.expert_widget.highlight_nc_param
+        # )
+        # self.expert_widget.expert_drive_widget.currentIndexChanged.connect(
+        #     self.expert_widget.highlight_coe_drive_param
+        # )
+        # self.expert_widget.expert_encoder_widget.currentIndexChanged.connect(
+        #     self.expert_widget.highlight_coe_encoder_param
+        # )
 
         # User Input
         self.user_input_widget.display_axis_ui.currentRowChanged.connect(
@@ -423,17 +429,17 @@ class MainWindow(DesignerDisplay, QWidget):
             self.user_input_widget.load_di_channel_ui
         )
 
-        # Diagnostic
-        self.diagnostic_widget.diagnostic_hardware_selection.currentRowChanged.connect(
-            self.diagnostic_widget.populate_diagnostic_coe
-        )
+        # # Diagnostic
+        # self.diagnostic_widget.diagnostic_hardware_selection.currentRowChanged.connect(
+        #     self.diagnostic_widget.populate_diagnostic_coe
+        # )
 
-        self.diagnostic_widget.diagnostic_param_filter.currentIndexChanged.connect(
-            self.diagnostic_widget.populate_diagnostic_widget
-        )
-        self.diagnostic_widget.diagnostic_axis_selection.currentIndexChanged.connect(
-            self.diagnostic_widget.populate_diagnostic_hardware
-        )
+        # self.diagnostic_widget.diagnostic_param_filter.currentIndexChanged.connect(
+        #     self.diagnostic_widget.populate_diagnostic_widget
+        # )
+        # self.diagnostic_widget.diagnostic_axis_selection.currentIndexChanged.connect(
+        #     self.diagnostic_widget.populate_diagnostic_hardware
+        # )
 
         # Linker
         # digitial input handling signals
@@ -769,10 +775,25 @@ class MainWindow(DesignerDisplay, QWidget):
         logger.debug(f"prefixName: {self.prefixName}")
 
         # caget whole list
-        pv_caget_list = epics.caget_many(self.pvList, as_string=True)
 
+        for item in self.pvList:
+            if re.search(r"NC", item):
+                self.ncList.append(item)
+            elif re.search(r"COE", item):
+                self.coeList.append(item)
+            elif re.search(r"WCIB", item):
+                self.wcibList.append(item)
+        # pv_caget_list = epics.caget_many(self.pvList, as_string=True)
+        ca_wcib_list = epics.caget_many(self.wcibList, as_string=True)
+        ca_nc_list = epics.caget_many(self.ncList, as_string=True)
+        ca_coe_list = epics.caget_many(self.coeList, as_string=True)
         # put pvs and cagets into a dictionary
-        self.pvDict = dict(zip(self.pvList, pv_caget_list))
+        # self.pvDict = dict(zip(self.pvList, pv_caget_list))
+
+        self.ncDict = dict(zip(self.ncList, ca_nc_list))
+        self.coeDict = dict(zip(self.coeList, ca_coe_list))
+        self.wcibDict = dict(zip(self.wcibList, ca_wcib_list))
+        # selfcoevDict = dict(zip(self.pvList, pv_caget_list))
         self.user_input_widget.pvDict = self.pvDict
         self.linker_widget.pvDict = self.pvDict
         self.expert_widget.pvDict = self.pvDict
@@ -787,7 +808,7 @@ class MainWindow(DesignerDisplay, QWidget):
         there may be more than one key for any given value, i might have to change the logic here
         """
         cleaned_axis = strip_key(key[0])
-        logger.debug(f"val to key, cleaned axis: {cleaned_axis}, key: {key}")
+        # logger.debug(f"val to key, cleaned axis: {cleaned_axis}, key: {key}")
         return str(cleaned_axis)
 
     def find_unique_keys(self, prefix):
@@ -810,21 +831,21 @@ class MainWindow(DesignerDisplay, QWidget):
     def identify_di(self, item):
         val = self.val_to_key(item)
         things = self.find_unique_keys(val + ":SelG:DI:")
-        logger.debug(f"identify_config: item, {val}, DIs, {things}")
+        # logger.debug(f"identify_config: item, {val}, DIs, {things}")
 
         return things
 
     def identify_drv(self, item):
         val = self.val_to_key(item)
         things = self.find_unique_keys(val + ":SelG:DRV:")
-        logger.debug(f"identify_config: item, {val}, DRVs, {things}")
+        # logger.debug(f"identify_config: item, {val}, DRVs, {things}")
 
         return things
 
     def identify_enc(self, item):
         val = self.val_to_key(item)
         things = self.find_unique_keys(val + ":SelG:ENC:")
-        logger.debug(f"identify_config: item, {val}, ENCs, {things}")
+        # logger.debug(f"identify_config: item, {val}, ENCs, {things}")
 
         return things
 
@@ -852,34 +873,59 @@ class MainWindow(DesignerDisplay, QWidget):
         """
         logger.info(f"in identify_WCIB'")
         self.clear_items()
-        self.list_WCIB = []
-        for pv in self.pvDict:
+        # self.list_WCIB = []
+
+        # for pv in self.pvDict:
+        for pv in self.wcibDict:
             logger.debug(f"pv: {pv}")
             if re.search(r".*:WCIB_RBV", pv):
+                logger.debug(f"wcib pv: {pv}")
                 self.list_WCIB.append(pv)
         for pv in self.list_WCIB:
             # fake_caget output is of type string seperated by comma
             # device_type = epics.caget(pv, as_string=True)
-            device_type = fake_caget(self.pvDict, pv)
-            logger.debug(f"device_type: {device_type}, pv: {pv}")
+            # device_type = fake_caget(self.pvDict, pv)
+            device_type = fake_caget(self.wcibDict, pv)
+            print(f"device_type: {device_type}, pv: {pv}")
+            if isinstance(device_type, str) and re.search(r"SA", device_type):
+                print(f"axis: {pv}")
+                self.axis.append(pv)
             if isinstance(device_type, str) and re.search(r"DI", device_type):
                 self.linker_widget.digital_inputs_linker.append(pv)
                 self.user_input_widget.digital_inputs_ui.append(pv)
-            if isinstance(device_type, str) and re.search(r"DR", device_type):
+            if isinstance(device_type, str) and re.search(r"DRV", device_type):
                 self.linker_widget.drives_linker.append(pv)
                 self.user_input_widget.drives_ui.append(pv)
             if isinstance(device_type, str) and re.search(r"ENC", device_type):
                 self.linker_widget.encoders_linker.append(pv)
                 self.user_input_widget.encoders_ui.append(pv)
 
-        # Calling other methods
+        # Loading Axis
+        # self.axis = axis_wcib_to_id(self.pvDict, self.axis)
+        print(f"num of axis: {len(self.axis)}")
+        self.axis = axis_wcib_to_id(self.axis)
+        self.user_input_widget.axis = self.axis
+        self.user_input_widget.publish_axis_ui()
+        self.linker_widget.axis = self.axis
+        self.linker_widget.publish_axis()
+        self.user_input_widget.publish_axis_ui()
+        self.expert_widget.axis = self.axis
+        self.expert_widget.publish_axis_expert()
+        self.diagnostic_widget.axis = self.axis
+        self.diagnostic_widget.publish_axis_diagnostic()
+
+        # Loading DIs
         # self.load_di()
-        self.linker_widget.load_axis_di()
-        self.user_input_widget.load_axis_di_ui()
+        # self.linker_widget.load_axis_di()
+        # self.user_input_widget.load_axis_di_ui()
         self.linker_widget.load_di()
         self.user_input_widget.load_di_ui()
+
+        # Loading DRVs
         self.linker_widget.load_drives()
         self.user_input_widget.load_drives_ui()
+
+        # Loading ENCs
         self.linker_widget.load_encoders()
         self.user_input_widget.load_encoders_ui()
 
@@ -890,24 +936,24 @@ class MainWindow(DesignerDisplay, QWidget):
         self.drives_linker.clear()
         self.encoders.clear()
 
-    def load_axis(self):
-        """
-        Called from load_ioc
-        ---
-        Calls publish axis
-        """
-        logger.info(f"in load_axis")
-        # print(self.ioc_name.text())
+    # def load_axis(self):
+    #     """
+    #     Called from load_ioc
+    #     ---
+    #     Calls publish axis
+    #     """
+    #     logger.info(f"in load_axis")
+    #     # print(self.ioc_name.text())
 
-        self.axis = identify_axis(self.pvDict)
-        self.user_input_widget.axis = self.axis
-        self.linker_widget.axis = self.axis
-        self.publish_axis()
-        self.user_input_widget.publish_axis_ui()
-        self.expert_widget.axis = self.axis
-        self.expert_widget.publish_axis_expert()
-        self.diagnostic_widget.axis = self.axis
-        self.diagnostic_widget.publish_axis_diagnostic()
+    #     self.axis = identify_axis(self.pvDict)
+    #     self.user_input_widget.axis = self.axis
+    #     self.linker_widget.axis = self.axis
+    #     self.publish_axis()
+    #     self.user_input_widget.publish_axis_ui()
+    #     self.expert_widget.axis = self.axis
+    #     self.expert_widget.publish_axis_expert()
+    #     self.diagnostic_widget.axis = self.axis
+    #     self.diagnostic_widget.publish_axis_diagnostic()
 
     def publish_axis_di(self):
         logger.info(f"in publish_axis_di")

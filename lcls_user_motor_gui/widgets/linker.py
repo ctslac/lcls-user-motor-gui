@@ -773,13 +773,18 @@ class LinkerWindow(DesignerDisplay, QWidget):
         #     self.pvList, self.axis_list.currentItem().text()
         # )
 
-        delimiter = ":WCIB_RBV"
-        for item in self.digital_inputs_linker:
-            cleaned_di = item.replace(delimiter, ":Id_RBV")
-            self.logger.debug(f"cleaned item: {cleaned_di}")
-            val = fake_caget(self.pvDict, cleaned_di)
-            self.logger.debug(f"val: {val}")
-            self.digital_input_hardware.addItem(val)
+        replaced_items = []
+        for item in self.digital_inputs_linker[1:]:
+            replaced_items.append(item.replace("WCIB_RBV", "Id_RBV"))
+
+            # cleaned_di = item.replace(delimiter, ":Id_RBV")
+            # self.logger.debug(f"cleaned item: {cleaned_di}")
+            # val = fake_caget(self.pvDict, cleaned_di)
+            # self.logger.debug(f"val: {val}")
+        val = epics.caget_many(replaced_items, as_string=True)
+        self.digital_inputs_linker[:] = val[0:]
+        self.digital_input_hardware.addItems(self.digital_inputs_linker)
+        # self.digital_input_hardware.addItem(val)
         # self.digital_input_hardware.setCurrentRow(0)
         if not self.digital_input_hardware.isEnabled():
             self.digital_input_hardware.setEnabled(True)
@@ -898,19 +903,21 @@ class LinkerWindow(DesignerDisplay, QWidget):
         # update enum with drives pulled from .db file
         self.logger.info(f"in load drives")
         self.drives_list.clear()
-        self.drives_list.addItem("None")
+        # self.drives_list.addItem("None")
 
         # self.drives = identify_drive(self.pvList, self.axis_list.currentItem().text())
 
-        delimiter = ":WCIB_RBV"
-        for item in self.drives_linker:
-            cleaned_item = item.replace(delimiter, ":Id_RBV")
-            self.logger.debug(f"cleaned item: {cleaned_item}")
-            val = fake_caget(self.pvDict, cleaned_item)
+        replaced_items = []
+        for item in self.drives_linker[1:]:
+            print(f"drives: {item}")
+            replaced_items.append(item.replace("WCIB_RBV", "Id_RBV"))
 
             # publish drive
-            self.drives_list.addItem(val)
+            # self.drives_list.addItem(val)
             # self.user_input_widget.display_drives_ui.addItem(val)
+        val = epics.caget_many(replaced_items, as_string=True)
+        self.drives_linker[1:] = val[0:]
+        self.drives_list.addItems(self.drives_linker)
         # self.drives_list.setCurrentRow(0)
 
         if not self.drives_list.isEnabled():
@@ -924,21 +931,23 @@ class LinkerWindow(DesignerDisplay, QWidget):
         # update enum with drives pulled from .db file
         self.logger.info(f"in load enc")
         self.encoders_list.clear()
-        self.encoders_list.addItem("None")
+        # self.encoders_list.addItem("None")
         # self.user_input_widget.display_encoders_ui.clear()
         # self.user_input_widget.display_encoders_ui.addItem("None")
         # self.enocder_type = identify_enc(self.pvList, self.axis_list.currentItem().text())
-        delimiter = ":WCIB_RBV"
+        replaced_items = []
         # self.logger.debug(f"encoder list size: {len(self.encoders)}")
-        for item in self.encoders_linker:
-            cleaned_item = item.replace(delimiter, ":Id_RBV")
-            self.logger.debug(f"cleaned item: {cleaned_item}")
-            val = fake_caget(self.pvDict, cleaned_item)
+        for item in self.encoders_linker[1:]:
+            replaced_items.append(item.replace("WCIB_RBV", "Id_RBV"))
 
             # publish encoders
-            self.encoders_list.addItem(val)
+            # self.encoders_list.addItem(val)
             # self.user_input_widget.display_encoders_ui.addItem(val)
         # self.encoders_list.setCurrentRow(0)
+
+        val = epics.caget_many(replaced_items, as_string=True)
+        self.encoders_linker[1:] = val[0:]
+        self.encoders_list.addItems(self.encoders_linker)
 
         if not self.encoders_list.isEnabled():
             self.encoders_list.setEnabled(True)

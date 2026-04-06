@@ -89,6 +89,16 @@
      <widget class="QWidget" name="layoutWidget_6">
       <layout class="QVBoxLayout" name="verticalLayout_30">
        <item>
+        <widget class="QLabel" name="label">
+         <property name="text">
+          <string>DI Channel Slot</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QListWidget" name="digital_input_channel_slot_ui"/>
+       </item>
+       <item>
         <widget class="QLabel" name="label_10">
          <property name="text">
           <string>DI Channel</string>

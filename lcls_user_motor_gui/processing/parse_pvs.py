@@ -15,6 +15,32 @@ def fake_caget(pv_dict, pv):
     return value
 
 
+def axis_wcib_to_id(pv_list):
+    print(f"in axis_wcib_to_id: ")
+    updated_list = []
+    ca_list = []
+    for item in pv_list:
+        updated_list.append(item.replace("WCIB_RBV", "Id_RBV"))
+
+    for item in updated_list:
+        print(f"updated list item: {item}")
+    ca_list = epics.caget_many(updated_list, as_string=True)
+    return ca_list
+
+
+def drive_wcib_to_id(pv_list):
+    print(f"in drive_wcib_to_id: ")
+    updated_list = []
+    ca_list = []
+    for item in pv_list:
+        updated_list.append(item.replace("WCIB_RBV", "Id_RBV"))
+
+    for item in updated_list:
+        print(f"updated list item: {item}")
+    ca_list = epics.caget_many(updated_list, as_string=True)
+    return ca_list
+
+
 def identify_axis(pv_dict):
     """
     Given a list of PVs, find all the unique axis then output a seperate list with only axis that is enumerated

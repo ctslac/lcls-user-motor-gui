@@ -13,7 +13,7 @@ def val_to_key(val, pvDict):
     there may be more than one key for any given value, i might have to change the logic here
     """
     cleaned_axis = strip_key(key[0])
-    print(f"val to key, cleaned axis: {cleaned_axis}, key: {key}")
+    # print(f"val to key, cleaned axis: {cleaned_axis}, key: {key}")
     return str(cleaned_axis)
 
 
