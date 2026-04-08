@@ -42,6 +42,16 @@
        <item>
         <widget class="QListWidget" name="display_drives_ui"/>
        </item>
+       <item>
+        <widget class="QLabel" name="label_2">
+         <property name="text">
+          <string>Drive Channel</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QListWidget" name="display_drives_channel_ui"/>
+       </item>
       </layout>
      </widget>
      <widget class="QWidget" name="layoutWidget_2">
@@ -55,6 +65,16 @@
        </item>
        <item>
         <widget class="QListWidget" name="display_encoders_ui"/>
+       </item>
+       <item>
+        <widget class="QLabel" name="label_3">
+         <property name="text">
+          <string>Encoder Channel</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QListWidget" name="display_encoders_channel_ui"/>
        </item>
       </layout>
      </widget>
@@ -91,7 +111,7 @@
        <item>
         <widget class="QLabel" name="label">
          <property name="text">
-          <string>DI Channel Slot</string>
+          <string>DI Channel Main Channel</string>
          </property>
         </widget>
        </item>
@@ -101,7 +121,7 @@
        <item>
         <widget class="QLabel" name="label_10">
          <property name="text">
-          <string>DI Channel</string>
+          <string>DI Channel Sub Channel</string>
          </property>
         </widget>
        </item>

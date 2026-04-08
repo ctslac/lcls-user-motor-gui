@@ -428,6 +428,12 @@ class MainWindow(DesignerDisplay, QWidget):
         self.user_input_widget.digital_input_hardware_ui.currentRowChanged.connect(
             self.user_input_widget.load_di_channel_ui
         )
+        self.user_input_widget.display_drives_ui.currentRowChanged.connect(
+            self.user_input_widget.load_drives_channel_ui
+        )
+        self.user_input_widget.display_encoders_ui.currentRowChanged.connect(
+            self.user_input_widget.load_encoders_channel_ui
+        )
 
         # # Diagnostic
         # self.diagnostic_widget.diagnostic_hardware_selection.currentRowChanged.connect(

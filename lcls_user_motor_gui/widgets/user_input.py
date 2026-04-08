@@ -58,7 +58,9 @@ class UserInputWindow(DesignerDisplay, QWidget):
     # User Input Tab
     display_axis_ui: QListWidget
     display_drives_ui: QListWidget
+    display_drives_channel_ui: QListWidget
     display_encoders_ui: QListWidget
+    display_encoders_channel_ui: QListWidget
     digital_input_axis_ui: QListWidget
     digital_input_hardware_ui: QListWidget
     digital_input_channels_ui: QListWidget
@@ -105,16 +107,38 @@ class UserInputWindow(DesignerDisplay, QWidget):
         self.logger.debug(f"detectableENC: {detectableENC}")
         self.logger.debug(f"encValue: {encValue}")
 
+        found_enc = False
         for i in range(0, self.display_encoders_ui.count()):
             if encValue == self.display_encoders_ui.item(i).text():
                 self.logger.debug(
                     f"found enc: {self.display_encoders_ui.item(i).text()}"
                 )
                 self.display_encoders_ui.setCurrentRow(i)
+                found_enc = True
+                break
+
+        # load encoder channels
+        encoder_channel = (
+            self.prefixName
+            + ":AXIS:0"
+            + str(self.display_axis_ui.currentRow() + 1)
+            + ":SelG:ENC:MAIN_RBV"
+        )
+        self.logger.debug(f"encoder_channel: {encoder_channel}")
+        encoder_channel_val = epics.caget(encoder_channel, as_string=True)
+        self.logger.debug(f"encoder_channel_val: {encoder_channel_val}")
+        for i in range(0, self.display_encoders_channel_ui.count()):
+            item = self.display_encoders_channel_ui.item(i)
+            if item is not None and encoder_channel_val == item.text():
+                self.logger.debug(f"found enc chan: {item.text()}")
+                self.display_encoders_channel_ui.setCurrentRow(i)
                 break
             else:
-                self.logger.debug("No link found, defaulting to None")
-                self.display_encoders_ui.setCurrentRow(0)
+                self.logger.debug(f"channel is none, something went wrong")
+
+        if not found_enc:
+            self.logger.debug("No link found, defaulting to None")
+            self.display_drives_ui.setCurrentRow(0)
 
     def detect_linked_drv_ui(self):
         self.logger.info(f"in detect_linked_drv_ui")
@@ -137,6 +161,25 @@ class UserInputWindow(DesignerDisplay, QWidget):
                 self.display_drives_ui.setCurrentRow(i)
                 found_drv = True
                 break
+
+        # load drive channels
+        drive_channel = (
+            self.prefixName
+            + ":AXIS:0"
+            + str(self.display_axis_ui.currentRow() + 1)
+            + ":SelG:DRV:MAIN_RBV"
+        )
+        self.logger.debug(f"drive_channel: {drive_channel}")
+        drive_channel_val = epics.caget(drive_channel, as_string=True)
+        self.logger.debug(f"drive_channel_val: {drive_channel_val}")
+        for i in range(0, self.display_drives_channel_ui.count()):
+            item = self.display_drives_channel_ui.item(i)
+            if item is not None and drive_channel_val == item.text():
+                self.logger.debug(f"found drv chan: {item.text()}")
+                self.display_drives_channel_ui.setCurrentRow(i)
+                break
+            else:
+                self.logger.debug(f"channel is none, something went wrong")
 
         if not found_drv:
             self.logger.debug("No link found, defaulting to None")
@@ -460,10 +503,28 @@ class UserInputWindow(DesignerDisplay, QWidget):
         val = epics.caget_many(replaced_items, as_string=True)
         self.drives_ui[1:] = val[0:]
         self.display_drives_ui.addItems(self.drives_ui)
+
         # self.display_drives_ui.setCurrentRow(self.drives_list.currentRow())
         # self.display_drives_ui.setSelectionMode(QAbstractItemView.NoSelection)
         if not self.display_drives_ui.isEnabled():
             self.display_drives_ui.setEnabled(True)
+
+    def load_drives_channel_ui(self):
+        self.logger.info(f"in load_drives_channel_ui")
+        self.display_drives_channel_ui.clear()
+        if "7062" in self.display_drives_ui.currentItem().text():
+            for i in range(0, 2):
+                self.display_drives_channel_ui.addItem(str(i + 1))
+
+    def load_encoders_channel_ui(self):
+        self.logger.info(f"in load_encoders_channel_ui")
+        self.display_encoders_channel_ui.clear()
+        if "7062" in self.display_encoders_ui.currentItem().text():
+            for i in range(0, 2):
+                self.display_encoders_channel_ui.addItem(str(i + 1))
+        elif "5042" in self.display_encoders_ui.currentItem().text():
+            for i in range(0, 2):
+                self.display_encoders_channel_ui.addItem(str(i + 1))
 
     def discover_di_channel_ui(self):
         """
