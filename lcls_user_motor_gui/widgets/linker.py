@@ -105,10 +105,13 @@ class LinkerWindow(DesignerDisplay, QWidget):
     plc_ioc_label: PyDMLabel
     axis_list_linker: QListWidget
     digital_input_hardware: QListWidget
-    digital_input_channels: QListWidget
+    digital_input_main_channels: QListWidget
+    digital_input_sub_channels: QListWidget
     digital_input_axis: QListWidget
     drives_list: QListWidget
+    drives_channel_list: QListWidget
     encoders_list: QListWidget
+    encoders_channel_list: QListWidget
     confirm_mapping: QPushButton
     view_logger: PyDMPushButton
     load_ioc: QPushButton
@@ -580,67 +583,108 @@ class LinkerWindow(DesignerDisplay, QWidget):
 
     def detect_linked_drv(self):
         self.logger.info(f"in detect_linked_drv")
-        currAxisIdx = self.axis_list_linker.currentRow()
-        currAxis = val_to_key(self.axis[currAxisIdx], self.pvDict)
+        currAxis = self.axis_list_linker.currentRow()
+        # currAxis = val_to_key(self.axis[currAxisIdx], self.pvDict)
         self.logger.debug(f"currAxis: {currAxis}")
-        if currAxis is None:
-            self.logger.warning("detect_linked_drv: no valid axis key found; skipping")
-            self.drives_list.setCurrentRow(0)
-            return
 
-        currAxis = strip_axis_id(currAxis)
-        if currAxis is None:
-            self.logger.warning(
-                "detect_linked_drv: strip_axis_id returned None; skipping"
-            )
-            self.drives_list.setCurrentRow(0)
-            return
+        detectableDRV = (
+            self.prefixName + ":AXIS:0" + str(currAxis + 1) + ":SelG:DRV:Id_RBV"
+        )
 
-        detectableDRV = currAxis + ":SelG:DRV:Id_RBV"
-        drvValue = fake_caget(self.pvDict, detectableDRV)
+        drvValue = epics.caget(detectableDRV, as_string=True)
+        self.logger.debug(f"detDRV: {detectableDRV}")
         self.logger.debug(f"drvValue: {drvValue}")
 
+        found_drv = False
         for i in range(0, self.drives_list.count()):
             if drvValue == self.drives_list.item(i).text():
                 self.logger.debug(f"found drv: {self.drives_list.item(i).text()}")
                 self.drives_list.setCurrentRow(i)
+                found_drv = True
+                break
+
+        # load drive channels
+        drive_channel = (
+            self.prefixName
+            + ":AXIS:0"
+            + str(self.axis_list_linker.currentRow() + 1)
+            + ":SelG:DRV:MAIN_RBV"
+        )
+        self.logger.debug(f"drive_channel: {drive_channel}")
+        drive_channel_val = epics.caget(drive_channel, as_string=True)
+        self.logger.debug(f"drive_channel_val: {drive_channel_val}")
+        for i in range(0, self.drives_channel_list.count()):
+            item = self.drives_channel_list.item(i)
+            if item is not None and drive_channel_val == item.text():
+                self.logger.debug(f"found drv chan: {item.text()}")
+                self.drives_channel_list.setCurrentRow(i)
                 break
             else:
-                self.logger.debug("No link found, defaulting to None")
-                self.drives_list.setCurrentRow(0)
+                self.logger.debug(f"channel is none, something went wrong")
+
+        if not found_drv:
+            self.logger.debug("No link found, defaulting to None")
+            self.drives_list.setCurrentRow(0)
 
     def detect_linked_enc(self):
         self.logger.info(f"in detect_linked_enc")
-        currAxisIdx = self.axis_list_linker.currentRow()
-        currAxis = val_to_key(self.axis[currAxisIdx], self.pvDict)
+        currAxis = self.axis_list_linker.currentRow()
         self.logger.debug(f"currAxis: {currAxis}")
-        if currAxis is None:
-            self.logger.warning("detect_linked_enc: no valid axis key found; skipping")
-            self.encoders_list.setCurrentRow(0)
-            return
 
-        currAxis = strip_axis_id(currAxis)
-        if currAxis is None:
-            self.logger.warning(
-                "detect_linked_enc: strip_axis_id returned None; skipping"
-            )
-            self.encoders_list.setCurrentRow(0)
-            return
-
-        detectableENC = currAxis + ":SelG:ENC:Id_RBV"
-        encValue = fake_caget(self.pvDict, detectableENC)
+        detectableENC = (
+            self.prefixName + ":AXIS:0" + str(currAxis + 1) + ":SelG:ENC:Id_RBV"
+        )
+        encValue = epics.caget(detectableENC, as_string=True)
+        self.logger.debug(f"detectableENC: {detectableENC}")
         self.logger.debug(f"encValue: {encValue}")
 
+        found_enc = False
         for i in range(0, self.encoders_list.count()):
-            currEnc = self.encoders_list.item(i).text()
-            self.logger.debug(f"currEnc: {currEnc}, sizeEnc: {len(self.encoders_list)}")
-            if encValue == currEnc:
+            if encValue == self.encoders_list.item(i).text():
                 self.logger.debug(f"found enc: {self.encoders_list.item(i).text()}")
                 self.encoders_list.setCurrentRow(i)
+                found_enc = True
+                break
+
+        # load encoder channels
+        encoder_channel = (
+            self.prefixName
+            + ":AXIS:0"
+            + str(self.axis_list_linker.currentRow() + 1)
+            + ":SelG:ENC:MAIN_RBV"
+        )
+        self.logger.debug(f"encoder_channel: {encoder_channel}")
+        encoder_channel_val = epics.caget(encoder_channel, as_string=True)
+        self.logger.debug(f"encoder_channel_val: {encoder_channel_val}")
+        for i in range(0, self.encoders_channel_list.count()):
+            item = self.encoders_channel_list.item(i)
+            if item is not None and encoder_channel_val == item.text():
+                self.logger.debug(f"found enc chan: {item.text()}")
+                self.encoders_channel_list.setCurrentRow(i)
                 break
             else:
-                self.logger.debug("No link found, defaulting to None")
-                self.encoders_list.setCurrentRow(0)
+                self.logger.debug(f"channel is none, something went wrong")
+
+        if not found_enc:
+            self.logger.debug("No link found, defaulting to None")
+            self.encoders_channel_list.setCurrentRow(0)
+
+    def load_drives_channel(self):
+        self.logger.info(f"in load_drives_channel")
+        self.drives_channel_list.clear()
+        if "7062" in self.drives_list.currentItem().text():
+            for i in range(0, 2):
+                self.drives_channel_list.addItem(str(i + 1))
+
+    def load_encoders_channel(self):
+        self.logger.info(f"in load_encoders_channel_ui")
+        self.encoders_channel_list.clear()
+        if "7062" in self.encoders_list.currentItem().text():
+            for i in range(0, 2):
+                self.encoders_channel_list.addItem(str(i + 1))
+        elif "5042" in self.encoders_list.currentItem().text():
+            for i in range(0, 2):
+                self.encoders_channel_list.addItem(str(i + 1))
 
     def publish_axis_di(self):
         self.logger.info(f"in publish_axis_di")
@@ -814,6 +858,9 @@ class LinkerWindow(DesignerDisplay, QWidget):
     def select_di_channel(self):
         self.logger.info(f" select_di_channel:")
         # self.check_duplicate_di
+
+        DI_hardware_Channel = 0
+        DI_Hardware_Channel_Main = 0
         axis_di_idx = self.digital_input_axis.currentRow()
         self.logger.debug(f"axis_di_idx: {axis_di_idx}")
         if axis_di_idx < 0:
@@ -821,83 +868,142 @@ class LinkerWindow(DesignerDisplay, QWidget):
         else:
             currAxisIdx = self.axis_list_linker.currentRow()
             self.logger.debug(f"currAxisIdx: {currAxisIdx}")
-            self.logger.debug(f"axis: {self.axis[currAxisIdx]}")
-            currAxis = val_to_key(self.axis[currAxisIdx], self.pvDict)
-            self.logger.debug(f"currAxis: {currAxis}")
-            currAxis = strip_axis_id(currAxis)
-            detectableDi = currAxis + ":SelG:DI:" + ("0" + str(int(axis_di_idx) + 1))
+            # self.logger.debug(f"axis: {self.axis[currAxisIdx]}")
+            # currAxis = val_to_key(self.axis[currAxisIdx], self.pvDict)
+            # self.logger.debug(f"currAxis: {currAxis}")
+            currAxis = self.prefixName + ":AXIS:0" + str(currAxisIdx + 1)
+            detectableDi = (
+                currAxis + ":SelG:DI:" + ("0" + str(int(axis_di_idx) + 1)) + ":Id_RBV"
+            )
             self.logger.debug(f"link to check: {detectableDi}")
-            DI_hardware = fake_caget(self.pvDict, detectableDi + ":ID_RBV")
-            if DI_hardware == "":
+            DI_hardware = epics.caget(detectableDi, as_string=True)
+            if DI_hardware == 0:
                 DI_hardware = None
             self.logger.debug(f"DI_hardware: {DI_hardware}")
-            DI_hardware_Channel = fake_caget(
-                self.pvDict, detectableDi + ":HardChNum_RBV"
-            )
-            self.logger.debug(f"DI_hardware_channel: {DI_hardware_Channel}")
             # returnStatus = self.digital_input_hardware.findItems(value, Qt.MatchCaseSensitive)
             # self.logger.debug(f"returnStatus: {returnStatus.text()}")
 
             self.logger.debug("searching for DI hardware")
             # detect DI hardware
+
             for i in range(0, self.digital_input_hardware.count()):
                 if DI_hardware == self.digital_input_hardware.item(i).text():
                     # self.logger.debug(f"currItem: {self.digital_input_hardware.item(i).text()}")
                     self.logger.debug(
-                        f"found hardware: {self.digital_input_hardware.item(i).text()}"
+                        f"found hardware main: {self.digital_input_hardware.item(i).text()}"
                     )
                     self.digital_input_hardware.setCurrentRow(i)
-                elif DI_hardware == None:
+                elif DI_hardware == "0":
                     self.logger.debug("no hardware detected")
-                    self.digital_input_hardware.setCurrentRow(0)
-                else:
+                    # self.digital_input_hardware.setCurrentRow(0)
                     self.logger.debug("something went wrong/thinking")
-
-            self.logger.debug("searching for di hardware channel")
-            for i in range(0, self.digital_input_channels.count()):
-                if DI_hardware_Channel == self.digital_input_channels.item(i).text():
-                    self.logger.debug(
-                        f"found channel: {self.digital_input_channels.item(i).text()}"
-                    )
-                    self.digital_input_channels.setCurrentRow(i)
-                elif DI_hardware_Channel == "0":
-                    self.logger.debug("something went wrong, should not be possible")
-                    self.digital_input_channels.setSelectionMode(
+                    self.digital_input_hardware.selectionMode(
                         QAbstractItemView.NoSelection
                     )
 
-            if axis_di_idx == 0:
-                self.store_di_selection[0] = [
-                    self.digital_input_hardware.currentRow(),
-                    self.digital_input_channels.currentRow(),
-                ]
-            elif axis_di_idx == 1:
-                self.store_di_selection[1] = [
-                    self.digital_input_hardware.currentRow(),
-                    self.digital_input_channels.currentRow(),
-                ]
-            elif axis_di_idx == 2:
-                self.store_di_selection[2] = [
-                    self.digital_input_hardware.currentRow(),
-                    self.digital_input_channels.currentRow(),
-                ]
+            di_chan_slot = (
+                currAxis + ":SelG:DI:" + ("0" + str(int(axis_di_idx) + 1)) + ":MAIN_RBV"
+            )
+            DI_Hardware_Channel_Main = epics.caget(di_chan_slot, as_string=True)
+            self.logger.debug(
+                f"DI_hardware_Channel Slot: {int(DI_Hardware_Channel_Main)}"
+            )
+            self.logger.debug("searching for di hardware main channel")
+
+            for i in range(0, self.digital_input_main_channels.count()):
+                if (
+                    DI_Hardware_Channel_Main
+                    == self.digital_input_main_channels.item(i).text()
+                ):
+                    self.logger.debug(
+                        f"found channel main: {self.digital_input_main_channels.item(i).text()}"
+                    )
+                    self.digital_input_main_channels.setCurrentRow(i)
+                elif DI_Hardware_Channel_Main == "0":
+                    self.logger.debug("something went wrong, should not be possible")
+                    self.digital_input_main_channels.selectionMode(
+                        QAbstractItemView.NoSelection
+                    )
+
+            self.logger.debug("searching for di hardware sub channel")
+
+            di_chan = (
+                currAxis + ":SelG:DI:" + ("0" + str(int(axis_di_idx) + 1)) + ":SUB_RBV"
+            )
+            DI_hardware_Channel = epics.caget(di_chan, as_string=True)
+            self.logger.debug(f"DI_hardware_Channel: {int(DI_hardware_Channel)}")
+
+            for i in range(0, self.digital_input_sub_channels.count()):
+                if (
+                    DI_hardware_Channel
+                    == self.digital_input_sub_channels.item(i).text()
+                ):
+                    self.logger.debug(
+                        f"found channel: {self.digital_input_sub_channels.item(i).text()}"
+                    )
+                    self.digital_input_sub_channels.setCurrentRow(i)
+                elif DI_hardware_Channel == "0":
+                    self.logger.debug("something went wrong, should not be possible")
+                    self.digital_input_sub_channels.setSelectionMode(
+                        QAbstractItemView.NoSelection
+                    )
+
+            # if axis_di_idx == 0:
+            #     self.store_di_selection[0] = [
+            #         self.digital_input_hardware.currentRow(),
+            #         self.digital_input_channels.currentRow(),
+            #     ]
+            # elif axis_di_idx == 1:
+            #     self.store_di_selection[1] = [
+            #         self.digital_input_hardware.currentRow(),
+            #         self.digital_input_channels.currentRow(),
+            #     ]
+            # elif axis_di_idx == 2:
+            #     self.store_di_selection[2] = [
+            #         self.digital_input_hardware.currentRow(),
+            #         self.digital_input_channels.currentRow(),
+            #     ]
 
     def load_di_channel(self):
         self.logger.debug("load di_channel")
-        self.digital_input_channels.clear()
-        currDiIdx = self.digital_input_hardware.currentRow()
-        currDI = self.digital_inputs_linker[currDiIdx]
-        self.logger.debug(f"DI idx: {currDI}")
-        delimiter = ":WCIB_RBV"
-        cleaned_di = currDI.replace(delimiter, ":NUMDI_RBV")
-        self.logger.debug(f"cleaned axis: {cleaned_di}")
-        self.di_size = fake_caget(self.pvDict, cleaned_di)
-        self.logger.debug(f"di size: {self.di_size}")
-        if self.di_size is not None and self.di_size != 0:
-            for i in range(0, int(self.di_size)):
-                self.digital_input_channels.addItem(str(i + 1))
+        self.digital_input_main_channels.clear()
+        self.digital_input_sub_channels.clear()
+        current_item = self.digital_input_hardware.currentItem()
+        if current_item is None:
+            self.logger.warning("No digital input hardware item selected")
+            return
+
+        currDI = current_item.text()
+        if currDI == "None":
+            self.logger.debug(
+                "Selected digital input hardware is None, no hardware selected"
+            )
+            return
+
+        currDI = currDI.split("_")[0]
+        self.logger.debug(f"DI Slice: {currDI}")
+        currAxisIdx = self.axis_list_linker.currentRow()
+        axis_di_idx = self.digital_input_axis.currentRow()
+        currAxis = self.prefixName + ":AXIS:0" + str(currAxisIdx + 1)
+
+        if currDI.startswith("EL7062"):
+            # di_chan = currAxis + ":SelG:DI:" + ("0" + str(int(axis_di_idx) + 1)) + ':SUB_RBV'
+            # self.di_size = epics.caget(di_chan)
+            for i in range(0, int(2)):
+                self.digital_input_main_channels.addItem(str(i + 1))
+            for i in range(0, int(2)):
+                self.digital_input_sub_channels.addItem(str(i + 1))
+        elif currDI.startswith("EL1429"):
+            di_chan = (
+                currAxis + ":SelG:DI:" + ("0" + str(int(axis_di_idx) + 1)) + ":SUB_RBV"
+            )
+            self.di_size = epics.caget(di_chan)
+            for i in range(0, int(16)):
+                self.digital_input_main_channels.addItem(str(i + 1))
+            for i in range(0, int(1)):
+                self.digital_input_sub_channels.addItem(str(i + 1))
         else:
-            self.digital_input_channels.clear()
+            self.logger.debug("Slice Unknown")
 
     def load_drives(self):
         # update enum with drives pulled from .db file

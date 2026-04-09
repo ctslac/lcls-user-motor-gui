@@ -271,7 +271,7 @@ class UserInputWindow(DesignerDisplay, QWidget):
             # returnStatus = self.digital_input_hardware.findItems(value, Qt.MatchCaseSensitive)
             # self.logger.debug(f"returnStatus: {returnStatus.text()}")
 
-            self.logger.debug("searching for DI hardware")
+            self.logger.debug("searching for DI hardware channel")
             """
             detect DI hardware, here this is any slice
             the next thing that needs to happen is parse by slice type and check mains and sub-mains
@@ -356,7 +356,7 @@ class UserInputWindow(DesignerDisplay, QWidget):
             for i in range(0, self.digital_input_channels_ui.count()):
                 if DI_hardware_Channel == self.digital_input_channels_ui.item(i).text():
                     self.logger.debug(
-                        f"found channel main: {self.digital_input_channels_ui.item(i).text()}"
+                        f"found channel sub: {self.digital_input_channels_ui.item(i).text()}"
                     )
                     self.digital_input_channels_ui.setCurrentRow(i)
                 elif DI_hardware_Channel == "0":

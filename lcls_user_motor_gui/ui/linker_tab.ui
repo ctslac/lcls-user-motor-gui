@@ -135,7 +135,7 @@
                  <item>
                   <widget class="QLabel" name="label">
                    <property name="text">
-                    <string>Digital Inputs</string>
+                    <string>DI Selector</string>
                    </property>
                   </widget>
                  </item>
@@ -163,12 +163,22 @@
                  <item>
                   <widget class="QLabel" name="label_12">
                    <property name="text">
-                    <string>Digital Input Channel</string>
+                    <string>DI Main Channel</string>
                    </property>
                   </widget>
                  </item>
                  <item>
-                  <widget class="QListWidget" name="digital_input_channels"/>
+                  <widget class="QListWidget" name="digital_input_main_channels"/>
+                 </item>
+                 <item>
+                  <widget class="QLabel" name="label_6">
+                   <property name="text">
+                    <string>DI Sub Channel</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QListWidget" name="digital_input_sub_channels"/>
                  </item>
                 </layout>
                </item>
@@ -180,9 +190,19 @@
             <attribute name="title">
              <string>Drives</string>
             </attribute>
-            <layout class="QHBoxLayout" name="horizontalLayout_10">
+            <layout class="QVBoxLayout" name="verticalLayout_3">
              <item>
               <widget class="QListWidget" name="drives_list"/>
+             </item>
+             <item>
+              <widget class="QLabel" name="label_3">
+               <property name="text">
+                <string>Main Channel</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QListWidget" name="drives_channel_list"/>
              </item>
             </layout>
            </widget>
@@ -193,6 +213,16 @@
             <layout class="QVBoxLayout" name="verticalLayout_6">
              <item>
               <widget class="QListWidget" name="encoders_list"/>
+             </item>
+             <item>
+              <widget class="QLabel" name="label_4">
+               <property name="text">
+                <string>Main Channel</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QListWidget" name="encoders_channel_list"/>
              </item>
             </layout>
            </widget>

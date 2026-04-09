@@ -455,6 +455,12 @@ class MainWindow(DesignerDisplay, QWidget):
         self.linker_widget.digital_input_axis.currentRowChanged.connect(
             self.linker_widget.select_di_channel
         )
+        self.linker_widget.drives_list.currentRowChanged.connect(
+            self.linker_widget.load_drives_channel
+        )
+        self.linker_widget.encoders_list.currentRowChanged.connect(
+            self.linker_widget.load_encoders_channel
+        )
         # axis signals
         self.linker_widget.axis_list_linker.currentRowChanged.connect(
             self.linker_widget.isStagedMappingSet
@@ -773,6 +779,7 @@ class MainWindow(DesignerDisplay, QWidget):
         # finding prefix at element 0
         self.prefixName = self.pvList[0]
         self.user_input_widget.prefixName = self.prefixName
+        self.linker_widget.prefixName = self.prefixName
         self.expert_widget.prefixName = self.prefixName
         self.diagnostic_widget.prefixName = self.prefixName
         print(self.prefixName)
