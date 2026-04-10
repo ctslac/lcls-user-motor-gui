@@ -1,4 +1,5 @@
 import logging
+import time
 from pathlib import Path
 
 import epics
@@ -516,6 +517,34 @@ class LinkerWindow(DesignerDisplay, QWidget):
             currDiHardwareSubChan = ""
         self.logger.debug(f"currDiHardwareSubChan: {currDiHardwareSubChan}")
 
+        currDrvHardwareChan = self.drives_channel_list.currentItem()
+        if currDrvHardwareChan is None:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Warning)
+            msg.setText("Please select a Digital Input Hardware Sub Channel!")
+            msg.setWindowTitle("Selection Required")
+            msg.setStandardButtons(QMessageBox.Ok)
+            msg.exec_()
+        elif currDrvHardwareChan is not None:
+            currDrvHardwareChan = str(int(currDrvHardwareChan.text()))
+        else:
+            currDrvHardwareChan = ""
+        self.logger.debug(f"currDrvHardwareChan: {currDrvHardwareChan}")
+
+        currEncHardwareChan = self.drives_channel_list.currentItem()
+        if currEncHardwareChan is None:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Warning)
+            msg.setText("Please select a Digital Input Hardware Sub Channel!")
+            msg.setWindowTitle("Selection Required")
+            msg.setStandardButtons(QMessageBox.Ok)
+            msg.exec_()
+        elif currEncHardwareChan is not None:
+            currEncHardwareChan = str(int(currEncHardwareChan.text()))
+        else:
+            currEncHardwareChan = ""
+        self.logger.debug(f"currEncHardwareChan: {currEncHardwareChan}")
+
         # if (currDiHardware != None and currDiHardware != "None") and (
         #     self.digital_input_channels.currentItem() == None
         # ):
@@ -566,13 +595,15 @@ class LinkerWindow(DesignerDisplay, QWidget):
         elif self.drives_list.currentItem().text() == "None":
             self.staged_de[0][0] = ["None"]
         else:
-            self.staged_de[0][0] = [self.drives_list.currentItem().text()]
+            self.staged_de[0][0].append(self.drives_list.currentItem().text())
+            self.staged_de[0][0].append(self.drives_channel_list.currentItem().text())
         if self.encoders_list.currentItem() == None:
             self.staged_de[0][1] = ["None"]
         elif self.encoders_list.currentItem().text() == "None":
             self.staged_de[0][1] = ["None"]
         else:
-            self.staged_de[0][1] = [self.encoders_list.currentItem().text()]
+            self.staged_de[0][1].append(self.encoders_list.currentItem().text())
+            self.staged_de[0][1].append(self.encoders_channel_list.currentItem().text())
 
         self.check_duplicate_di()
         self.check_duplicate_drv()
@@ -1102,6 +1133,63 @@ class LinkerWindow(DesignerDisplay, QWidget):
         worker.finished.connect(worker.deleteLater)
         thread.start()
 
+    # def update_links(self):
+    #     self.logger.info(f"in update links")
+    #     # caput staged changes to axis
+
+    #     # For each staged_mapping ("DI") entry that has changes
+    #     for axis in self.staged_mapping:
+    #         for di in axis:
+    #             if len(di) > 1:
+    #                 try:
+    #                     axis_idx = self.axis_list_linker.currentRow() + 1
+    #                     prefix = f"{self.prefixName}0{axis_idx}"
+
+    #                     di_idx = di[0]
+    #                     # DI hardware (eg "EL7047_2")
+    #                     di_hardware = di[1] if len(di) > 1 else None
+    #                     di_channel = di[2] if len(di) > 2 else None
+
+    #                     di_hardware_pv = f"{prefix}:SelG:DI:{di_idx}:ID"
+    #                     di_channel_pv  = f"{prefix}:SelG:DI:{di_idx}:HardChNum"
+
+    #                     if di_hardware:
+    #                         self.caput_async(di_hardware_pv, di_hardware)
+    #                     if di_channel:
+    #                         self.caput_async(di_channel_pv, di_channel)
+
+    #                 except Exception as e:
+    #                     self.logger.error(f"Error processing DI {di}: {e}")
+
+    #     # For each staged_de ("DRV"/"ENC") entry that has changes
+    #     for item in self.staged_de:
+    #         try:
+    #             axis_idx = self.axis_list_linker.currentRow() + 1
+    #             prefix = f"{self.prefixName}0{axis_idx}"
+
+    #             drv = item[0][0] if item[0] and item[0][0] != "None" else None
+    #             enc = item[1][0] if item[1] and item[1][0] != "None" else None
+
+    #             drv_pv = f"{prefix}:SelG:DRV:Id"
+    #             enc_pv = f"{prefix}:SelG:ENC:Id"
+
+    #             if drv:
+    #                 self.caput_async(drv_pv, drv)
+    #             if enc:
+    #                 self.caput_async(enc_pv, enc)
+    #         except Exception as e:
+    #             self.logger.error(f"Error processing DRV/ENC {item}: {e}")
+
+    # Standard handler for all async results
+    def handle_caput_result(self, pv_name, success, new_value):
+        if success:
+            self.logger.info(f"caput {pv_name} succeeded, new value: {new_value}")
+        else:
+            self.logger.warning(f"caput {pv_name} failed, attempted set to {new_value}")
+
+    # Optional: display in GUI
+    # self.status_label.setText(...)
+
     def update_links(self):
         self.logger.info(f"in update links")
         di_hardware_pv = ""
@@ -1109,123 +1197,182 @@ class LinkerWindow(DesignerDisplay, QWidget):
         drv_pv = ""
         enc_pv = ""
         # caput staged changes to axis
-        for axis in self.staged_mapping:
-            for di in axis:
-                print(f"di: {di}")
-                if len(di) > 1:
-                    print(f"Found changes in di: {di}")
+        for axis_i, axis in enumerate(self.staged_mapping):
+            if len(axis) > 0:
+                self.logger.debug(f"found changes in axis: {axis}")
 
-                    try:
-                        # Construct the Process Variable (PV) strings
-                        # TST:UM:03:SelG:DI:01:ID
-                        di_hardware_pv = (
-                            self.prefixName
-                            + "0"
-                            + str(self.axis_list_linker.currentRow() + 1)
-                            + ":SelG:DI:"
-                            + di[0]
-                            + ":ID"
-                        )
-                        di_channel_pv = (
-                            self.prefixName
-                            + "0"
-                            + str(self.axis_list_linker.currentRow() + 1)
-                            + ":SelG:DI:"
-                            + di[0]
-                            + ":HardChNum"
-                        )
+                """
+                # Construct the Process Variable (PV) strings
+                # TST:UM:03:LinkSel:SelG:DI:01:Id
+                # TST:UM:03:LinkSel:SelG:AXIS:Id
+                # TST:UM:03:LinkSel:SelG:DRV:Id
+                # TST:UM:03:LinkSel:SelG:ENC:Id
 
-                        # Set di_hardware to the second element of di
-                        if len(di) > 1:
-                            di_hardware = di[1]  # This is expected to be 'EL7047_2'
-                        else:
-                            raise ValueError(
-                                "di does not have enough elements to retrieve di_hardware."
-                            )
+                # Update link process
+                1. in link selector caput axis id of interest
+                    - TST:UM:LinkSel:SelG:AXIS:Id
+                2. view set to true -> gives you all of current config
+                    - TST:UM:LinkSel:View
+                3. change all link defs you want to change
+                    - TST:UM:LinkSel:DI:[number]:[channel]
+                4. link selector update command
+                    - TST:UM:LinkSel:Update
 
-                        # Set di_channel to the element after di_hardware ('EL7047_2')
-                        if len(di) > 2:
-                            # Find the index of 'EL7047_2' and get the next element
-                            if di_hardware in di:
-                                index = di.index(di_hardware)
-                                if index + 1 < len(di):
-                                    di_channel = di[index + 1]  # Get the next element
-                                else:
-                                    raise ValueError(
-                                        f"No element found after {di_hardware} in {di}."
-                                    )
-                            else:
-                                raise ValueError(f"{di_hardware} not found in di.")
-                        else:
-                            raise ValueError(
-                                "di does not have enough elements to retrieve di_channel."
-                            )
+                """
+                # step 1
+                # currAxis = int(self.staged_mapping[self.axis_list_linker.currentRow()])
+                select_axis_string = f"{self.prefixName}:LinkSel:SelG:AXIS:Id"
+                self.logger.debug(f"select_axis_string: {select_axis_string}")
+                caReadBackSelectedAxis = epics.caput(
+                    select_axis_string,
+                    self.axis_list_linker.currentItem().text(),
+                    wait=True,
+                )
+                time.sleep(0.5)
+                self.logger.debug(f"caReadBackSelectedAxis: {caReadBackSelectedAxis}")
 
-                        print(
-                            f"di_hardware_pv: {di_hardware_pv}, di hardware: {di_hardware}"
-                        )
-                        print(
-                            f"di_channel_pv: {di_channel_pv}, di channel: {di_channel}"
-                        )
+                # step 2
+                view_to_true = f"{self.prefixName}:LinkSel:View"
+                caReadBack_view_to_true = epics.caput(view_to_true, True, wait=True)
+                time.sleep(0.5)
+                self.logger.debug(f"caReadBack_view_to_true: {caReadBack_view_to_true}")
 
-                        # Example operation that may raise an exception
-                        try:
-                            print("trying to caput di hardware")
-                            status_di_hardware = epics.caput(
-                                di_hardware_pv, di_hardware
-                            )
-                            if status_di_hardware == 0:
-                                print("di hardware caput succeded")
-                            elif status_di_hardware < 0:
-                                raise ValueError(
-                                    f"DI Hardware caput failed: {status_di_hardware}"
-                                )
-                        except ValueError as e:
-                            print(f"Value error for di: {di}")
+                # step 3
+                # for i in range(0,3):
+                # digital inputs
+                self.logger.debug(f"di_1: {axis[0]}")
+                if len(axis[0]) > 2:
+                    di_1_id = f"{self.prefixName}:LinkSel:SelG:DI:01:Id"
+                    self.logger.debug(f"di_1_id: {di_1_id}")
+                    di_1_id_new_value = axis[0][1]
+                    self.logger.debug(f"di_1_id_new_value: {di_1_id_new_value}")
+                    caReadBack_di_1_id = epics.caput(
+                        di_1_id, di_1_id_new_value, wait=True
+                    )
+                    # time.sleep(2)
+                    self.logger.debug(f"caReadBack_di_1_id: {caReadBack_di_1_id}")
 
-                        try:
-                            print("trying to caput di channel")
-                            status_di_channel = epics.caput(di_channel_pv, di_channel)
-                            if status_di_channel == 0:
-                                print("di channel caput succeded")
-                            elif status_di_channel < 0:
-                                raise ValueError(
-                                    f"DI Hardware caput failed: {status_di_channel}"
-                                )
-                        except ValueError as e:
-                            print(f"Value error for di: {di}")
+                    di_1_main = f"{self.prefixName}:LinkSel:SelG:DI:01:MAIN"
+                    self.logger.debug(f"di_1_main: {di_1_main}")
+                    di_1_main_new_value = axis[0][2]
+                    self.logger.debug(f"di_1_main_new_value: {di_1_main_new_value}")
+                    caReadBack_di_1_main = epics.caput(
+                        di_1_main, int(di_1_main_new_value), wait=True
+                    )
+                    # time.sleep(2)
+                    self.logger.debug(f"caReadBack_di_1_main: {caReadBack_di_1_main}")
 
-                    except IndexError as e:
-                        print(
-                            f"IndexError for di {di}: {e}. Ensure di has enough elements."
-                        )
-                    except ValueError as e:
-                        print(f"ValueError for di {di}: {e}")
-                    except Exception as e:
-                        print(f"An unexpected error occurred for di {di}: {e}")
+                    di_1_sub = f"{self.prefixName}:LinkSel:SelG:DI:01:SUB"
+                    self.logger.debug(f"di_1_sub: {di_1_sub}")
+                    di_1_sub_new_value = axis[0][3]
+                    self.logger.debug(f"di_1_sub_new_value: {di_1_sub_new_value}")
+                    caReadBack_di_1_sub = epics.caput(
+                        di_1_sub, int(di_1_sub_new_value), wait=True
+                    )
+                    # time.sleep(2)
+                    self.logger.debug(f"caReadBack_di_1_sub: {caReadBack_di_1_sub}")
                 else:
-                    print(f"no changes in di: {di}")
-        # for sublist in self.staged_de:
-        for item in self.staged_de:
-            print(f"item: {item}")
-            if len(item) > 1:
-                # TST:UM:03:SelG:ENC:Id
-                drv_pv = (
-                    self.prefixName
-                    + "0"
-                    + str(self.axis_list_linker.currentRow() + 1)
-                    + ":SelG:DRV:Id"
+                    self.logger.debug(f"nothing in di1")
+                self.logger.debug(f"di_2: {axis[1]}")
+                if len(axis[1]) > 2:
+                    di_2_id = f"{self.prefixName}:LinkSel:SelG:DI:02:Id"
+                    self.logger.debug(f"di_2_id: {di_2_id}")
+                    di_2_id_new_value = axis[1][1]
+                    self.logger.debug(f"di_2_id_new_value: {di_2_id_new_value}")
+                    caReadBack_di_2_id = epics.caput(
+                        di_2_id, di_2_id_new_value, wait=True
+                    )
+                    # time.sleep(2)
+                    self.logger.debug(f"caReadBack_di_2_id: {caReadBack_di_2_id}")
+
+                    di_2_main = f"{self.prefixName}:LinkSel:SelG:DI:02:MAIN"
+                    self.logger.debug(f"di_2_main: {di_2_main}")
+                    di_2_main_new_value = axis[1][2]
+                    self.logger.debug(f"di_2_main_new_value: {di_2_main_new_value}")
+                    caReadBack_di_2_main = epics.caput(
+                        di_2_main, int(di_2_main_new_value), wait=True
+                    )
+                    # time.sleep(2)
+                    self.logger.debug(f"caReadBack_di_2_main: {caReadBack_di_2_main}")
+
+                    di_2_sub = f"{self.prefixName}:LinkSel:SelG:DI:02:SUB"
+                    self.logger.debug(f"di_1_sub: {di_2_sub}")
+                    di_2_sub_new_value = axis[1][3]
+                    self.logger.debug(f"di_1_sub_new_value: {di_2_sub_new_value}")
+                    caReadBack_di_2_sub = epics.caput(
+                        di_2_sub, int(di_2_sub_new_value), wait=True
+                    )
+                    # time.sleep(2)
+                    self.logger.debug(f"caReadBack_di_2_sub: {caReadBack_di_2_sub}")
+                else:
+                    self.logger.debug(f"nothing in di2")
+                self.logger.debug(f"di_3: {axis[2]}")
+                if len(axis[2]) > 2:
+                    di_3_id = f"{self.prefixName}:LinkSel:SelG:DI:03:Id"
+                    self.logger.debug(f"di_1_id: {di_3_id}")
+                    di_3_id_new_value = axis[2][1]
+                    self.logger.debug(f"di_1_id_new_value: {di_3_id_new_value}")
+                    caReadBack_di_3_id = epics.caput(
+                        di_3_id, di_3_id_new_value, wait=True
+                    )
+                    # time.sleep(2)
+                    self.logger.debug(f"caReadBack_di_3_id: {caReadBack_di_3_id}")
+
+                    di_3_main = f"{self.prefixName}:LinkSel:SelG:DI:03:MAIN"
+                    self.logger.debug(f"di_1_main: {di_3_main}")
+                    di_3_main_new_value = axis[2][2]
+                    self.logger.debug(f"di_1_main_new_value: {di_3_main_new_value}")
+                    caReadBack_di_3_main = epics.caput(
+                        di_3_main, int(di_3_main_new_value), wait=True
+                    )
+                    # time.sleep(2)
+                    self.logger.debug(f"caReadBack_di_3_main: {caReadBack_di_3_main}")
+
+                    di_3_sub = f"{self.prefixName}:LinkSel:SelG:DI:03:SUB"
+                    self.logger.debug(f"di_3_sub: {di_3_sub}")
+                    di_3_sub_new_value = axis[2][3]
+                    self.logger.debug(f"di_3_sub_new_value: {di_3_sub_new_value}")
+                    caReadBack_di_3_sub = epics.caput(
+                        di_3_sub, int(di_3_sub_new_value), wait=True
+                    )
+                    # time.sleep(2)
+                    self.logger.debug(f"caReadBack_di_3_sub: {caReadBack_di_3_sub}")
+                else:
+                    self.logger.debug(f"nothing in di3")
+                time.sleep(0.5)
+
+                # step 4
+                update_to_true = f"{self.prefixName}:LinkSel:Update"
+                caReadBack_update_to_true = epics.caput(update_to_true, True, wait=True)
+                time.sleep(0.5)
+                self.logger.debug(
+                    f"caReadBack_update_to_true: {caReadBack_update_to_true}"
                 )
-                enc_pv = (
-                    self.prefixName
-                    + "0"
-                    + str(self.axis_list_linker.currentRow() + 1)
-                    + ":SelG:ENC:Id"
-                )
-                print(f"drv_pv: {drv_pv}, drv: {item[0][0]}, enc: {item[1][0]}")
-                drv = item[0][0] if item[0] and item[0][0] != "None" else None
-            enc = item[1][0] if item[1] and item[1][0] != "None" else None
-            if drv:
-                self.caput_async(drv_pv, drv)
-            if enc:
-                self.caput_async(enc_pv, enc)
+
+        # # for sublist in self.staged_de:
+        # for item in self.staged_de:
+        #     print(f"item: {item}")
+        #     if len(item) > 1:
+        #         # TST:UM:03:SelG:ENC:Id
+        #         drv_pv = (
+        #             self.prefixName
+        #             + "0"
+        #             + str(self.axis_list_linker.currentRow() + 1)
+        #             + ":SelG:DRV:Id"
+        #         )
+        #         enc_pv = (
+        #             self.prefixName
+        #             + "0"
+        #             + str(self.axis_list_linker.currentRow() + 1)
+        #             + ":SelG:ENC:Id"
+        #         )
+        #         print(f"drv_pv: {drv_pv}, drv: {item[0][0]}, enc: {item[1][0]}")
+        #         drv = item[0][0] if item[0] and item[0][0] != "None" else None
+        #     enc = item[1][0] if item[1] and item[1][0] != "None" else None
+        #     # try:
+        #     if drv:
+        #         # self.caput_async(drv_pv, drv)
+        #         status_drv = epics.caput(drv_pv, drv)
+        #     if enc:
+        #         # self.caput_async(enc_pv, enc)
+        #         status_enc = epics.caput(enc_pv, enc)

@@ -776,6 +776,12 @@ class MainWindow(DesignerDisplay, QWidget):
         # hard code ioc path
         self.pvList = discover_pvs("", usr_db_path=iocpath, find_makefile=True)
 
+        # for testing only
+        # Save self.pvList to a file
+        with open("pvlist.txt", "w") as f:
+            for pv in self.pvList:
+                f.write(pv + "\n")
+
         # finding prefix at element 0
         self.prefixName = self.pvList[0]
         self.user_input_widget.prefixName = self.prefixName
