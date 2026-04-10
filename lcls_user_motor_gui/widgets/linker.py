@@ -138,6 +138,7 @@ class LinkerWindow(DesignerDisplay, QWidget):
         self.loaded_di_channels_linker = []
         # self.staged_mapping = []
         self.staged_mapping = []
+        self.staged_channels = []
         self.staged_de = []
         self.duplicate_di_cb_flag = False
         self.duplicate_drv_cb_flag = False
@@ -166,13 +167,15 @@ class LinkerWindow(DesignerDisplay, QWidget):
             self.logger.debug("There are some staged values")
             # self.configMappingWarningBox()
 
-            self.msg.setIcon(QMessageBox.Warning)
-            self.msg.setText("You have unsaved staged changes! Discard changes?")
-            self.msg.setWindowTitle("Warning")
-            self.msg.setStandardButtons(
+            self.main_window.msg.setIcon(QMessageBox.Warning)
+            self.main_window.msg.setText(
+                "You have unsaved staged changes! Discard changes?"
+            )
+            self.main_window.msg.setWindowTitle("Warning")
+            self.main_window.msg.setStandardButtons(
                 QMessageBox.Yes | QMessageBox.No
             )  # Adjusted buttons
-            result = self.msg.exec_()
+            result = self.main_window.msg.exec_()
 
             self.logger.debug(f"current axis: {self.qCurrAxis}")
             self.logger.debug(f"Message box result: {result}")
@@ -485,31 +488,45 @@ class LinkerWindow(DesignerDisplay, QWidget):
             currDiHardware = ""
         self.logger.debug(f"currDiHardware: {currDiHardwareItem}")
 
-        currDiHardwareChanItem = self.digital_input_channels.currentItem()
-        if currDiHardwareChanItem is None:
+        currDiHardwareMainChan = self.digital_input_main_channels.currentItem()
+        if currDiHardwareMainChan is None:
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Warning)
-            msg.setText("Please select a Digital Input Hardware Channel!")
+            msg.setText("Please select a Digital Input Hardware Main Channel!")
             msg.setWindowTitle("Selection Required")
             msg.setStandardButtons(QMessageBox.Ok)
             msg.exec_()
-        elif currDiHardwareChanItem is not None:
-            currDiHardwareChan = str(int(currDiHardwareChanItem.text()))
+        elif currDiHardwareMainChan is not None:
+            currDiHardwareMainChan = str(int(currDiHardwareMainChan.text()))
         else:
-            currDiHardwareChan = ""
-        self.logger.debug(f"currDiHardwareChan: {currDiHardwareChanItem}")
+            currDiHardwareMainChan = ""
+        self.logger.debug(f"currDiHardwareMainChan: {currDiHardwareMainChan}")
 
-        if (currDiHardware != None and currDiHardware != "None") and (
-            self.digital_input_channels.currentItem() == None
-        ):
+        currDiHardwareSubChan = self.digital_input_sub_channels.currentItem()
+        if currDiHardwareSubChan is None:
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Warning)
-            msg.setText("Please Select DI Hardware Channel")
-            msg.setInformativeText(f"No DI Hardware Channel Found!")
-            msg.setWindowTitle("Warning")
+            msg.setText("Please select a Digital Input Hardware Sub Channel!")
+            msg.setWindowTitle("Selection Required")
             msg.setStandardButtons(QMessageBox.Ok)
-
             msg.exec_()
+        elif currDiHardwareSubChan is not None:
+            currDiHardwareSubChan = str(int(currDiHardwareSubChan.text()))
+        else:
+            currDiHardwareSubChan = ""
+        self.logger.debug(f"currDiHardwareSubChan: {currDiHardwareSubChan}")
+
+        # if (currDiHardware != None and currDiHardware != "None") and (
+        #     self.digital_input_channels.currentItem() == None
+        # ):
+        #     msg = QMessageBox()
+        #     msg.setIcon(QMessageBox.Warning)
+        #     msg.setText("Please Select DI Hardware Channel")
+        #     msg.setInformativeText(f"No DI Hardware Channel Found!")
+        #     msg.setWindowTitle("Warning")
+        #     msg.setStandardButtons(QMessageBox.Ok)
+
+        #     msg.exec_()
 
         if len(self.staged_mapping[0]) and currAxisDi == 1:
             self.staged_mapping[0][0].clear()
@@ -522,22 +539,28 @@ class LinkerWindow(DesignerDisplay, QWidget):
             self.staged_mapping[0][0].append("0" + str(currAxisDi))
             if currDiHardware != "":
                 self.staged_mapping[0][0].append(currDiHardware)
-            if currDiHardwareChan != "":
-                self.staged_mapping[0][0].append(currDiHardwareChan)
+            if currDiHardwareMainChan != "":
+                self.staged_mapping[0][0].append(currDiHardwareMainChan)
+            if currDiHardwareSubChan != "":
+                self.staged_mapping[0][0].append(currDiHardwareSubChan)
         elif currAxisDi == 2:
             self.staged_mapping[0][1].append("0" + str(currAxisDi))
             if currDiHardware != "":
                 self.staged_mapping[0][1].append(currDiHardware)
-            if currDiHardwareChan != "":
-                self.staged_mapping[0][1].append(currDiHardwareChan)
+            if currDiHardwareMainChan != "":
+                self.staged_mapping[0][1].append(currDiHardwareMainChan)
+            if currDiHardwareSubChan != "":
+                self.staged_mapping[0][1].append(currDiHardwareSubChan)
         elif currAxisDi == 3:
             self.staged_mapping[0][2].append("0" + str(currAxisDi))
             if currDiHardware != "":
                 self.staged_mapping[0][2].append(currDiHardware)
-            if currDiHardwareChan != "":
-                self.staged_mapping[0][2].append(currDiHardwareChan)
+            if currDiHardwareMainChan != "":
+                self.staged_mapping[0][2].append(currDiHardwareMainChan)
+            if currDiHardwareSubChan != "":
+                self.staged_mapping[0][2].append(currDiHardwareSubChan)
 
-        # saving drive
+        # saving drives and encoders
         if self.drives_list.currentItem() == None:
             self.staged_de[0][0] = ["None"]
         elif self.drives_list.currentItem().text() == "None":
@@ -560,6 +583,7 @@ class LinkerWindow(DesignerDisplay, QWidget):
 
         # show mapping
         self.logger.debug(f"staged mapping: {self.staged_mapping}")
+        self.logger.debug(f"staged channels: {self.staged_channels}")
         self.logger.debug(f"staged de: {self.staged_de}")
 
     def clear_stage(self):
@@ -575,10 +599,15 @@ class LinkerWindow(DesignerDisplay, QWidget):
         for sublist in self.staged_mapping:
             for inner_list in sublist:
                 inner_list.clear()
+        for sublist in self.staged_channels:
+            sublist.clear()
         for sublist in self.staged_de:
             for inner_list in sublist:
                 inner_list.clear()
+        self.staged_mapping = [[["01"], ["02"], ["03"]]]
+        self.staged_de = [[["None"], ["None"]]]
         self.logger.debug(f"staged mapping: {self.staged_mapping}")
+        self.logger.debug(f"staged channels: {self.staged_channels}")
         self.logger.debug(f"staged de: {self.staged_de}")
 
     def detect_linked_drv(self):
@@ -697,8 +726,8 @@ class LinkerWindow(DesignerDisplay, QWidget):
         # currAxis = self.val_to_key(self.axis[currAxisIdx])
         # self.logger.debug(f"currAxis: {currAxis}")
 
-        currAxis = val_to_key(self.axis_list_linker.currentItem().text(), self.pvDict)
-        self.logger.debug(f"currAxis: {currAxis}")
+        # currAxis = val_to_key(self.axis_list_linker.currentItem().text(), self.pvDict)
+        # self.logger.debug(f"currAxis: {currAxis}")
         # for items in self.loaded_unique_di:
         #     if items.startswith(currAxis):
         #         numDI = numDI + 1
@@ -741,6 +770,7 @@ class LinkerWindow(DesignerDisplay, QWidget):
         # ]
 
         self.staged_mapping = [[["01"], ["02"], ["03"]]]
+        self.staged_channels = [["None"], ["None"]]
         self.staged_de = [[["None"], ["None"]]]
 
     def load_axis_di(self):

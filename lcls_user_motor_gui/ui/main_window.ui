@@ -32,13 +32,6 @@
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout">
          <item>
-          <widget class="QPushButton" name="reload_ioc">
-           <property name="text">
-            <string>Reload IOC</string>
-           </property>
-          </widget>
-         </item>
-         <item>
           <widget class="QPushButton" name="load_ioc">
            <property name="text">
             <string>Load IOC</string>
