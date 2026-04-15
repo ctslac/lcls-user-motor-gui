@@ -127,7 +127,7 @@ class ExpertWindow(DesignerDisplay, QWidget):
         print(f"len of nc param list: {len(stripped_nc)}")
         # Clear previous items
         self.expert_nc_widget.clear_items()
-        self.nc_list.clear()
+        # self.nc_list.clear()
 
         # Identify NC params
         # self.nc_list = identify_nc_params(axis, self.nc_list)
@@ -193,7 +193,7 @@ class ExpertWindow(DesignerDisplay, QWidget):
 
         # Clear previous items
         self.expert_drive_widget.clear_items()
-        self.coe_drive_list.clear()
+        # self.coe_drive_list.clear()
 
         self.ca_coe_drive_list = epics.caget_many(stripped_coe, as_string=True)
         self.logger.info(f"items size: {len(self.ca_coe_drive_list)}")
@@ -256,7 +256,7 @@ class ExpertWindow(DesignerDisplay, QWidget):
 
         # Clear previous items
         self.expert_encoder_widget.clear_items()
-        self.coe_encoder_list.clear()
+        # self.coe_encoder_list.clear()
 
         self.ca_coe_encoder_list = epics.caget_many(stripped_coe, as_string=True)
         self.logger.info(f"items size: {len(self.ca_coe_encoder_list)}")
