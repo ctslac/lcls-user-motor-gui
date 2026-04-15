@@ -40,7 +40,11 @@
         </widget>
        </item>
        <item>
-        <widget class="QListWidget" name="display_drives_ui"/>
+        <widget class="QListWidget" name="display_drives_ui">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+        </widget>
        </item>
        <item>
         <widget class="QLabel" name="label_2">
@@ -50,7 +54,11 @@
         </widget>
        </item>
        <item>
-        <widget class="QListWidget" name="display_drives_channel_ui"/>
+        <widget class="QListWidget" name="display_drives_channel_ui">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+        </widget>
        </item>
       </layout>
      </widget>
@@ -64,7 +72,11 @@
         </widget>
        </item>
        <item>
-        <widget class="QListWidget" name="display_encoders_ui"/>
+        <widget class="QListWidget" name="display_encoders_ui">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+        </widget>
        </item>
        <item>
         <widget class="QLabel" name="label_3">
@@ -74,7 +86,11 @@
         </widget>
        </item>
        <item>
-        <widget class="QListWidget" name="display_encoders_channel_ui"/>
+        <widget class="QListWidget" name="display_encoders_channel_ui">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+        </widget>
        </item>
       </layout>
      </widget>
@@ -102,7 +118,11 @@
         </widget>
        </item>
        <item>
-        <widget class="QListWidget" name="digital_input_hardware_ui"/>
+        <widget class="QListWidget" name="digital_input_hardware_ui">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+        </widget>
        </item>
       </layout>
      </widget>
@@ -116,7 +136,11 @@
         </widget>
        </item>
        <item>
-        <widget class="QListWidget" name="digital_input_channel_slot_ui"/>
+        <widget class="QListWidget" name="digital_input_channel_slot_ui">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+        </widget>
        </item>
        <item>
         <widget class="QLabel" name="label_10">
@@ -126,7 +150,11 @@
         </widget>
        </item>
        <item>
-        <widget class="QListWidget" name="digital_input_channels_ui"/>
+        <widget class="QListWidget" name="digital_input_channels_ui">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+        </widget>
        </item>
       </layout>
      </widget>

@@ -218,6 +218,7 @@ class MainWindow(DesignerDisplay, QWidget):
             self.ncList = []
             self.coeList = []
             self.wcibList = []
+            self.wcibDict = {}
 
             # self.dg_list = []
             self.ca_nc_list = []
