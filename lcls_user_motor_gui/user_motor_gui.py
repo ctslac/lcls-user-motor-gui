@@ -437,17 +437,17 @@ class MainWindow(DesignerDisplay, QWidget):
             self.user_input_widget.load_encoders_channel_ui
         )
 
-        # # Diagnostic
-        # self.diagnostic_widget.diagnostic_hardware_selection.currentRowChanged.connect(
-        #     self.diagnostic_widget.populate_diagnostic_coe
-        # )
+        # Diagnostic
+        self.diagnostic_widget.diagnostic_hardware_selection.currentRowChanged.connect(
+            self.diagnostic_widget.populate_diagnostic_coe
+        )
 
-        # self.diagnostic_widget.diagnostic_param_filter.currentIndexChanged.connect(
-        #     self.diagnostic_widget.populate_diagnostic_widget
-        # )
-        # self.diagnostic_widget.diagnostic_axis_selection.currentIndexChanged.connect(
-        #     self.diagnostic_widget.populate_diagnostic_hardware
-        # )
+        self.diagnostic_widget.diagnostic_param_filter.currentIndexChanged.connect(
+            self.diagnostic_widget.populate_diagnostic_widget
+        )
+        self.diagnostic_widget.diagnostic_axis_selection.currentIndexChanged.connect(
+            self.diagnostic_widget.populate_diagnostic_hardware
+        )
 
         # Linker
         # digitial input handling signals
@@ -823,7 +823,8 @@ class MainWindow(DesignerDisplay, QWidget):
         self.user_input_widget.pvDict = self.pvDict
         self.linker_widget.pvDict = self.pvDict
         self.expert_widget.pvDict = self.pvDict
-        self.diagnostic_widget.pvDict = self.pvDict
+        self.diagnostic_widget.dg_list = self.coeList.copy()
+        self.diagnostic_widget.ca_coe_list = self.coeDict.copy()
         # print(self.pvDict)
 
     def val_to_key(self, val):

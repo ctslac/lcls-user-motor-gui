@@ -1,3 +1,4 @@
+import re
 from functools import partial
 from os import path
 from pathlib import Path
@@ -65,6 +66,7 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
         self.pvDict = {}
         self.axis = []
         self.dg_list = []
+        self.ca_coe_list = []
 
         self.diagnostic_param_filter = FilteredListWidget(self.diagnostic_groupbox)
         self.diagnostic_groupbox.layout().addWidget(self.diagnostic_param_filter)
@@ -85,11 +87,17 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
         # Get current axis
         self.diagnostic_hardware_selection.clear()
         axis_index = self.diagnostic_axis_selection.currentIndex()
-        axis = f"{self.prefixName}:0{axis_index + 1}"
+        axis = f"{self.prefixName}:{(axis_index + 1):02}"
         print(f"axis: {axis}")
         print(f'caget: {axis + ":SelG:ENC:Id_RBV"}')
-        hardwareDrvId = epics.caget(axis + ":SelG:DRV:Id_RBV", as_string=True)
-        hardwareEncId = epics.caget(axis + ":SelG:ENC:Id_RBV", as_string=True)
+        string_hardwareDrvId = (
+            f"{self.prefixName}:AXIS:{(axis_index+1):02}:SelG:DRV:Id_RBV"
+        )
+        string_hardwareEncId = (
+            f"{self.prefixName}:AXIS:{(axis_index+1):02}:SelG:ENC:Id_RBV"
+        )
+        hardwareDrvId = epics.caget(string_hardwareDrvId, as_string=True)
+        hardwareEncId = epics.caget(string_hardwareEncId, as_string=True)
         print(f"drv id: {hardwareDrvId}, enc id: {hardwareEncId}")
         if hardwareDrvId:
             if "_" in hardwareDrvId:
@@ -103,8 +111,8 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
         else:
             hardwareEncId = "None"
 
-        axis_w_drv = f"{axis}:{hardwareDrvId}"
-        axis_w_enc = f"{axis}:{hardwareEncId}"
+        axis_w_drv = f"{self.prefixName}:{hardwareDrvId}:{(axis_index + 1):02}"
+        axis_w_enc = f"{self.prefixName}:{hardwareEncId}:{(axis_index + 1):02}"
         self.diagnostic_hardware_selection.addItems([axis_w_drv, axis_w_enc])
 
     def populate_diagnostic_coe(self):
@@ -112,15 +120,24 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
         currHardware = self.diagnostic_hardware_selection.currentItem().text()
         dgPrefix = currHardware + ":COE:DG:"
 
+        # self.dg_list = identify_dg_params(dgPrefix, self.pvDict)
+        string_drive_regex = f"{dgPrefix}[^:]+:Name_RBV"
+        print(f"string_drive_regex: {string_drive_regex}")
+        stripped_dg = []
+        print(f"coe len: {len(self.dg_list)}")
+        for pv in self.dg_list:
+            # print(f"pv: {pv}")
+            if re.search(string_drive_regex, pv):
+                print(f"stripped_dg, param: {pv}")
+                stripped_dg.append(pv.strip())
+
+        print(f"dg list size: {len(stripped_dg)}")
+
         # Clear previous items
         self.diagnostic_param_filter.clear_items()
         self.dg_list.clear()
 
-        self.dg_list = identify_dg_params(dgPrefix, self.pvDict)
-
-        print(f"dg list size: {len(self.dg_list)}")
-
-        self.ca_dg_list = epics.caget_many(self.dg_list, as_string=True)
+        self.ca_dg_list = epics.caget_many(stripped_dg, as_string=True)
 
         # Add items (filter out None just in case)
         items = [item for item in self.ca_dg_list if item]
@@ -145,19 +162,22 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
         print(f"in populate_diagnostic_widget!!!!!!!!!!")
         print(f"current Item: {self.diagnostic_param_filter.currentText()}")
         current_text = self.diagnostic_param_filter.currentText()
-
-        if current_text in self.ca_dg_list:
-            pv_index = self.ca_dg_list.index(current_text)
-            print(f"current pv: {pv_index} ({current_text})")
-            # item = self.param_list.item(pv_index)
-            thing = self.dg_list[pv_index]
-            print(f"item: {thing}")
-            name = self.remove_name_rbv(thing)
-            param_widget = uic.loadUi(
-                str(Path(__file__).parent / "./../ui" / "diagnostics.ui")
-            )
-            self.configure_diagnostic_widgets(param_widget, name)
-            self.diagnostic_params_groupbox.layout().addWidget(param_widget)
+        for index, (key, value) in enumerate(self.ca_coe_list.items()):
+            # if current_text in self.ca_coe_list:
+            if current_text == value:
+                # pv_index = self.ca_coe_list.index(current_text)
+                pv_index = index
+                print(f"current pv: {pv_index} ({current_text})")
+                # item = self.param_list.item(pv_index)
+                # thing = self.ca_coe_list[pv_index]
+                thing = key
+                print(f"item: {thing}")
+                name = self.remove_name_rbv(thing)
+                param_widget = uic.loadUi(
+                    str(Path(__file__).parent / "./../ui" / "diagnostics.ui")
+                )
+                self.configure_diagnostic_widgets(param_widget, name)
+                self.diagnostic_params_groupbox.layout().addWidget(param_widget)
 
     def configure_diagnostic_widgets(self, widget: QWidget, nc_pv):
         """
