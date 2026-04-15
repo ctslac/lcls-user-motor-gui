@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>384</width>
+    <width>401</width>
     <height>410</height>
    </rect>
   </property>
@@ -152,6 +152,9 @@
        </property>
        <property name="enableRichText" stdset="0">
         <bool>false</bool>
+       </property>
+       <property name="displayFormat" stdset="0">
+        <enum>PyDMLabel::String</enum>
        </property>
       </widget>
      </item>

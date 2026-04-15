@@ -1,3 +1,4 @@
+import re
 from functools import partial
 from os import path
 from pathlib import Path
@@ -113,16 +114,25 @@ class ExpertWindow(DesignerDisplay, QWidget):
 
         axis_index = self.expert_axis.currentIndex()
         print(f"axis: {axis_index}")
-        axis = f"{self.prefixName}:0{axis_index + 1}"
+        axis = f"{self.prefixName}:MMS:{(axis_index+1):02}:NC:"
+        c_nc_p = axis + "[^:]+:Name_RBV"
+        print(f"nc p regex: {c_nc_p}")
+        stripped_nc = []
+        for pv in self.nc_list:
+            # print(f"nc pv: {pv}")
+            if re.search(c_nc_p, pv):
+                print(f"Found nc_param in the list, param: {pv}")
+                stripped_nc.append(pv.strip())
 
+        print(f"len of nc param list: {len(stripped_nc)}")
         # Clear previous items
         self.expert_nc_widget.clear_items()
         self.nc_list.clear()
 
         # Identify NC params
-        self.nc_list = identify_nc_params(axis, self.pvDict)
+        # self.nc_list = identify_nc_params(axis, self.nc_list)
 
-        self.ca_nc_list = epics.caget_many(self.nc_list, as_string=True)
+        self.ca_nc_list = epics.caget_many(stripped_nc, as_string=True)
         self.logger.info(f"items size after caget: {len(self.ca_nc_list)}")
 
         # Add items (filter out None just in case)
@@ -140,26 +150,22 @@ class ExpertWindow(DesignerDisplay, QWidget):
         # self.expert_nc_filter.line_edit.setText(items[0])
 
         # Dynamically add param widgets
-        self.add_param_widgets(self.nc_list, self.expert_nc_filter_list)
+        self.add_param_widgets(stripped_nc, self.expert_nc_filter_list)
 
     def expert_update_drive(self, axis):
         self.logger.info(f"\nin expert_update_drive")
 
         # Get current axis
         axis_index = self.expert_axis.currentIndex()
-        axis = f"{self.prefixName}:0{axis_index + 1}"
-        print(f"axis: {axis}")
-        print(f'caget: {axis + ":SelG:DRV:Id_RBV"}')
-
-        # Clear previous items
-        self.expert_drive_widget.clear_items()
-        self.coe_drive_list.clear()
+        drive_string = f"{self.prefixName}:AXIS:{(axis_index+1):02}:SelG:DRV:Id_RBV"
+        print(f"drive_string: {drive_string}")
+        # print(f'caget: {axis + ":SelG:DRV:Id_RBV"}')
 
         # Get hardware slice
         # TST:UM:01:SelG:DRV:Id_RBV
-        hardwareID = epics.caget(axis + ":SelG:DRV:Id_RBV", as_string=True)
+        hardwareID = epics.caget(drive_string, as_string=True)
 
-        print(f"hardwareID after split: {hardwareID}")
+        print(f"hardwareID before split: {hardwareID}")
         # Remove everything after the first underscore
         if hardwareID:
             if "_" in hardwareID:
@@ -169,11 +175,27 @@ class ExpertWindow(DesignerDisplay, QWidget):
 
         print(f"hardwareID after split: {hardwareID}")
 
-        self.coe_drive_list = identify_coe_drive_params(
-            f"{axis}:{hardwareID}", self.pvDict
+        # self.coe_drive_list = identify_coe_drive_params(
+        #     f"{axis}:{hardwareID}", self.pvDict
+        # )
+        formatted_drive_string = (
+            f"{self.prefixName}:{hardwareID}:{(axis_index+1):02}:COE"
         )
+        string_drive_regex = f"{formatted_drive_string}:(?!.*:DG:)[^:]+:Name_RBV"
+        print(f"string_drive_regex: {string_drive_regex}")
+        stripped_coe = []
+        print(f"coe len: {len(self.coe_drive_list)}")
+        for pv in self.coe_drive_list:
+            print(f"pv: {pv}")
+            if re.search(string_drive_regex, pv):
+                print(f"Found nc_param in the list, param: {pv}")
+                stripped_coe.append(pv.strip())
 
-        self.ca_coe_drive_list = epics.caget_many(self.coe_drive_list, as_string=True)
+        # Clear previous items
+        self.expert_drive_widget.clear_items()
+        self.coe_drive_list.clear()
+
+        self.ca_coe_drive_list = epics.caget_many(stripped_coe, as_string=True)
         self.logger.info(f"items size: {len(self.ca_coe_drive_list)}")
 
         # Add items (filter out None just in case)
@@ -191,24 +213,20 @@ class ExpertWindow(DesignerDisplay, QWidget):
         # self.expert_drive_filter.line_edit.setText(items[0])
 
         # # Dynamically add param widgets
-        self.add_param_widgets(self.coe_drive_list, self.expert_coe_drive_filter_list)
+        self.add_param_widgets(stripped_coe, self.expert_coe_drive_filter_list)
 
     def expert_update_encoder(self, axis):
         self.logger.info(f"in expert_update_encoder")
 
         # Get current axis
         axis_index = self.expert_axis.currentIndex()
-        axis = f"{self.prefixName}:0{axis_index + 1}"
-        print(f"axis: {axis}")
-        print(f'caget: {axis + ":SelG:ENC:Id_RBV"}')
-
-        # Clear previous items
-        self.expert_encoder_widget.clear_items()
-        self.coe_encoder_list.clear()
+        # axis = f"{self.prefixName}:0{axis_index + 1}"
+        encoder_string = f"{self.prefixName}:AXIS:{(axis_index+1):02}:SelG:ENC:Id_RBV"
+        print(f"encoder_string: {encoder_string}")
 
         # Get hardware slice
         # TST:UM:01:SelG:DRV:Id_RBV
-        hardwareID = epics.caget(axis + ":SelG:ENC:Id_RBV", as_string=True)
+        hardwareID = epics.caget(encoder_string, as_string=True)
 
         if hardwareID:
             if "_" in hardwareID:
@@ -218,13 +236,29 @@ class ExpertWindow(DesignerDisplay, QWidget):
 
         print(f"hardwareID after split: {hardwareID}")
 
-        self.coe_encoder_list = identify_coe_enc_params(
-            f"{axis}:{hardwareID}", self.pvDict
-        )
+        # self.coe_encoder_list = identify_coe_enc_params(
+        #     f"{axis}:{hardwareID}", self.pvDict
+        # )
 
-        self.ca_coe_encoder_list = epics.caget_many(
-            self.coe_encoder_list, as_string=True
+        formatted_drive_string = (
+            f"{self.prefixName}:{hardwareID}:{(axis_index+1):02}:COE"
         )
+        string_enc_regex = f"{formatted_drive_string}:(?!.*:DG:)[^:]+:Name_RBV"
+        print(f"string_enc_regex: {string_enc_regex}")
+        stripped_coe = []
+        print(f"DEBUG: coe_encoder_list at start = {self.coe_encoder_list}")
+        print(f"coe len: {len(self.coe_encoder_list)}")
+        for pv in self.coe_encoder_list:
+            print(f"pv: {pv}")
+            if re.search(string_enc_regex, pv):
+                print(f"Found nc_param in the list, param: {pv}")
+                stripped_coe.append(pv.strip())
+
+        # Clear previous items
+        self.expert_encoder_widget.clear_items()
+        self.coe_encoder_list.clear()
+
+        self.ca_coe_encoder_list = epics.caget_many(stripped_coe, as_string=True)
         self.logger.info(f"items size: {len(self.ca_coe_encoder_list)}")
 
         # Add items (filter out None just in case)
@@ -242,9 +276,7 @@ class ExpertWindow(DesignerDisplay, QWidget):
         # self.expert_encoder_filter.line_edit.setText(items[0])
 
         # # Dynamically add param widgets
-        self.add_param_widgets(
-            self.coe_encoder_list, self.expert_coe_encoder_filter_list
-        )
+        self.add_param_widgets(stripped_coe, self.expert_coe_encoder_filter_list)
 
     def configure_param_widgets(self, widget: QWidget, nc_pv):
         """
@@ -258,16 +290,18 @@ class ExpertWindow(DesignerDisplay, QWidget):
         vals[1] = nc_pv + ":Goal"
         vals[2] = nc_pv + ":Val_RBV"
         vals[3] = nc_pv + ":EU_RBV"
+        # vals[4] = nc_pv + ":EU_RBV"
         # print("ca://" + vals[1])
-        ca_vals = epics.caget_many(vals, as_string=True)
+        # ca_vals = epics.caget_many(vals, as_string=True)
         # print(ca_vals)
         name = widget.findChild(PyDMLabel, "pv_name")
-        name.setText(ca_vals[0])
+        name.setText(vals[0])
         goal = widget.findChild(PyDMLineEdit, "pv_goal")
         goal.set_channel("ca://" + vals[1])
         rbv = widget.findChild(PyDMLineEdit, "pv_rbv")
         rbv.set_channel("ca://" + vals[2])
         units = widget.findChild(PyDMLabel, "pv_units")
+        units.set_channel("ca://" + vals[3])
 
     def add_param_widgets(self, param, widget: QListWidget):
         """

@@ -169,11 +169,11 @@ def identify_nc_params(axis, pv_dict):
     # print(f"after axis prefix: {cleaned_prefix}")
     nc_list = []
     cagetted_nc_list = []
-    nc_param = axis + ":NC:"
-    print(f"nc_param: {nc_param}")
+    # nc_param = axis + ":NC:"
+    # print(f"nc_param: {nc_param}")
 
     # r"TST:UM:02:NC:[^:]+:Name_RBV"
-    c_nc_p = nc_param + "[^:]+:Name_RBV"
+    c_nc_p = axis + "[^:]+:Name_RBV"
     print(f"nc p: {c_nc_p}")
     # print(f"nc_param type: {type(c_nc_p)}, pv_dict size: {len(pv_dict)}")
     for pv in pv_dict:

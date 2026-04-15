@@ -80,7 +80,7 @@ from .widgets.linker import LinkerWindow
 from .widgets.user_input import UserInputWindow
 
 logging.basicConfig(
-    level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
 logger = logging.getLogger(__name__)
@@ -399,24 +399,26 @@ class MainWindow(DesignerDisplay, QWidget):
         # )
         # self.status_indicators = self.ui.findChild(QLabel, "status_indicators")
 
-        # SIGNALS
-        # # Expert
-        # for slot in [
-        #     self.expert_widget.expert_update_nc,
-        #     self.expert_widget.expert_update_drive,
-        #     self.expert_widget.expert_update_encoder,
-        # ]:
-        #     self.expert_widget.expert_axis.currentIndexChanged.connect(slot)
+        """
+        SIGNALS
+        """
+        # Expert
+        for slot in [
+            self.expert_widget.expert_update_nc,
+            self.expert_widget.expert_update_drive,
+            self.expert_widget.expert_update_encoder,
+        ]:
+            self.expert_widget.expert_axis.currentIndexChanged.connect(slot)
 
-        # self.expert_widget.expert_nc_widget.currentIndexChanged.connect(
-        #     self.expert_widget.highlight_nc_param
-        # )
-        # self.expert_widget.expert_drive_widget.currentIndexChanged.connect(
-        #     self.expert_widget.highlight_coe_drive_param
-        # )
-        # self.expert_widget.expert_encoder_widget.currentIndexChanged.connect(
-        #     self.expert_widget.highlight_coe_encoder_param
-        # )
+        self.expert_widget.expert_nc_widget.currentIndexChanged.connect(
+            self.expert_widget.highlight_nc_param
+        )
+        self.expert_widget.expert_drive_widget.currentIndexChanged.connect(
+            self.expert_widget.highlight_coe_drive_param
+        )
+        self.expert_widget.expert_encoder_widget.currentIndexChanged.connect(
+            self.expert_widget.highlight_coe_encoder_param
+        )
 
         # User Input
         self.user_input_widget.display_axis_ui.currentRowChanged.connect(
@@ -799,12 +801,14 @@ class MainWindow(DesignerDisplay, QWidget):
             if re.search(r"NC", item):
                 self.ncList.append(item)
             elif re.search(r"COE", item):
+                # print(f'item: {item}')
                 self.coeList.append(item)
             elif re.search(r"WCIB", item):
                 self.wcibList.append(item)
         # pv_caget_list = epics.caget_many(self.pvList, as_string=True)
         ca_wcib_list = epics.caget_many(self.wcibList, as_string=True)
         ca_nc_list = epics.caget_many(self.ncList, as_string=True)
+        print(f"len self.coeList: {len(self.coeList)}")
         ca_coe_list = epics.caget_many(self.coeList, as_string=True)
         # put pvs and cagets into a dictionary
         # self.pvDict = dict(zip(self.pvList, pv_caget_list))
@@ -813,6 +817,9 @@ class MainWindow(DesignerDisplay, QWidget):
         self.coeDict = dict(zip(self.coeList, ca_coe_list))
         self.wcibDict = dict(zip(self.wcibList, ca_wcib_list))
         # selfcoevDict = dict(zip(self.pvList, pv_caget_list))
+        self.expert_widget.nc_list = self.ncList.copy()
+        self.expert_widget.coe_drive_list = self.coeList.copy()
+        self.expert_widget.coe_encoder_list = self.coeList.copy()
         self.user_input_widget.pvDict = self.pvDict
         self.linker_widget.pvDict = self.pvDict
         self.expert_widget.pvDict = self.pvDict

@@ -589,6 +589,11 @@ class LinkerWindow(DesignerDisplay, QWidget):
             if currDiHardwareSubChan != "":
                 self.staged_mapping[0][2].append(currDiHardwareSubChan)
 
+        if len(self.staged_de[0][0]):
+            self.staged_de[0][0].clear()
+        if len(self.staged_de[0][1]):
+            self.staged_de[0][1].clear()
+
         # saving drives and encoders
         if self.drives_list.currentItem() == None:
             self.staged_de[0][0] = ["None"]
@@ -1192,35 +1197,30 @@ class LinkerWindow(DesignerDisplay, QWidget):
 
     def update_links(self):
         self.logger.info(f"in update links")
-        di_hardware_pv = ""
-        di_channel_pv = ""
-        drv_pv = ""
-        enc_pv = ""
+        """
+                # Construct the Process Variable (PV) strings
+                # TST:UM:LinkSel:SelG:DI:01:Id
+                # TST:UM:LinkSel:SelG:AXIS:Id
+                # TST:UM:LinkSel:SelG:DRV:Id
+                # TST:UM:LinkSel:SelG:ENC:Id
+
+                # Update link process
+                # 1. in link selector caput axis id of interest
+                #     - TST:UM:LinkSel:SelG:AXIS:Id
+                # 2. view set to true -> gives you all of current config
+                #     - TST:UM:LinkSel:View
+                # 3. change all link defs you want to change
+                #     - TST:UM:LinkSel:DI:[number]:[channel]
+                # 4. link selector update command
+                #     - TST:UM:LinkSel:Update
+
+                """
         # caput staged changes to axis
         for axis_i, axis in enumerate(self.staged_mapping):
             if len(axis) > 0:
                 self.logger.debug(f"found changes in axis: {axis}")
 
-                """
-                # Construct the Process Variable (PV) strings
-                # TST:UM:03:LinkSel:SelG:DI:01:Id
-                # TST:UM:03:LinkSel:SelG:AXIS:Id
-                # TST:UM:03:LinkSel:SelG:DRV:Id
-                # TST:UM:03:LinkSel:SelG:ENC:Id
-
-                # Update link process
-                1. in link selector caput axis id of interest
-                    - TST:UM:LinkSel:SelG:AXIS:Id
-                2. view set to true -> gives you all of current config
-                    - TST:UM:LinkSel:View
-                3. change all link defs you want to change
-                    - TST:UM:LinkSel:DI:[number]:[channel]
-                4. link selector update command
-                    - TST:UM:LinkSel:Update
-
-                """
                 # step 1
-                # currAxis = int(self.staged_mapping[self.axis_list_linker.currentRow()])
                 select_axis_string = f"{self.prefixName}:LinkSel:SelG:AXIS:Id"
                 self.logger.debug(f"select_axis_string: {select_axis_string}")
                 caReadBackSelectedAxis = epics.caput(
@@ -1341,38 +1341,58 @@ class LinkerWindow(DesignerDisplay, QWidget):
                     self.logger.debug(f"nothing in di3")
                 time.sleep(0.5)
 
-                # step 4
-                update_to_true = f"{self.prefixName}:LinkSel:Update"
-                caReadBack_update_to_true = epics.caput(update_to_true, True, wait=True)
+        #  drives and encoders
+        for item in self.staged_de:
+            print(f"item: {item}")
+            if len(item[0]) > 1:
+                # TST:UM:LinkSel:SelG:DRV:Id
+                stringDrvHardware = f"{self.prefixName}:LinkSel:SelG:DRV:Id"
+                self.logger.debug(f"stringDrvHardware: {stringDrvHardware}")
+                stringNewDrvVal = item[0][0]
+                self.logger.debug(f"stringNewDrvVal: {stringNewDrvVal}")
+                caReadbackNewDriveVal = epics.caput(
+                    stringDrvHardware, stringNewDrvVal, wait=True
+                )
+                time.sleep(0.5)
+                self.logger.debug(f"caReadbackNewDriveVal: {caReadbackNewDriveVal}")
+
+                stringDriveMainChan = f"{self.prefixName}:LinkSel:SelG:DRV:MAIN"
+                self.logger.debug(f"stringDriveMainChan: {stringDriveMainChan}")
+                stringNewMainChanVal = item[0][1]
+                self.logger.debug(f"stringNewMainChanVal: {stringNewMainChanVal}")
+                caReadbackNewMainChanVal = epics.caput(
+                    stringDriveMainChan, stringNewMainChanVal, wait=True
+                )
                 time.sleep(0.5)
                 self.logger.debug(
-                    f"caReadBack_update_to_true: {caReadBack_update_to_true}"
+                    f"caReadbackNewMainChanVal: {caReadbackNewMainChanVal}"
                 )
 
-        # # for sublist in self.staged_de:
-        # for item in self.staged_de:
-        #     print(f"item: {item}")
-        #     if len(item) > 1:
-        #         # TST:UM:03:SelG:ENC:Id
-        #         drv_pv = (
-        #             self.prefixName
-        #             + "0"
-        #             + str(self.axis_list_linker.currentRow() + 1)
-        #             + ":SelG:DRV:Id"
-        #         )
-        #         enc_pv = (
-        #             self.prefixName
-        #             + "0"
-        #             + str(self.axis_list_linker.currentRow() + 1)
-        #             + ":SelG:ENC:Id"
-        #         )
-        #         print(f"drv_pv: {drv_pv}, drv: {item[0][0]}, enc: {item[1][0]}")
-        #         drv = item[0][0] if item[0] and item[0][0] != "None" else None
-        #     enc = item[1][0] if item[1] and item[1][0] != "None" else None
-        #     # try:
-        #     if drv:
-        #         # self.caput_async(drv_pv, drv)
-        #         status_drv = epics.caput(drv_pv, drv)
-        #     if enc:
-        #         # self.caput_async(enc_pv, enc)
-        #         status_enc = epics.caput(enc_pv, enc)
+            if len(item[1]) > 1:
+                # TST:UM:LinkSel:SelG:ENC:Id
+                stringEncHardware = f"{self.prefixName}:LinkSel:SelG:ENC:Id"
+                self.logger.debug(f"stringEncHardware: {stringEncHardware}")
+                stringNewEncVal = item[1][0]
+                self.logger.debug(f"stringNewEncVal: {stringNewEncVal}")
+                caReadbackNewEncChanVal = epics.caput(
+                    stringEncHardware, stringNewEncVal, wait=True
+                )
+                time.sleep(0.5)
+                self.logger.debug(f"caReadbackNewEncChanVal: {caReadbackNewEncChanVal}")
+
+                stringEncMainChan = f"{self.prefixName}:LinkSel:SelG:ENC:MAIN"
+                self.logger.debug(f"stringEncMainChan: {stringEncMainChan}")
+                stringNewMainChanVal = item[1][1]
+                caReadbackNewMainChanVal = epics.caput(
+                    stringEncMainChan, stringNewMainChanVal, wait=True
+                )
+                time.sleep(0.5)
+                self.logger.debug(
+                    f"caReadbackNewMainChanVal: {caReadbackNewMainChanVal}"
+                )
+
+        # step 4
+        update_to_true = f"{self.prefixName}:LinkSel:Update"
+        caReadBack_update_to_true = epics.caput(update_to_true, True, wait=True)
+        time.sleep(0.5)
+        self.logger.debug(f"caReadBack_update_to_true: {caReadBack_update_to_true}")
