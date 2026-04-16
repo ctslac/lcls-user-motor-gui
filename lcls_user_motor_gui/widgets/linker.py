@@ -119,6 +119,7 @@ class LinkerWindow(DesignerDisplay, QWidget):
     stage_mapping: QPushButton
     see_staged_mapping: QPushButton
     clear_mapping: QPushButton
+    status_indicators: QLabel
 
     def __init__(self, main_window, parent=None, logger=None):
         # Properly call the superclass __init__!
@@ -1396,3 +1397,6 @@ class LinkerWindow(DesignerDisplay, QWidget):
         caReadBack_update_to_true = epics.caput(update_to_true, True, wait=True)
         time.sleep(0.5)
         self.logger.debug(f"caReadBack_update_to_true: {caReadBack_update_to_true}")
+
+        # step 5 - clear staged changes
+        self.clear_stage()

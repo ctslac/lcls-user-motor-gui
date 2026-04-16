@@ -300,9 +300,14 @@ class UserInputWindow(DesignerDisplay, QWidget):
         self.logger.info(f"in publish_axis_di_ui")
         # if self.axis_di_init:
         self.digital_input_axis_ui.clear()
-        numDI = (
-            f"{self.prefixName}:AXIS:{self.display_axis_ui.currentRow():02}:NUMDI_RBV"
-        )
+        currDisplayAxis = self.display_axis_ui.currentRow()
+        # print(f'currDisplayAxis: {currDisplayAxis}')
+        # if currDisplayAxis is None:
+        #     currDisplayAxis = 1
+        # else:
+        #     currDisplayAxis = currDisplayAxis
+        numDI = f"{self.prefixName}:AXIS:{(currDisplayAxis+1):02}:NUMDI_RBV"
+        print(f"numDI: {numDI}")
         ca_numDI = epics.caget(numDI, as_string=True)
         # currAxisIdx = self.axis_list.currentRow()
         # self.logger.debug(f"currAxisIdx: {self.axis[currAxisIdx]}")

@@ -121,7 +121,7 @@ class ExpertWindow(DesignerDisplay, QWidget):
         for pv in self.nc_list:
             # print(f"nc pv: {pv}")
             if re.search(c_nc_p, pv):
-                print(f"Found nc_param in the list, param: {pv}")
+                # print(f"Found nc_param in the list, param: {pv}")
                 stripped_nc.append(pv.strip())
 
         print(f"len of nc param list: {len(stripped_nc)}")
@@ -186,9 +186,9 @@ class ExpertWindow(DesignerDisplay, QWidget):
         stripped_coe = []
         print(f"coe len: {len(self.coe_drive_list)}")
         for pv in self.coe_drive_list:
-            print(f"pv: {pv}")
+            # print(f"pv: {pv}")
             if re.search(string_drive_regex, pv):
-                print(f"Found nc_param in the list, param: {pv}")
+                # print(f"Found nc_param in the list, param: {pv}")
                 stripped_coe.append(pv.strip())
 
         # Clear previous items
@@ -246,12 +246,12 @@ class ExpertWindow(DesignerDisplay, QWidget):
         string_enc_regex = f"{formatted_drive_string}:(?!.*:DG:)[^:]+:Name_RBV"
         print(f"string_enc_regex: {string_enc_regex}")
         stripped_coe = []
-        print(f"DEBUG: coe_encoder_list at start = {self.coe_encoder_list}")
+        # print(f"DEBUG: coe_encoder_list at start = {self.coe_encoder_list}")
         print(f"coe len: {len(self.coe_encoder_list)}")
         for pv in self.coe_encoder_list:
-            print(f"pv: {pv}")
+            # print(f"pv: {pv}")
             if re.search(string_enc_regex, pv):
-                print(f"Found nc_param in the list, param: {pv}")
+                # print(f"Found nc_param in the list, param: {pv}")
                 stripped_coe.append(pv.strip())
 
         # Clear previous items
@@ -295,7 +295,7 @@ class ExpertWindow(DesignerDisplay, QWidget):
         # ca_vals = epics.caget_many(vals, as_string=True)
         # print(ca_vals)
         name = widget.findChild(PyDMLabel, "pv_name")
-        name.setText(vals[0])
+        name.set_channel("ca:// " + vals[0])
         goal = widget.findChild(PyDMLineEdit, "pv_goal")
         goal.set_channel("ca://" + vals[1])
         rbv = widget.findChild(PyDMLineEdit, "pv_rbv")
@@ -318,7 +318,7 @@ class ExpertWindow(DesignerDisplay, QWidget):
             )
             item = QListWidgetItem()
             pv_clean = self.remove_name_rbv(pv)
-            print(f"pv: {pv_clean}")
+            # print(f"pv: {pv_clean}")
             self.configure_param_widgets(param_widget, pv_clean)
 
             # --- Find the PyDMLineEdit and connect its signals ---
@@ -342,7 +342,7 @@ class ExpertWindow(DesignerDisplay, QWidget):
         # Defensive check: Make sure current_text is in the list
         if current_text in self.ca_nc_list:
             pv_index = self.ca_nc_list.index(current_text)
-            print(f"current pv: {pv_index} ({current_text})")
+            # print(f"current pv: {pv_index} ({current_text})")
 
             # Clear all highlights
             for i in range(self.expert_nc_filter_list.count()):
@@ -376,7 +376,7 @@ class ExpertWindow(DesignerDisplay, QWidget):
         # Defensive check: Make sure current_text is in the list
         if current_text in self.ca_coe_drive_list:
             pv_index = self.ca_coe_drive_list.index(current_text)
-            print(f"current pv: {pv_index} ({current_text})")
+            # print(f"current pv: {pv_index} ({current_text})")
 
             # Clear all highlights
             for i in range(self.expert_coe_drive_filter_list.count()):
@@ -410,7 +410,7 @@ class ExpertWindow(DesignerDisplay, QWidget):
         # Defensive check: Make sure current_text is in the list
         if current_text in self.ca_coe_encoder_list:
             pv_index = self.ca_coe_encoder_list.index(current_text)
-            print(f"current pv: {pv_index} ({current_text})")
+            # print(f"current pv: {pv_index} ({current_text})")
 
             # Clear all highlights
             for i in range(self.expert_coe_encoder_filter_list.count()):
