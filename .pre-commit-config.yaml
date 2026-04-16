@@ -2,7 +2,9 @@
 # See https://pre-commit.com/hooks.html for more hooks
 exclude: |
   (?x)^(
-    lcls-user-motor-gui/_version.py|
+    lcls_user_motor_gui/version.py|
+    test_epics_many/.*|
+    lcls_user_motor_gui/bin/.*
   )$
 
 repos:

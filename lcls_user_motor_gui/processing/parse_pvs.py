@@ -4,15 +4,41 @@ import os
 import re
 import sys
 
-# from epics import PV, fake_caget
+import epics
 
 
 def fake_caget(pv_dict, pv):
     # with open('./unit_test_data.json', 'r') as file:
     #     data = json.load(file)
     value = pv_dict.get(pv)
-    print(f"fake caget value: {value}")
+    # print(f"fake caget value: {value}")
     return value
+
+
+def axis_wcib_to_id(pv_list):
+    print(f"in axis_wcib_to_id: ")
+    updated_list = []
+    ca_list = []
+    for item in pv_list:
+        updated_list.append(item.replace("WCIB_RBV", "Id_RBV"))
+
+    for item in updated_list:
+        print(f"updated list item: {item}")
+    ca_list = epics.caget_many(updated_list, as_string=True)
+    return ca_list
+
+
+def drive_wcib_to_id(pv_list):
+    print(f"in drive_wcib_to_id: ")
+    updated_list = []
+    ca_list = []
+    for item in pv_list:
+        updated_list.append(item.replace("WCIB_RBV", "Id_RBV"))
+
+    for item in updated_list:
+        print(f"updated list item: {item}")
+    ca_list = epics.caget_many(updated_list, as_string=True)
+    return ca_list
 
 
 def identify_axis(pv_dict):
@@ -131,7 +157,7 @@ def identify_enc(pv_list, axis_name):
     return encoder_type
 
 
-def identify_nc_params(axis, dict):
+def identify_nc_params(axis, pv_dict):
     """
     Given a list of PVs, find all of the NC params for a given axis prefix
     """
@@ -142,71 +168,89 @@ def identify_nc_params(axis, dict):
     # cleaned_prefix = prefix.replace(stripped_axis_rbv, "")
     # print(f"after axis prefix: {cleaned_prefix}")
     nc_list = []
-    nc_param = axis + ":NC:"
-    print(f"nc_param: {nc_param}")
-    c_nc_p = "r" + '"' + nc_param + '"'
+    cagetted_nc_list = []
+    # nc_param = axis + ":NC:"
+    # print(f"nc_param: {nc_param}")
+
+    # r"TST:UM:02:NC:[^:]+:Name_RBV"
+    c_nc_p = axis + "[^:]+:Name_RBV"
     print(f"nc p: {c_nc_p}")
-    print(f"nc_param type: {type(c_nc_p)}, pv_list type: {type(dict)}")
-    for pv in dict:
+    # print(f"nc_param type: {type(c_nc_p)}, pv_dict size: {len(pv_dict)}")
+    for pv in pv_dict:
         # print(f"nc p: {c_nc_p}, pv: {pv}")
-        if re.search(nc_param, pv):
-            # print(f"Found nc_param in the list, param: {pv}")
+        if re.search(c_nc_p, pv):
+            print(f"Found nc_param in the list, param: {pv}")
             nc_list.append(pv.strip())
             # print("Not an axis")
             # print("didnt find a match")
 
+    # cagetted_nc_list = epics.caget_many(nc_list, as_string=True)
     return nc_list
 
 
-def identify_coe_drive_params(axis_id, drive_types, pv_list):
+def identify_coe_drive_params(axis, pv_dict):
     """
     Given a list of PVs, find all of the drive params for a given axis prefix
     """
     print("in identify_coe_drive_params")
-    # print(f"search: {axis_id+drive_type}")
-    # 7047 = 0, 7062 = 1
-    stripped_axis_rbv = "Axis:Id_RBV"
-    print(f"IDP: axis id: {axis_id}")
-    axis_id = axis_id.replace(stripped_axis_rbv, "")
-    axis_prefix = axis_id + drive_types
-
-    print(f"axis prefix: {axis_prefix}, drive type: {drive_types}")
-    stripped_axis_rbv = "Axis:Id_RBV"
-
+    print(f"axis: {axis}")
     coe_list = []
-    for pv in pv_list:
-        # print(f"nc p: {c_nc_p}, pv: {pv}")
-        if re.search(axis_prefix, pv):
-            # print("Found nc_param in the list, param: {}")
-            coe_list.append(pv.strip())
+    cagetted_nc_list = []
+    nc_param = axis + ":COE:"
+    print(f"coe_drive_param: {nc_param}")
 
+    # r"TST:UM:02:NC:[^:]+:Name_RBV"
+    c_nc_p = nc_param + "[^:]+:Name_RBV"
+    print(f"nc p: {c_nc_p}")
+    # print(f"nc_param type: {type(c_nc_p)}, pv_dict size: {len(pv_dict)}")
+    for pv in pv_dict:
+        # print(f"nc p: {c_nc_p}, pv: {pv}")
+        if re.search(c_nc_p, pv):
+            print(f"Found coe_param in the list, param: {pv}")
+            coe_list.append(pv.strip())
+            # print("Not an axis")
+            # print("didnt find a match")
+
+    # cagetted_nc_list = epics.caget_many(nc_list, as_string=True)
     return coe_list
 
 
-def identify_coe_enc_params(axis_id, enc_types, pv_list):
+def identify_coe_enc_params(axis, pv_dict):
     """
     Given a list of PVs, find all of the drive params for a given axis prefix
     Inputs:
     """
-    print("in identify_coe_drive_params")
-    # print(f"search: {axis_id+drive_type}")
-    # 7047 = 0, 7062 = 1
-    stripped_axis_rbv = "Axis:Id_RBV"
-    print(f"IDP: axis id: {axis_id}")
-    axis_id = axis_id.replace(stripped_axis_rbv, "")
-    axis_prefix = axis_id + enc_types
-
-    print(f"axis prefix: {axis_prefix}, drive type: {enc_types}")
-    stripped_axis_rbv = "Axis:Id_RBV"
-
+    print("in identify_coe_coe_params")
+    print(f"axis: {axis}")
     coe_list = []
-    for pv in pv_list:
-        # print(f"nc p: {c_nc_p}, pv: {pv}")
-        if re.search(axis_prefix, pv):
-            # print("Found nc_param in the list, param: {}")
-            coe_list.append(pv.strip())
+    cagetted_nc_list = []
+    nc_param = axis + ":COE:"
+    print(f"nc_param: {nc_param}")
 
+    # r"TST:UM:02:NC:[^:]+:Name_RBV"
+    c_nc_p = nc_param + "[^:]+:Name_RBV"
+    print(f"nc p: {c_nc_p}")
+    # print(f"nc_param type: {type(c_nc_p)}, pv_dict size: {len(pv_dict)}")
+    for pv in pv_dict:
+        # print(f"nc p: {c_nc_p}, pv: {pv}")
+        if re.search(c_nc_p, pv):
+            print(f"Found nc_param in the list, param: {pv}")
+            coe_list.append(pv.strip())
+            # print("Not an axis")
+            # print("didnt find a match")
+
+    # cagetted_nc_list = epics.caget_many(nc_list, as_string=True)
     return coe_list
+
+
+def identify_dg_params(prefix: str, pv_dict: dict):
+    print(f"in identify_dg_params")
+    dgList = []
+    # TST:UM:01:EL5042:COE:DG:[^:]+:Name_RBV
+    for pv in pv_dict:
+        if re.search(prefix + "[^:]+:Name_RBV", pv):
+            dgList.append(pv.strip())
+    return dgList
 
 
 def strip_key(key):

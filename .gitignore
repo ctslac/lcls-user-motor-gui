@@ -4,6 +4,7 @@ cache/*
 # Local Files
 ./test_output*
 ./test_epics_many/*
+.vscode/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.pyc
