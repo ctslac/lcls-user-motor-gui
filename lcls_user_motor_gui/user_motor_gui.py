@@ -9,7 +9,6 @@ from os import path
 from pathlib import Path
 
 import epics
-import numpy as np
 
 # import epics
 from epics import PV, caget, caput
@@ -126,7 +125,7 @@ class StageSettings(QDialog):
         backlash = self.backlash.text()
         generate_params = self.generate_params.text()
 
-        print(
+        logger.debug(
             egu_rev, step_rev, run_current, encoder_scaling, backlash, generate_params
         )
 
@@ -229,12 +228,9 @@ class MainWindow(DesignerDisplay, QWidget):
             self.ioc_path = "/reg/g/pcds/epics-dev/nlentz/lcls-plc-template-user-motors/iocBoot/ioc-lcls-plc-template-user-motors/lcls_plc_template_user_motors.db"
 
         """
-        Load IOC pvs from ioc and update the axis list and identify PVs based on this
+        Load IOC pvs from ioc db, setup the tab signals and populate data from loaded db
         """
 
-        # Load IOC: load axis, Populate DI, DRV, ENC
-        # for slot in [self.load_tabs, self.load_ioc_data, self.load_axis, self.populate_options]:
-        #     self.load_ioc.clicked.connect(slot)
         for slot in [
             self.load_ioc_data,
             self.setup_tab_signals,
@@ -243,152 +239,15 @@ class MainWindow(DesignerDisplay, QWidget):
         ]:
             self.load_ioc.clicked.connect(slot)
 
-        # User Input Tab
-        # self.display_axis = self.ui.findChild(QListWidget, "display_axis_ui")
-        # self.display_drives = self.ui.findChild(QListxWidget, "display_drives_ui")
-        # self.ui_digital_input_axis = self.ui.findChild(
-        #     QListWidget, "ui_digital_input_axis"
-        # )
-        # self.ui_digital_input_hardware = self.ui.findChild(
-        #     QListWidget, "ui_digital_input_hardware"
-        # )
-        # self.ui_digital_input_channels = self.ui.findChild(
-        #     QListWidget, "ui_digital_input_channels"
-        # )
-        # self.display_encoders = self.ui.findChild(QListWidget, "display_encoders_ui")
-        # self.stage_settings = self.ui.findChild(QPushButton, "stage_settings")
-
-        # ## Expert Tab
-        # self.expert_axis = self.ui.findChild(QComboBox, "expert_axis")
-        # self.expert_nc_list = self.ui.findChild(QListWidget, "expert_nc_list")
-        # self.expert_drive_list = self.ui.findChild(QListWidget, "expert_drive_list")
-        # self.expert_enocder_list = self.ui.findChild(QListWidget, "expert_enocder_list")
-        # self.param_list = self.ui.findChild(QListWidget, "expert_param_list")
-        # self.expert_drive_param_list = self.ui.findChild(
-        #     QListWidget, "expert_coe_drive_list"
-        # )
-        # self.expert_encoder_param_list = self.ui.findChild(
-        #     QListWidget, "expert_coe_encoder_list"
-        # )
-        # self.nc_groupbox = self.ui.findChild(QGroupBox, "expert_nc_param")
-        # self.drive_groupbox = self.ui.findChild(QGroupBox, "expert_drive_param")
-        # self.encoder_groupbox = self.ui.findChild(QGroupBox, "expert_encoder_param")
-
-        # # Diagnostic Tab
-        # self.diagnostic_axis_selection = self.ui.findChild(
-        #     QComboBox, "diagnostic_axis_selection"
-        # )
-        # self.diagnostic_hardware_selection = self.ui.findChild(
-        #     QListWidget, "diagnostic_hardware_selection"
-        # )
-        # self.diagnostic_groupbox = self.ui.findChild(QGroupBox, "diagnostic_groupbox")
-
-        # self.diagnostic_param_filter = FilteredListWidget(self.diagnostic_groupbox)
-        # self.diagnostic_groupbox.layout().addWidget(self.diagnostic_param_filter)
-
-        # self.diagnostic_params_groupbox = self.ui.findChild(
-        #     QGroupBox, "diagnostic_params_groupbox"
-        # )
-
-        # # Mapping
-        # self.stage_mapping = self.ui.findChild(QPushButton, "stage_mapping")
-        # self.see_mapping = self.ui.findChild(QPushButton, "see_staged_mapping")
-        # self.clear_mapping = self.ui.findChild(QPushButton, "clear_mapping")
-
-        # # Logger
-
-        # if self.status_logger is not None:
-        #     handler = QPlainTextEditLoggerHandler(self.status_logger)
-        #     formatter = logging.Formatter("%(asctime)s - %(message)s")
-        #     handler.setFormatter(formatter)
-        #     logging.getLogger().addHandler(handler)
-        #     logging.getLogger().setLevel(logging.INFO)
-        # else:
-        #     logger.warning("status_logger QPlainTextEdit not found in UI.")
-        # self.duplicate_di_cb = self.ui.findChild(
-        #     QCheckBox, "settings_duplicate_di_warning"
-        # )
-
-        # self.duplicate_di_cb.stateChanged.connect(self.check_duplicate_di_flag)
-
-        # self.duplicate_drv_cb = self.ui.findChild(
-        #     QCheckBox, "settings_duplicate_drv_warning"
-        # )
-        # self.duplicate_drv_cb.stateChanged.connect(self.check_duplicate_drv_flag)
-
-        # self.duplicate_enc_cb = self.ui.findChild(
-        #     QCheckBox, "settings_duplicate_enc_warning"
-        # )
-        # self.duplicate_enc_cb.stateChanged.connect(self.check_duplicate_enc_flag)
-        # self.status_indicators = self.ui.findChild(QLabel, "status_indicators")
-
-        # """
-        # Signals
-        # """
-
-        # self.user_input_widget.display_axis_ui.currentRowChanged.connect(self.select_axis_ui)
-
-        # # axis signals
-        # self.axis_list.currentRowChanged.connect(self.isStagedMappingSet)
-        # self.diagnostic_axis_selection.currentIndexChanged.connect(
-        #     self.populate_diagnostic_hardware
-        # )
-        # self.diagnostic_hardware_selection.currentRowChanged.connect(
-        #     self.populate_diagnostic_coe
-        # )
-
-        # self.expert_nc_filter.currentIndexChanged.connect(self.highlight_nc_param)
-        # self.expert_drive_filter.currentIndexChanged.connect(
-        #     self.highlight_coe_drive_param
-        # )
-        # self.expert_encoder_filter.currentIndexChanged.connect(
-        #     self.highlight_coe_encoder_param
-        # )
-        # self.diagnostic_param_filter.currentIndexChanged.connect(
-        #     self.populate_diagnostic_widget
-        # )
-
-        # # digitial input handling signals
-        # self.digital_input_hardware.currentRowChanged.connect(self.load_di_channel)
-        # self.digital_input_axis.currentRowChanged.connect(self.select_di_channel)
-        # self.ui_digital_input_axis.currentRowChanged.connect(self.select_di_channel_ui)
-        # self.ui_digital_input_hardware.currentRowChanged.connect(
-        #     self.load_di_channel_ui
-        # )
-
-        # # mapping signals
-        # self.stage_mapping.clicked.connect(self.save_stage)
-        # self.see_mapping.clicked.connect(self.see_stage)
-        # self.clear_mapping.clicked.connect(self.clear_stage)
-
-        # # Misc Buttons
-        # self.stage_settings.clicked.connect(self.open_stage_settings)
-        # self.confirm_mapping.clicked.connect(self.update_links)
-
-        # for slot in [
-        #     self.expert_update_nc,
-        #     self.expert_update_drive,
-        #     self.expert_update_encoder,
-        # ]:
-        #     self.expert_axis.currentIndexChanged.connect(slot)
-
     def setup_tab_signals(self):
-        print(f"in setup_tab_signals")
-        # self.user_input_widget.display_axis_ui.currentRowChanged.connect(self.select_axis_ui)
-        # self.user_input_widget.display_axis_ui.currentRowChanged.connect(self.user_input_widget.select_axis_ui)
-        # self.linker_widget.axis_list_linker.currentRowChanged.connect(self.isStagedMappingSet)
-        # self.user_input_widget.digital_input_hardware_ui.currentRowChanged.connect(
-        #     self.load_di_channel_ui
-        # )
+        logger.debug(f"in setup_tab_signals")
+        """
+        Setup all of the signals for each of the tab widgets.
+        """
 
-        # self.user_input_widget.display_axis_ui.currentRowChanged.connect(self.select_axis_ui)
-        # self.diagnostic_axis_selection.currentIndexChanged.connect(
-        #     self.populate_diagnostic_hardware
-        # )
-        # self.diagnostic_hardware_selection.currentRowChanged.connect(
-        #     self.populate_diagnostic_coe
-        # )
-
+        """
+        Settings tab
+        """
         # self.setting_widget.settings_duplicate_di_warning.stateChanged.connect(
         #     self.check_duplicate_di_flag
         # )
@@ -403,7 +262,9 @@ class MainWindow(DesignerDisplay, QWidget):
         """
         SIGNALS
         """
-        # Expert
+        """
+        Expert
+        """
         for slot in [
             self.expert_widget.expert_update_nc,
             self.expert_widget.expert_update_drive,
@@ -421,7 +282,9 @@ class MainWindow(DesignerDisplay, QWidget):
             self.expert_widget.highlight_coe_encoder_param
         )
 
-        # User Input
+        """
+        User Input
+        """
         self.user_input_widget.display_axis_ui.currentRowChanged.connect(
             self.user_input_widget.select_axis_ui
         )
@@ -438,7 +301,9 @@ class MainWindow(DesignerDisplay, QWidget):
             self.user_input_widget.load_encoders_channel_ui
         )
 
-        # Diagnostic
+        """
+        Diagnostic
+        """
         self.diagnostic_widget.diagnostic_hardware_selection.currentRowChanged.connect(
             self.diagnostic_widget.populate_diagnostic_coe
         )
@@ -450,7 +315,9 @@ class MainWindow(DesignerDisplay, QWidget):
             self.diagnostic_widget.populate_diagnostic_hardware
         )
 
-        # Linker
+        """
+        Linker
+        """
         # digitial input handling signals
         self.linker_widget.digital_input_hardware.currentRowChanged.connect(
             self.linker_widget.load_di_channel
@@ -464,19 +331,25 @@ class MainWindow(DesignerDisplay, QWidget):
         self.linker_widget.encoders_list.currentRowChanged.connect(
             self.linker_widget.load_encoders_channel
         )
-        # axis signals
+        """
+        axis signals
+        """
         self.linker_widget.axis_list_linker.currentRowChanged.connect(
             self.linker_widget.isStagedMappingSet
         )
 
-        # mapping signals
+        """
+        mapping signals
+        """
         self.linker_widget.stage_mapping.clicked.connect(self.linker_widget.save_stage)
         self.linker_widget.see_staged_mapping.clicked.connect(
             self.linker_widget.see_stage
         )
         self.linker_widget.clear_mapping.clicked.connect(self.linker_widget.clear_stage)
 
-        # Misc Buttons
+        """
+        Linking Buttons
+        """
         self.user_input_widget.stage_settings.clicked.connect(self.open_stage_settings)
         self.linker_widget.confirm_mapping.clicked.connect(
             self.linker_widget.update_links
@@ -511,40 +384,11 @@ class MainWindow(DesignerDisplay, QWidget):
                 unique_parts.add(parts[4])
         return sorted(unique_parts)
 
-    # def add_param_widgets(self, param, widget : QListWidget):
-    #     """
-    #     Dynamically add instances of the param.ui widget as QListWidgetItems in self.param_list (QListWidget)
-    #     """
-
-    #     # Remove all items from the QListWidget
-    #     widget.clear()
-    #     self.param_widgets = []
-    #     pv = ""
-    #     # ncs = identify_nc_params(
-    #     #     self.prefixName + "0" + str(self.expert_axis.currentIndex() + 1),
-    #     #     self.pvDict,
-    #     # )
-    #     ncs = param
-
-    #     # Add new widgets based on expert_nc_list
-    #     for i in ncs:diagnostic_param_filter
-    #         param_widget = uic.loadUi(
-    #             path.join(path.dirname(path.realpath(__file__)), "param.ui")
-    #         )
-    #         item = QListWidgetItem()
-    #         pv = self.remove_name_rbv(i)
-    #         print(f"pv: {pv}")
-    #         self.configure_param_widgets(param_widget, pv)
-    #         item.setSizeHint(param_widget.sizeHint())
-    #         self.widget.addItem(item)
-    #         self.widget.setItemWidget(item, param_widget)
-
-    #         self.param_widgets.append(param_widget)
-
+    # Currently not used
     def when_param_changed(self, idx, pv, lineedit):
-        print(f"in when_param_changed")
+        logger.debug(f"in when_param_changed")
         lineedit = self.param_connections[idx]
-        print(f"Value for PV {pv} (index {idx}) is now {lineedit.text()}")
+        logger.debug(f"Value for PV {pv} (index {idx}) is now {lineedit.text()}")
 
         # Define the function to run in a worker thread
         def caput_check_task(pv):
@@ -557,14 +401,14 @@ class MainWindow(DesignerDisplay, QWidget):
         def on_result(result):
             is_match, goal, rbv = result
             if is_match:
-                print(f"goal and rbv match: {goal}, {rbv}")
+                logger.debug(f"goal and rbv match: {goal}, {rbv}")
             else:
-                print(f"goal and rbv DO NOT match: {goal}, {rbv}")
-            print(f"bool: {is_match}")
+                logger.debug(f"goal and rbv DO NOT match: {goal}, {rbv}")
+            logger.debug(f"bool: {is_match}")
 
         # Define what to do on error
         def on_error(exception):
-            print(f"Exception in caput_check_task: {exception}")
+            logger.debug(f"Exception in caput_check_task: {exception}")
 
         # Start the thread worker
         worker = ThreadWorker(caput_check_task, pv)
@@ -575,160 +419,6 @@ class MainWindow(DesignerDisplay, QWidget):
             self._workers = []
         self._workers.append(worker)
         worker.start()
-
-    # def check_duplicate_di(self):
-    #     logger.info(f"in check for duplicate di")
-    #     # To hold values for duplicate checking
-    #     second_index_values = set()
-    #     third_index_values = set()
-
-    #     # Track duplicates
-    #     duplicates_second = set()
-    #     duplicates_third = set()
-
-    #     # Loop through each sublist in the main list
-    #     for sublist in self.staged_mapping:
-    #         for item in sublist:
-    #             if len(item) > 1:  # Check if the sublist has at least 2 elements
-    #                 # Check the 2nd index value
-    #                 second_index_value = item[1]
-    #                 if second_index_value in second_index_values:
-    #                     duplicates_second.add(second_index_value)
-    #                 else:
-    #                     second_index_values.add(second_index_value)
-
-    #             if len(item) > 2:  # Check if the sublist has at least 3 elements
-    #                 # Check the 3rd index value
-    #                 third_index_value = item[2]
-    #                 if third_index_value in third_index_values:
-    #                     duplicates_third.add(third_index_value)
-    #                 else:
-    #                     third_index_values.add(third_index_value)
-    #     if self.duplicate_di_cb_flag and (duplicates_second or duplicates_third):
-    #         # Prepare the message content
-    #         second_duplicates = (
-    #             ", ".join(duplicates_second) if duplicates_second else "None"
-    #         )
-    #         third_duplicates = (
-    #             ", ".join(duplicates_third) if duplicates_third else "None"
-    #         )
-
-    #         msg = QMessageBox()
-    #         msg.setIcon(QMessageBox.Warning)
-    #         msg.setText("Duplicate DI")
-    #         msg.setInformativeText(
-    #             f"Duplicate DIs found:\n2nd Index: {second_duplicates}\n3rd Index: {third_duplicates}"
-    #         )
-    #         msg.setWindowTitle("Warning")
-    #         msg.setStandardButtons(QMessageBox.Ok)
-
-    #         msg.exec_()
-
-    #     # Print the results
-    #     logger.debug(f"Duplicates in the 2nd index: {duplicates_second}")
-    #     logger.debug(f"Duplicates in the 3rd index: {duplicates_third}")
-
-    # def check_duplicate_drv(self):
-    #     """
-    #     Check for duplicate first index values in staged_de based on the first element of each inner-most list.
-    #     Ignore duplicates for the value 'None'.
-
-    #     Returns:
-    #         set: A set of duplicate first index values except 'None'.
-    #     """
-    #     logger.info(f"in check for duplicate drv")
-
-    #     # To hold unique values for duplicate checking
-    #     seen_values = []
-
-    #     # Track duplicates
-    #     duplicates = []
-    #     # Loop through each main list in data
-    #     for axis in self.staged_de:
-    #         # Loop through each sublist in the main list
-    #         # for sublist in axis:
-    #         # Ensure the sublist is a list and has at least 1 element
-    #         if isinstance(axis, list) and len(axis) > 0:
-    #             # Get the first element value
-    #             first_element_value = axis[0]
-
-    #             # Ignore None values or empty strings while checking for duplicates
-    #             if (
-    #                 first_element_value is None
-    #                 or first_element_value == "None"
-    #                 or first_element_value == ["None"]
-    #                 or first_element_value == ""
-    #             ):
-    #                 continue
-
-    #             # Check for duplicates
-    #             if first_element_value in seen_values:
-    #                 duplicates.append(first_element_value)
-    #             else:
-    #                 seen_values.append(first_element_value)
-
-    #     if self.duplicate_di_cb_flag and len(duplicates) > 0:
-    #         msg = QMessageBox()
-    #         msg.setIcon(QMessageBox.Warning)
-    #         msg.setText("Duplicate DRV")
-    #         msg.setInformativeText(f"Duplicate DRVs found: {duplicates}")
-    #         msg.setWindowTitle("Warning")
-    #         msg.setStandardButtons(QMessageBox.Ok)
-    #         msg.exec_()
-
-    #     # Print the results
-    #     logger.debug(f"Duplicates: {duplicates}")
-
-    # def check_duplicate_enc(self):
-    #     """
-    #     Check for duplicate second index values in staged_de based on the second element of each inner-most list.
-    #     Ignore duplicates for the value 'None'.
-
-    #     Returns:
-    #         set: A set of duplicate first index values except 'None'.
-    #     """
-    #     logger.info(f"in check for duplicate enc")
-
-    #     # To hold unique values for duplicate checking
-    #     seen_values = []
-
-    #     # Track duplicates
-    #     duplicates = []
-    #     # Loop through each main list in data
-    #     for axis in self.staged_de:
-    #         # Loop through each sublist in the main list
-    #         # for sublist in axis:
-    #         # Ensure the sublist is a list and has at least 1 element
-    #         if isinstance(axis, list) and len(axis) > 0:
-    #             # Get the first element value
-    #             first_element_value = axis[1]
-
-    #             # Ignore None values or empty strings while checking for duplicates
-    #             if (
-    #                 first_element_value is None
-    #                 or first_element_value == "None"
-    #                 or first_element_value == ["None"]
-    #                 or first_element_value == ""
-    #             ):
-    #                 continue
-
-    #             # Check for duplicates
-    #             if first_element_value in seen_values:
-    #                 duplicates.append(first_element_value)
-    #             else:
-    #                 seen_values.append(first_element_value)
-
-    #     if self.duplicate_di_cb_flag and len(duplicates) > 0:
-    #         msg = QMessageBox()
-    #         msg.setIcon(QMessageBox.Warning)
-    #         msg.setText("Duplicate ENC")
-    #         msg.setInformativeText(f"Duplicate ENCs found: {duplicates}")
-    #         msg.setWindowTitle("Warning")
-    #         msg.setStandardButtons(QMessageBox.Ok)
-    #         msg.exec_()
-
-    #     # Print the results
-    #     logger.debug(f"Duplicates: {duplicates}")
 
     def open_stage_settings(self):
         stageSettings = StageSettings(self)
@@ -743,14 +433,14 @@ class MainWindow(DesignerDisplay, QWidget):
     #     return path.join(path.dirname(path.realpath(__file__)), self.ui_filename())
 
     def load_ioc_data(self):
+        """
+        load pvs from a db file, find the prefix, sort pvs by type and make a dictionaries or lists from the cagets
+        """
+
         logger.info(f"in load test list")
         configured = "./unit_test_data.json"
         integration_test = "/cds/home/c/ctsoi/epics-dev/ioc/user_motors/lcls-plc-template-user-motors/iocBoot/ioc-lcls-plc-template-user-motors/lcls_plc_template_user_motors.db"
         integration_box_test = "/reg/g/pcds/epics-dev/nlentz/lcls-plc-template-user-motors/iocBoot/ioc-lcls-plc-template-user-motors/lcls_plc_template_user_motors.db"
-        unconfigured = "./unit_test_config.json"
-        filepath2 = "./expert_unit_test.json"
-        filepath1 = configured
-        pv_caget_list = []
 
         # ## test with configuration
         # iocpath = configured
@@ -770,7 +460,7 @@ class MainWindow(DesignerDisplay, QWidget):
 
         # match = re.search(pattern, self.prefixName)
         # if match:
-        #     print(match.group(1))  # Output: TST:UM:
+        #     logger.debug(match.group(1))  # Output: TST:UM:
         # self.prefixName = match.group(1)
 
         ## integration test
@@ -781,9 +471,9 @@ class MainWindow(DesignerDisplay, QWidget):
 
         # for testing only
         # Save self.pvList to a file
-        with open("pvlist.txt", "w") as f:
-            for pv in self.pvList:
-                f.write(pv + "\n")
+        # with open("pvlist.txt", "w") as f:
+        #     for pv in self.pvList:
+        #         f.write(pv + "\n")
 
         # finding prefix at element 0
         self.prefixName = self.pvList[0]
@@ -791,7 +481,7 @@ class MainWindow(DesignerDisplay, QWidget):
         self.linker_widget.prefixName = self.prefixName
         self.expert_widget.prefixName = self.prefixName
         self.diagnostic_widget.prefixName = self.prefixName
-        print(self.prefixName)
+        logger.debug(self.prefixName)
         self.pvList = self.pvList[1:-1]
 
         logger.debug(f"prefixName: {self.prefixName}")
@@ -802,14 +492,14 @@ class MainWindow(DesignerDisplay, QWidget):
             if re.search(r"NC", item):
                 self.ncList.append(item)
             elif re.search(r"COE", item):
-                # print(f'item: {item}')
+                # logger.debug(f'item: {item}')
                 self.coeList.append(item)
             elif re.search(r"WCIB", item):
                 self.wcibList.append(item)
         # pv_caget_list = epics.caget_many(self.pvList, as_string=True)
         ca_wcib_list = epics.caget_many(self.wcibList, as_string=True)
         ca_nc_list = epics.caget_many(self.ncList, as_string=True)
-        print(f"len self.coeList: {len(self.coeList)}")
+        logger.debug(f"len self.coeList: {len(self.coeList)}")
         ca_coe_list = epics.caget_many(self.coeList, as_string=True)
         # put pvs and cagets into a dictionary
         # self.pvDict = dict(zip(self.pvList, pv_caget_list))
@@ -826,7 +516,7 @@ class MainWindow(DesignerDisplay, QWidget):
         self.expert_widget.pvDict = self.pvDict
         self.diagnostic_widget.dg_list = self.coeList.copy()
         self.diagnostic_widget.ca_coe_list = self.coeDict.copy()
-        # print(self.pvDict)
+        # logger.debug(self.pvDict)
 
     def val_to_key(self, val):
         key = [key for key, value in self.pvDict.items() if value == val]
@@ -883,21 +573,20 @@ class MainWindow(DesignerDisplay, QWidget):
         """
         Called from load_ioc
         ---
-        Calls populate di, populate drv, populate enc
-        Check to see if there is an existing config for each comp type DI. DRV, ENV
-        SelG:DI:*:ID_RBV
-        SelG:DRV:*:ID_RBV
-        SelG:ENC
+        Calls WCIB
         """
         # identify WCIB PVs
         self.identify_WCIB()
 
     def identify_WCIB(self):
         """
-        there are three possible options:
-        1. if the caget is an empty string, dont highlight anything
-        2. if the there is a value and it matches something, then highlight
-        3. there is a string but it doesnt match anything, something went wrong
+        Given a a dictionary of WCIB PVs we move this into a list then sort by the type:
+        SA - Software Axis
+        DI - Digital Input
+        DRV - Drive
+        ENC - Encoder
+
+        Once sorted, copy to each of the seperate widgets
         """
         logger.info(f"in identify_WCIB'")
         self.clear_items()
@@ -905,18 +594,18 @@ class MainWindow(DesignerDisplay, QWidget):
 
         # for pv in self.pvDict:
         for pv in self.wcibDict:
-            logger.debug(f"pv: {pv}")
+            # logger.debug(f"pv: {pv}")
             if re.search(r".*:WCIB_RBV", pv):
-                logger.debug(f"wcib pv: {pv}")
+                # logger.debug(f"wcib pv: {pv}")
                 self.list_WCIB.append(pv)
         for pv in self.list_WCIB:
             # fake_caget output is of type string seperated by comma
             # device_type = epics.caget(pv, as_string=True)
             # device_type = fake_caget(self.pvDict, pv)
             device_type = fake_caget(self.wcibDict, pv)
-            print(f"device_type: {device_type}, pv: {pv}")
+            logger.debug(f"device_type: {device_type}, pv: {pv}")
             if isinstance(device_type, str) and re.search(r"SA", device_type):
-                print(f"axis: {pv}")
+                logger.debug(f"axis: {pv}")
                 self.axis.append(pv)
             if isinstance(device_type, str) and re.search(r"DI", device_type):
                 self.linker_widget.digital_inputs_linker.append(pv)
@@ -930,7 +619,7 @@ class MainWindow(DesignerDisplay, QWidget):
 
         # Loading Axis
         # self.axis = axis_wcib_to_id(self.pvDict, self.axis)
-        print(f"num of axis: {len(self.axis)}")
+        logger.debug(f"num of axis: {len(self.axis)}")
         self.axis = axis_wcib_to_id(self.axis)
         self.user_input_widget.axis = self.axis
         self.user_input_widget.publish_axis_ui()
@@ -971,7 +660,7 @@ class MainWindow(DesignerDisplay, QWidget):
     #     Calls publish axis
     #     """
     #     logger.info(f"in load_axis")
-    #     # print(self.ioc_name.text())
+    #     # logger.debug(self.ioc_name.text())
 
     #     self.axis = identify_axis(self.pvDict)
     #     self.user_input_widget.axis = self.axis
@@ -1026,7 +715,7 @@ class MainWindow(DesignerDisplay, QWidget):
 
         if not self.linker_widget.axis_list_linker.isEnabled():
             self.linker_widget.axis_list_linker.setEnabled(True)
-        # print(self.axis_selection)
+        # logger.debug(self.axis_selection)
         # self.staged_mapping= [[] for _ in range(self.axis_list.count())]
 
         # self.staged_mapping = [
@@ -1064,12 +753,6 @@ class MainWindow(DesignerDisplay, QWidget):
         # if not self.digital_input_axis.isEnabled():
         #     self.digital_input_hardware.setEnabled(True)
         # self.discover_di_channel()
-
-
-# def gather_plc_pvs_from_file(self):
-#   pathToPv = ''
-#   for pvs in
-#   return pvList
 
 
 if __name__ == "__main__":

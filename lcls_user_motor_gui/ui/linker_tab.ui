@@ -25,13 +25,6 @@
           </widget>
          </item>
          <item>
-          <widget class="PyDMLabel" name="ioc_label">
-           <property name="toolTip">
-            <string/>
-           </property>
-          </widget>
-         </item>
-         <item>
           <widget class="QLabel" name="status_indicators">
            <property name="text">
             <string>TextLabel</string>
@@ -236,13 +229,6 @@
    </item>
   </layout>
  </widget>
- <customwidgets>
-  <customwidget>
-   <class>PyDMLabel</class>
-   <extends>QLabel</extends>
-   <header>pydm.widgets.label</header>
-  </customwidget>
- </customwidgets>
  <resources/>
  <connections/>
 </ui>
