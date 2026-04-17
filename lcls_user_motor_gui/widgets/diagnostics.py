@@ -159,7 +159,7 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
 
         :param self: recieves one axis ID
         """
-        print(f"in populate_diagnostic_widget!!!!!!!!!!")
+        self.logger.info(f"in populate_diagnostic_widget")
         print(f"current Item: {self.diagnostic_param_filter.currentText()}")
         current_text = self.diagnostic_param_filter.currentText()
         for index, (key, value) in enumerate(self.ca_coe_list.items()):

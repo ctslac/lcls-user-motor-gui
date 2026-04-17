@@ -98,7 +98,7 @@ class UserInputWindow(DesignerDisplay, QWidget):
 
     def select_axis_ui(self):
         """
-        Handle axis selection and detect linked encoders and drives.
+        Publish axis selection and detect linked encoders and drives.
         """
         self.logger.info(f"in select_axis_ui")
         # self.populate_di()
@@ -209,7 +209,7 @@ class UserInputWindow(DesignerDisplay, QWidget):
         self.digital_input_axis_ui.clear()
         currDisplayAxis = self.display_axis_ui.currentRow()
         numDI = f"{self.prefixName}:AXIS:{(currDisplayAxis+1):02}:NUMDI_RBV"
-        print(f"numDI: {numDI}")
+        self.logger.debug(f"numDI: {numDI}")
         ca_numDI = epics.caget(numDI, as_string=True)
         for i in range(0, int(ca_numDI)):
             self.logger.debug("adding di item")
@@ -253,7 +253,7 @@ class UserInputWindow(DesignerDisplay, QWidget):
             for i in range(0, self.digital_input_hardware_ui.count()):
                 if DI_hardware == self.digital_input_hardware_ui.item(i).text():
                     # self.logger.debug(f"currItem: {self.digital_input_hardware.item(i).text()}")
-                    print(
+                    self.logger.debug(
                         f"found hardware: {self.digital_input_hardware_ui.item(i).text()}"
                     )
                     self.digital_input_hardware_ui.setCurrentRow(i)
@@ -321,7 +321,7 @@ class UserInputWindow(DesignerDisplay, QWidget):
 
         replaced_items = []
         for item in self.digital_inputs_ui:
-            print(f"item: {item}")
+            self.logger.debug(f"item: {item}")
             replaced_items.append(item.replace("WCIB_RBV", "Id_RBV"))
 
         val = epics.caget_many(replaced_items, as_string=True)
@@ -387,7 +387,7 @@ class UserInputWindow(DesignerDisplay, QWidget):
         self.display_drives_ui.clear()
         replaced_items = []
         for item in self.drives_ui[1:]:
-            print(f"drives: {item}")
+            self.logger.debug(f"drives: {item}")
             replaced_items.append(item.replace("WCIB_RBV", "Id_RBV"))
 
         val = epics.caget_many(replaced_items, as_string=True)
@@ -446,21 +446,21 @@ class UserInputWindow(DesignerDisplay, QWidget):
         self.logger.info(f"in populate axis_ui")
         self.display_axis_ui.clear()
         for item in self.axis:
-            print(f"axis: {item}")
+            self.logger.debug(f"axis: {item}")
         self.display_axis_ui.addItems(self.axis)
         if not self.display_axis_ui.isEnabled():
             self.display_axis_ui.setEnabled(True)
 
     def load_encoders_ui(self):
         """
-        Load encoders UI elements from the PV data.
+        Load encoders UI elements from the PV data, replave the WCIB with Id_RBV
         """
         # update enum with drives pulled from .db file
         self.logger.info(f"in populate enc_ui")
         self.display_encoders_ui.clear()
         replaced_items = []
         for item in self.encoders_ui[1:]:
-            print(f"drives: {item}")
+            self.logger.debug(f"drives: {item}")
             replaced_items.append(item.replace("WCIB_RBV", "Id_RBV"))
         val = epics.caget_many(replaced_items, as_string=True)
         self.encoders_ui[1:] = val[0:]
