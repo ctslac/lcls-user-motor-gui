@@ -88,8 +88,8 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
         self.diagnostic_hardware_selection.clear()
         axis_index = self.diagnostic_axis_selection.currentIndex()
         axis = f"{self.prefixName}:{(axis_index + 1):02}"
-        print(f"axis: {axis}")
-        print(f'caget: {axis + ":SelG:ENC:Id_RBV"}')
+        self.logger.debug(f"axis: {axis}")
+        self.logger.debug(f'caget: {axis + ":SelG:ENC:Id_RBV"}')
         string_hardwareDrvId = (
             f"{self.prefixName}:AXIS:{(axis_index+1):02}:SelG:DRV:Id_RBV"
         )
@@ -98,7 +98,7 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
         )
         hardwareDrvId = epics.caget(string_hardwareDrvId, as_string=True)
         hardwareEncId = epics.caget(string_hardwareEncId, as_string=True)
-        print(f"drv id: {hardwareDrvId}, enc id: {hardwareEncId}")
+        self.logger.debug(f"drv id: {hardwareDrvId}, enc id: {hardwareEncId}")
         if hardwareDrvId:
             if "_" in hardwareDrvId:
                 hardwareDrvId = hardwareDrvId.split("_", 1)[0]
@@ -122,16 +122,16 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
 
         # self.dg_list = identify_dg_params(dgPrefix, self.pvDict)
         string_drive_regex = f"{dgPrefix}[^:]+:Name_RBV"
-        print(f"string_drive_regex: {string_drive_regex}")
+        self.logger.debug(f"string_drive_regex: {string_drive_regex}")
         stripped_dg = []
-        print(f"coe len: {len(self.dg_list)}")
+        self.logger.debug(f"coe len: {len(self.dg_list)}")
         for pv in self.dg_list:
-            # print(f"pv: {pv}")
+            # self.logger.debug(f"pv: {pv}")
             if re.search(string_drive_regex, pv):
-                print(f"stripped_dg, param: {pv}")
+                self.logger.debug(f"stripped_dg, param: {pv}")
                 stripped_dg.append(pv.strip())
 
-        print(f"dg list size: {len(stripped_dg)}")
+        self.logger.debug(f"dg list size: {len(stripped_dg)}")
 
         # Clear previous items
         self.diagnostic_param_filter.clear_items()
@@ -160,18 +160,18 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
         :param self: recieves one axis ID
         """
         self.logger.info(f"in populate_diagnostic_widget")
-        print(f"current Item: {self.diagnostic_param_filter.currentText()}")
+        self.logger.debug(f"current Item: {self.diagnostic_param_filter.currentText()}")
         current_text = self.diagnostic_param_filter.currentText()
         for index, (key, value) in enumerate(self.ca_coe_list.items()):
             # if current_text in self.ca_coe_list:
             if current_text == value:
                 # pv_index = self.ca_coe_list.index(current_text)
                 pv_index = index
-                print(f"current pv: {pv_index} ({current_text})")
+                self.logger.debug(f"current pv: {pv_index} ({current_text})")
                 # item = self.param_list.item(pv_index)
                 # thing = self.ca_coe_list[pv_index]
                 thing = key
-                print(f"item: {thing}")
+                self.logger.debug(f"item: {thing}")
                 name = self.remove_name_rbv(thing)
                 param_widget = uic.loadUi(
                     str(Path(__file__).parent / "./../ui" / "diagnostics.ui")
@@ -199,9 +199,9 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
         # vals[3] = nc_pv + ":Desc_RBV"
         # vals[4] = nc_pv + ":TLastUp_RBV"
         # vals[5] = nc_pv + ":EU_RBV"
-        # print("ca://" + vals[1])
+        # self.logger.debug("ca://" + vals[1])
         ca_vals = epics.caget_many(vals, as_string=True)
-        # print(ca_vals)
+        # self.logger.debug(ca_vals)
         goal = widget.findChild(PyDMLabel, "goal")
         goal.setText(ca_vals[0])
         value = widget.findChild(PyDMLabel, "value")
