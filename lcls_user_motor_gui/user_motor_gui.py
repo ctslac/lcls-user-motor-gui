@@ -140,8 +140,7 @@ class MainWindow(DesignerDisplay, QWidget):
     ui_dir = Path(__file__).parent / "ui"
 
     # Main Window Widgets
-    reload_ioc: QPushButton
-    load_ioc: QPushButton
+    # load_ioc: QPushButton
     status_logger: QPlainTextEdit
     main_tabs: QTabWidget
 
@@ -227,20 +226,19 @@ class MainWindow(DesignerDisplay, QWidget):
             self.param_connections = []
             self.ioc_path = "/reg/g/pcds/epics-dev/nlentz/lcls-plc-template-user-motors/iocBoot/ioc-lcls-plc-template-user-motors/lcls_plc_template_user_motors.db"
 
+        self.start_gui()
+
+    def start_gui(self):
+        logger.info(f"in start_gui")
         """
         Load IOC pvs from ioc db, setup the tab signals and populate data from loaded db
         """
-
-        for slot in [
-            self.load_ioc_data,
-            self.setup_tab_signals,
-            self.populate_options,
-            # self.load_axis,
-        ]:
-            self.load_ioc.clicked.connect(slot)
+        self.load_ioc_data()
+        self.setup_tab_signals()
+        self.populate_options()
 
     def setup_tab_signals(self):
-        logger.debug(f"in setup_tab_signals")
+        logger.info(f"in setup_tab_signals")
         """
         Setup all of the signals for each of the tab widgets.
         """
