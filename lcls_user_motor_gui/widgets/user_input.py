@@ -414,6 +414,8 @@ class UserInputWindow(DesignerDisplay, QWidget):
         Load encoders channel UI based on the selected encoder.
         """
         self.logger.info(f"in load_encoders_channel_ui")
+
+        # This needs to be replaced with with the pv for the selected encoder
         self.display_encoders_channel_ui.clear()
         if "7062" in self.display_encoders_ui.currentItem().text():
             for i in range(0, 2):

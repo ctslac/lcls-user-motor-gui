@@ -89,6 +89,7 @@ class ExpertWindow(DesignerDisplay, QWidget):
         self.expert_encoder_filter.layout().addWidget(self.expert_encoder_widget)
 
     def filter_expert_nc_filter(self, text):
+        self.logger.info("in filter_expert_nc_filter")
         """
         Filter items in expert_nc_filter based on expert_filter text.
         """
@@ -103,8 +104,7 @@ class ExpertWindow(DesignerDisplay, QWidget):
         axis_list = self.axis
         for item in axis_list:
             self.expert_axis.addItem(item)
-        # idx = self.axis_list
-        # self.expert_axis.setCurrentRow(0)
+
         if not self.expert_axis.isEnabled():
             self.expert_axis.setEnabled(True)
         self.logger.debug(f"caput to: self.axis_selection")
@@ -113,24 +113,21 @@ class ExpertWindow(DesignerDisplay, QWidget):
         self.logger.info("in expert_update_nc")
 
         axis_index = self.expert_axis.currentIndex()
-        print(f"axis: {axis_index}")
+        self.logger.debug(f"axis: {axis_index}")
         axis = f"{self.prefixName}:MMS:{(axis_index+1):02}:NC:"
         c_nc_p = axis + "[^:]+:Name_RBV"
-        print(f"nc p regex: {c_nc_p}")
+        self.logger.debug(f"nc p regex: {c_nc_p}")
         stripped_nc = []
         for pv in self.nc_list:
-            # print(f"nc pv: {pv}")
+            # self.logger.debug(f"nc pv: {pv}")
             if re.search(c_nc_p, pv):
-                # print(f"Found nc_param in the list, param: {pv}")
+                # self.logger.debug(f"Found nc_param in the list, param: {pv}")
                 stripped_nc.append(pv.strip())
 
-        print(f"len of nc param list: {len(stripped_nc)}")
+        self.logger.debug(f"len of nc param list: {len(stripped_nc)}")
         # Clear previous items
         self.expert_nc_widget.clear_items()
         # self.nc_list.clear()
-
-        # Identify NC params
-        # self.nc_list = identify_nc_params(axis, self.nc_list)
 
         self.ca_nc_list = epics.caget_many(stripped_nc, as_string=True)
         self.logger.info(f"items size after caget: {len(self.ca_nc_list)}")
@@ -153,19 +150,18 @@ class ExpertWindow(DesignerDisplay, QWidget):
         self.add_param_widgets(stripped_nc, self.expert_nc_filter_list)
 
     def expert_update_drive(self, axis):
-        self.logger.info(f"\nin expert_update_drive")
+        self.logger.info(f"in expert_update_drive")
 
         # Get current axis
         axis_index = self.expert_axis.currentIndex()
         drive_string = f"{self.prefixName}:AXIS:{(axis_index+1):02}:SelG:DRV:Id_RBV"
-        print(f"drive_string: {drive_string}")
-        # print(f'caget: {axis + ":SelG:DRV:Id_RBV"}')
+        self.logger.debug(f"drive_string: {drive_string}")
 
         # Get hardware slice
         # TST:UM:01:SelG:DRV:Id_RBV
         hardwareID = epics.caget(drive_string, as_string=True)
 
-        print(f"hardwareID before split: {hardwareID}")
+        self.logger.debug(f"hardwareID before split: {hardwareID}")
         # Remove everything after the first underscore
         if hardwareID:
             if "_" in hardwareID:
@@ -173,22 +169,19 @@ class ExpertWindow(DesignerDisplay, QWidget):
         else:
             hardwareID = "None"
 
-        print(f"hardwareID after split: {hardwareID}")
+        self.logger.debug(f"hardwareID after split: {hardwareID}")
 
-        # self.coe_drive_list = identify_coe_drive_params(
-        #     f"{axis}:{hardwareID}", self.pvDict
-        # )
         formatted_drive_string = (
             f"{self.prefixName}:{hardwareID}:{(axis_index+1):02}:COE"
         )
         string_drive_regex = f"{formatted_drive_string}:(?!.*:DG:)[^:]+:Name_RBV"
-        print(f"string_drive_regex: {string_drive_regex}")
+        self.logger.debug(f"string_drive_regex: {string_drive_regex}")
         stripped_coe = []
-        print(f"coe len: {len(self.coe_drive_list)}")
+        self.logger.debug(f"coe len: {len(self.coe_drive_list)}")
         for pv in self.coe_drive_list:
-            # print(f"pv: {pv}")
+            # self.logger.debug(f"pv: {pv}")
             if re.search(string_drive_regex, pv):
-                # print(f"Found nc_param in the list, param: {pv}")
+                # self.logger.debug(f"Found nc_param in the list, param: {pv}")
                 stripped_coe.append(pv.strip())
 
         # Clear previous items
@@ -222,7 +215,7 @@ class ExpertWindow(DesignerDisplay, QWidget):
         axis_index = self.expert_axis.currentIndex()
         # axis = f"{self.prefixName}:0{axis_index + 1}"
         encoder_string = f"{self.prefixName}:AXIS:{(axis_index+1):02}:SelG:ENC:Id_RBV"
-        print(f"encoder_string: {encoder_string}")
+        self.logger.debug(f"encoder_string: {encoder_string}")
 
         # Get hardware slice
         # TST:UM:01:SelG:DRV:Id_RBV
@@ -234,7 +227,7 @@ class ExpertWindow(DesignerDisplay, QWidget):
         else:
             hardwareID = "None"
 
-        print(f"hardwareID after split: {hardwareID}")
+        self.logger.debug(f"hardwareID after split: {hardwareID}")
 
         # self.coe_encoder_list = identify_coe_enc_params(
         #     f"{axis}:{hardwareID}", self.pvDict
@@ -244,14 +237,14 @@ class ExpertWindow(DesignerDisplay, QWidget):
             f"{self.prefixName}:{hardwareID}:{(axis_index+1):02}:COE"
         )
         string_enc_regex = f"{formatted_drive_string}:(?!.*:DG:)[^:]+:Name_RBV"
-        print(f"string_enc_regex: {string_enc_regex}")
+        self.logger.debug(f"string_enc_regex: {string_enc_regex}")
         stripped_coe = []
-        # print(f"DEBUG: coe_encoder_list at start = {self.coe_encoder_list}")
-        print(f"coe len: {len(self.coe_encoder_list)}")
+        # self.logger.debug(f"DEBUG: coe_encoder_list at start = {self.coe_encoder_list}")
+        self.logger.debug(f"coe len: {len(self.coe_encoder_list)}")
         for pv in self.coe_encoder_list:
-            # print(f"pv: {pv}")
+            # self.logger.debug(f"pv: {pv}")
             if re.search(string_enc_regex, pv):
-                # print(f"Found nc_param in the list, param: {pv}")
+                # self.logger.debug(f"Found nc_param in the list, param: {pv}")
                 stripped_coe.append(pv.strip())
 
         # Clear previous items
@@ -284,16 +277,16 @@ class ExpertWindow(DesignerDisplay, QWidget):
         Optionally takes a config_list (list of dicts) to set values for each widget.
         Example config_list: [{"label": "NC1", "lineEdit": "val1", "lineEdit_2": "val2", "label_2": "desc1"}, ...]
         """
-        self.logger.debug("in configure_param_widgets")
+        self.logger.info("in configure_param_widgets")
         vals = ["", "", "", ""]
         vals[0] = nc_pv + ":Name_RBV"
         vals[1] = nc_pv + ":Goal"
         vals[2] = nc_pv + ":Val_RBV"
         vals[3] = nc_pv + ":EU_RBV"
         # vals[4] = nc_pv + ":EU_RBV"
-        # print("ca://" + vals[1])
+        # self.logger.debug("ca://" + vals[1])
         # ca_vals = epics.caget_many(vals, as_string=True)
-        # print(ca_vals)
+        # self.logger.debug(ca_vals)
         name = widget.findChild(PyDMLabel, "pv_name")
         name.set_channel("ca:// " + vals[0])
         goal = widget.findChild(PyDMLineEdit, "pv_goal")
@@ -307,7 +300,7 @@ class ExpertWindow(DesignerDisplay, QWidget):
         """
         Dynamically add instances of the param.ui widget as QListWidgetItems in self.expert_nc_filter_list (QListWidget)
         """
-        self.logger.debug("in add_param_widgets")
+        self.logger.info("in add_param_widgets")
         widget.clear()
         self.param_widgets = []
         self.param_connections = []  # (optional, if you want a new list for every call)
@@ -318,7 +311,7 @@ class ExpertWindow(DesignerDisplay, QWidget):
             )
             item = QListWidgetItem()
             pv_clean = self.remove_name_rbv(pv)
-            # print(f"pv: {pv_clean}")
+            # self.logger.debug(f"pv: {pv_clean}")
             self.configure_param_widgets(param_widget, pv_clean)
 
             # --- Find the PyDMLineEdit and connect its signals ---
@@ -337,12 +330,12 @@ class ExpertWindow(DesignerDisplay, QWidget):
             self.param_widgets.append(param_widget)
 
     def highlight_nc_param(self):
-        print("in highlight_nc_param")
+        self.logger.info("in highlight_nc_param")
         current_text = self.expert_nc_widget.currentText()
         # Defensive check: Make sure current_text is in the list
         if current_text in self.ca_nc_list:
             pv_index = self.ca_nc_list.index(current_text)
-            # print(f"current pv: {pv_index} ({current_text})")
+            # self.logger.debug(f"current pv: {pv_index} ({current_text})")
 
             # Clear all highlights
             for i in range(self.expert_nc_filter_list.count()):
@@ -368,15 +361,15 @@ class ExpertWindow(DesignerDisplay, QWidget):
             # (Optional: also select the item in the list view)
             # self.expert_nc_filter_list.setCurrentItem(item)
             else:
-                print("Current filter text not found in ca_nc_list!")
+                self.logger.debug("Current filter text not found in ca_nc_list!")
 
     def highlight_coe_drive_param(self):
-        print("in highlight_coe_drive_param")
+        self.logger.info("in highlight_coe_drive_param")
         current_text = self.expert_drive_widget.currentText()
         # Defensive check: Make sure current_text is in the list
         if current_text in self.ca_coe_drive_list:
             pv_index = self.ca_coe_drive_list.index(current_text)
-            # print(f"current pv: {pv_index} ({current_text})")
+            # self.logger.debug(f"current pv: {pv_index} ({current_text})")
 
             # Clear all highlights
             for i in range(self.expert_coe_drive_filter_list.count()):
@@ -402,15 +395,15 @@ class ExpertWindow(DesignerDisplay, QWidget):
             # (Optional: also select the item in the list view)
             # self.expert_nc_filter_list.setCurrentItem(item)
             else:
-                print("Current filter text not found in ca_coe_drive_list!")
+                self.logger.debug("Current filter text not found in ca_coe_drive_list!")
 
     def highlight_coe_encoder_param(self):
-        print("in highlight_coe_encoder_param")
+        self.logger.info("in highlight_coe_encoder_param")
         current_text = self.expert_encoder_widget.currentText()
         # Defensive check: Make sure current_text is in the list
         if current_text in self.ca_coe_encoder_list:
             pv_index = self.ca_coe_encoder_list.index(current_text)
-            # print(f"current pv: {pv_index} ({current_text})")
+            # self.logger.debug(f"current pv: {pv_index} ({current_text})")
 
             # Clear all highlights
             for i in range(self.expert_coe_encoder_filter_list.count()):
@@ -436,7 +429,9 @@ class ExpertWindow(DesignerDisplay, QWidget):
             # (Optional: also select the item in the list view)
             # self.expert_nc_filter_list.setCurrentItem(item)
             else:
-                print("Current filter text not found in ca_coe_encoder_list!")
+                self.logger.debug(
+                    "Current filter text not found in ca_coe_encoder_list!"
+                )
 
     def remove_name_rbv(self, pv_name):
         suffix = ":Name_RBV"
@@ -445,6 +440,13 @@ class ExpertWindow(DesignerDisplay, QWidget):
         return pv_name
 
     def check_caput(self, pv):
+        self.logger.info("in check_caput")
+
+        """
+        this function was meant to start an async thread that confirms
+        the caput has been successful. in the integration test I was
+        relying on the wait=true part of the caput
+        """
         pv = self.remove_name_rbv(pv)
 
         # Run blocking calls in a thread
@@ -452,10 +454,10 @@ class ExpertWindow(DesignerDisplay, QWidget):
         rbv_value = epics.caget, pv + ":Val_RBV"
 
         if goal_value == rbv_value:
-            print(f"goal and rbv match: {goal_value}, {rbv_value}")
+            self.logger.debug(f"goal and rbv match: {goal_value}, {rbv_value}")
             return True
         else:
-            print(f"goal and rbv DO NOT match: {goal_value}, {rbv_value}")
+            self.logger.debug(f"goal and rbv DO NOT match: {goal_value}, {rbv_value}")
             return False
 
-        units.setText(ca_vals[3])
+        # units.setText(ca_vals[3])
