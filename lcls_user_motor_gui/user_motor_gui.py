@@ -518,55 +518,6 @@ class MainWindow(DesignerDisplay, QWidget):
         self.diagnostic_widget.ca_coe_list = self.coeDict.copy()
         # logger.debug(self.pvDict)
 
-    def val_to_key(self, val):
-        key = [key for key, value in self.pvDict.items() if value == val]
-        logger.debug(f"key: {key}")
-
-        """
-        there may be more than one key for any given value, i might have to change the logic here
-        """
-        cleaned_axis = strip_key(key[0])
-        # logger.debug(f"val to key, cleaned axis: {cleaned_axis}, key: {key}")
-        return str(cleaned_axis)
-
-    def find_unique_keys(self, prefix):
-        logger.debug("find unique di values")
-        # assume Id_RBV
-        unique_keys = set()  # Use a set to store unique values
-        logger.debug(f"prefix: {prefix}")
-        # Loop through the dictionary items
-        for key, value in self.pvDict.items():
-            # Check if the key starts with the given prefix
-            if key.startswith(prefix) and (
-                key.endswith("ID_RBV") or key.endswith("Id_RBV")
-            ):
-                # Add the value to the set of unique values
-                unique_keys.add(key)
-
-        # Return the unique values as a list
-        return list(unique_keys)
-
-    def identify_di(self, item):
-        val = self.val_to_key(item)
-        things = self.find_unique_keys(val + ":SelG:DI:")
-        # logger.debug(f"identify_config: item, {val}, DIs, {things}")
-
-        return things
-
-    def identify_drv(self, item):
-        val = self.val_to_key(item)
-        things = self.find_unique_keys(val + ":SelG:DRV:")
-        # logger.debug(f"identify_config: item, {val}, DRVs, {things}")
-
-        return things
-
-    def identify_enc(self, item):
-        val = self.val_to_key(item)
-        things = self.find_unique_keys(val + ":SelG:ENC:")
-        # logger.debug(f"identify_config: item, {val}, ENCs, {things}")
-
-        return things
-
     def populate_options(self):
         logger.info(f"in populate options")
 
@@ -605,7 +556,7 @@ class MainWindow(DesignerDisplay, QWidget):
             device_type = fake_caget(self.wcibDict, pv)
             logger.debug(f"device_type: {device_type}, pv: {pv}")
             if isinstance(device_type, str) and re.search(r"SA", device_type):
-                logger.debug(f"axis: {pv}")
+                # logger.debug(f"axis: {pv}")
                 self.axis.append(pv)
             if isinstance(device_type, str) and re.search(r"DI", device_type):
                 self.linker_widget.digital_inputs_linker.append(pv)
@@ -653,48 +604,20 @@ class MainWindow(DesignerDisplay, QWidget):
         self.drives_linker.clear()
         self.encoders.clear()
 
-    # def load_axis(self):
-    #     """
-    #     Called from load_ioc
-    #     ---
-    #     Calls publish axis
-    #     """
-    #     logger.info(f"in load_axis")
-    #     # logger.debug(self.ioc_name.text())
-
-    #     self.axis = identify_axis(self.pvDict)
-    #     self.user_input_widget.axis = self.axis
-    #     self.linker_widget.axis = self.axis
-    #     self.publish_axis()
-    #     self.user_input_widget.publish_axis_ui()
-    #     self.expert_widget.axis = self.axis
-    #     self.expert_widget.publish_axis_expert()
-    #     self.diagnostic_widget.axis = self.axis
-    #     self.diagnostic_widget.publish_axis_diagnostic()
-
     def publish_axis_di(self):
         logger.info(f"in publish_axis_di")
         # if self.axis_di_init:
         self.linker_widget.digital_input_axis.clear()
         numDI = 0
 
-        # currAxisIdx = self.axis_list.currentRow()
-        # logger.debug(f"currAxisIdx: {self.axis[currAxisIdx]}")
-        # currAxis = self.val_to_key(self.axis[currAxisIdx])
-        # logger.debug(f"currAxis: {currAxis}")
-
         currAxis = self.val_to_key(
             self.linker_widget.axis_list_linker.currentItem().text()
         )
         logger.debug(f"currAxis: {currAxis}")
-        # for items in self.loaded_unique_di:
-        #     if items.startswith(currAxis):
-        #         numDI = numDI + 1
+
+        # need to change this to number of DIs
         for i in range(0, 3):
             self.linker_widget.digital_input_axis.addItem("0" + str(1 + i))
-            # self.axis_di_init = False
-        # elif self.axis_di_init is False:
-        # self.digital_input_axis.setCurrentRow(self.axis_di_idx)
 
         self.select_di_channel()
 
@@ -715,12 +638,6 @@ class MainWindow(DesignerDisplay, QWidget):
 
         if not self.linker_widget.axis_list_linker.isEnabled():
             self.linker_widget.axis_list_linker.setEnabled(True)
-        # logger.debug(self.axis_selection)
-        # self.staged_mapping= [[] for _ in range(self.axis_list.count())]
-
-        # self.staged_mapping = [
-        #     [[""] for _ in range(3)] for _ in range(self.axis_list.count())
-        # ]
 
         self.linker_widget.staged_mapping = [[["01"], ["02"], ["03"]]]
         self.linker_widget.staged_de = [[["None"], ["None"]]]
@@ -730,19 +647,9 @@ class MainWindow(DesignerDisplay, QWidget):
         logger.info(f"in load_axis_di")
         self.linker_widget.digital_input_axis.clear()
 
-        # self.digital_inputs = identify_inputs(
-        #     self.pvList, self.axis_list.currentItem().text()
-        # )
-
-        delimiter = ":Id_RBV"
         # logger.debug(f"di_val: {axis_di}")
         for item in self.axis:
             logger.debug(f"axis: {item}")
-            # name = self.val_to_key(item)
-            # logger.debug(f"name: {name}")
-            # cleaned_di = name.replace(delimiter, "")
-            # logger.debug(f"cleaned item: {cleaned_di}")
-            # pv = fake_caget(self.pvDict, cleaned_di)
             self.loaded_unique_di.append(self.identify_di(item))
 
             # self.digital_input_axis.addItem(val)

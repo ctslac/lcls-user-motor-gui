@@ -151,10 +151,10 @@ class LinkerWindow(DesignerDisplay, QWidget):
         self.logger.info(f"inStateMapptingSet")
         for stage in range(len(self.staged_mapping)):
             for di in range(len(self.staged_mapping[stage])):
-                print(f"di: {self.staged_mapping[stage][di]}")
+                self.logger.debug(f"di: {self.staged_mapping[stage][di]}")
         for stage in range(len(self.staged_de)):
             for item in range(len(self.staged_de[stage])):
-                print(f"item: {self.staged_de[stage][item]}")
+                self.logger.debug(f"item: {self.staged_de[stage][item]}")
         # if there is nothing staged
         # Check if there are any staged mappings
         temp_flag = False
@@ -450,7 +450,7 @@ class LinkerWindow(DesignerDisplay, QWidget):
                 mapping_window.staged_mappings_list.addItem(
                     f"Axis {int(self.axis_list_linker.currentRow())+1}: DI: {row_output[0]}, {row_output[1]}, {row_output[2]} DRV: {self.staged_de[stage][0]} ENC:{self.staged_de[stage][1]}"
                 )
-                # print(row_output)  # Printing as one complete list containing the sublists
+                # self.logger.debug(row_output)  # Printing as one complete list containing the sublists
 
             else:
                 self.logger.debug(
@@ -738,6 +738,8 @@ class LinkerWindow(DesignerDisplay, QWidget):
     def load_drives_channel(self):
         self.logger.info(f"in load_drives_channel")
         self.drives_channel_list.clear()
+
+        # need to change this to use the num chans pv
         if "7062" in self.drives_list.currentItem().text():
             for i in range(0, 2):
                 self.drives_channel_list.addItem(str(i + 1))
@@ -745,6 +747,8 @@ class LinkerWindow(DesignerDisplay, QWidget):
     def load_encoders_channel(self):
         self.logger.info(f"in load_encoders_channel_ui")
         self.encoders_channel_list.clear()
+
+        # need to change this to use the num chan pv
         if "7062" in self.encoders_list.currentItem().text():
             for i in range(0, 2):
                 self.encoders_channel_list.addItem(str(i + 1))
@@ -756,23 +760,12 @@ class LinkerWindow(DesignerDisplay, QWidget):
         self.logger.info(f"in publish_axis_di")
         # if self.axis_di_init:
         self.digital_input_axis.clear()
-        numDI = 0
 
-        # currAxisIdx = self.axis_list.currentRow()
-        # self.logger.debug(f"currAxisIdx: {self.axis[currAxisIdx]}")
-        # currAxis = self.val_to_key(self.axis[currAxisIdx])
-        # self.logger.debug(f"currAxis: {currAxis}")
+        # need to make numDI param that does into the for loop
+        # numDI = 0
 
-        # currAxis = val_to_key(self.axis_list_linker.currentItem().text(), self.pvDict)
-        # self.logger.debug(f"currAxis: {currAxis}")
-        # for items in self.loaded_unique_di:
-        #     if items.startswith(currAxis):
-        #         numDI = numDI + 1
         for i in range(0, 3):
             self.digital_input_axis.addItem("0" + str(1 + i))
-            # self.axis_di_init = False
-        # elif self.axis_di_init is False:
-        # self.digital_input_axis.setCurrentRow(self.axis_di_idx)
 
         self.select_di_channel()
 
@@ -799,78 +792,10 @@ class LinkerWindow(DesignerDisplay, QWidget):
 
         if not self.axis_list_linker.isEnabled():
             self.axis_list_linker.setEnabled(True)
-        # print(self.axis_selection)
-        # self.staged_mapping= [[] for _ in range(self.axis_list.count())]
-
-        # self.staged_mapping = [
-        #     [[""] for _ in range(3)] for _ in range(self.axis_list.count())
-        # ]
 
         self.staged_mapping = [[["01"], ["02"], ["03"]]]
         self.staged_channels = [["None"], ["None"]]
         self.staged_de = [[["None"], ["None"]]]
-
-    def load_axis_di(self):
-        """ """
-        self.logger.info(f"in load_axis_di")
-        self.digital_input_axis.clear()
-
-        # self.digital_inputs = identify_inputs(
-        #     self.pvList, self.axis_list.currentItem().text()
-        # )
-
-        delimiter = ":Id_RBV"
-        # self.logger.debug(f"di_val: {axis_di}")
-        for item in self.axis:
-            self.logger.debug(f"axis: {item}")
-            # name = self.val_to_key(item)
-            # self.logger.debug(f"name: {name}")
-            # cleaned_di = name.replace(delimiter, "")
-            # self.logger.debug(f"cleaned item: {cleaned_di}")
-            # pv = fake_caget(self.pvDict, cleaned_di)
-            self.loaded_unique_di.append(self.identify_di(item))
-
-            # self.digital_input_axis.addItem(val)
-        self.loaded_unique_di = [
-            item for sublist in self.loaded_unique_di for item in sublist
-        ]
-        self.logger.debug(f"val: {self.loaded_unique_di}")
-        # if not self.digital_input_axis.isEnabled():
-        #     self.digital_input_hardware.setEnabled(True)
-        # self.discover_di_channel()
-
-    def identify_di(self, item):
-        val = val_to_key(item, self.pvDict)
-        if val is None:
-            self.logger.warning(f"identify_di: no axis key for item {item}")
-            return []
-
-        things = find_unique_keys(val + ":SelG:DI:", self.pvDict)
-        self.logger.debug(f"identify_config: item, {val}, DIs, {things}")
-
-        return things
-
-    def identify_drv(self, item):
-        val = val_to_key(item, self.pvDict)
-        if val is None:
-            self.logger.warning(f"identify_drv: no axis key for item {item}")
-            return []
-
-        things = find_unique_keys(val + ":SelG:DRV:", self.pvDict)
-        self.logger.debug(f"identify_config: item, {val}, DRVs, {things}")
-
-        return things
-
-    def identify_enc(self, item):
-        val = val_to_key(item, self.pvDict)
-        if val is None:
-            self.logger.warning(f"identify_enc: no axis key for item {item}")
-            return []
-
-        things = find_unique_keys(val + ":SelG:ENC:", self.pvDict)
-        self.logger.debug(f"identify_config: item, {val}, ENCs, {things}")
-
-        return things
 
     def load_di(self):
         """
@@ -880,23 +805,15 @@ class LinkerWindow(DesignerDisplay, QWidget):
         self.logger.info(f"in load_di")
         self.digital_input_hardware.clear()
         self.digital_input_hardware.addItem("None")
-        # self.digital_inputs = identify_inputs(
-        #     self.pvList, self.axis_list.currentItem().text()
-        # )
 
         replaced_items = []
         for item in self.digital_inputs_linker[1:]:
             replaced_items.append(item.replace("WCIB_RBV", "Id_RBV"))
 
-            # cleaned_di = item.replace(delimiter, ":Id_RBV")
-            # self.logger.debug(f"cleaned item: {cleaned_di}")
-            # val = fake_caget(self.pvDict, cleaned_di)
-            # self.logger.debug(f"val: {val}")
         val = epics.caget_many(replaced_items, as_string=True)
         self.digital_inputs_linker[:] = val[0:]
         self.digital_input_hardware.addItems(self.digital_inputs_linker)
-        # self.digital_input_hardware.addItem(val)
-        # self.digital_input_hardware.setCurrentRow(0)
+
         if not self.digital_input_hardware.isEnabled():
             self.digital_input_hardware.setEnabled(True)
         self.discover_di_channel()
@@ -908,15 +825,6 @@ class LinkerWindow(DesignerDisplay, QWidget):
         find out number of DIs
         """
         self.logger.info(f"in load_di channel")
-        # self.digital_input_channels.clear()
-        # self.logger.debug(f"di text: {self.digital_inputs[self.digital_input_hardware.currentRow()]}")
-        # val = self.digital_inputs[self.digital_input_hardware.currentRow()]
-        # delimiter = ":WCIB_RBV"
-        # cleaned_di = val.replace(delimiter, ":NUMDI_RBV")
-        # self.logger.debug(f"cleaned axis: {cleaned_di}")
-        # nums = fake_caget(self.pvDict, cleaned_di)
-        # self.digital_input_channels = int(nums) + 1
-
         for pv in self.pvDict:
             if pv.endswith("NUMDI_RBV"):
                 self.logger.debug(f"pv: {pv}")
@@ -935,9 +843,6 @@ class LinkerWindow(DesignerDisplay, QWidget):
         else:
             currAxisIdx = self.axis_list_linker.currentRow()
             self.logger.debug(f"currAxisIdx: {currAxisIdx}")
-            # self.logger.debug(f"axis: {self.axis[currAxisIdx]}")
-            # currAxis = val_to_key(self.axis[currAxisIdx], self.pvDict)
-            # self.logger.debug(f"currAxis: {currAxis}")
             currAxis = self.prefixName + ":AXIS:0" + str(currAxisIdx + 1)
             detectableDi = (
                 currAxis + ":SelG:DI:" + ("0" + str(int(axis_di_idx) + 1)) + ":Id_RBV"
@@ -947,8 +852,6 @@ class LinkerWindow(DesignerDisplay, QWidget):
             if DI_hardware == 0:
                 DI_hardware = None
             self.logger.debug(f"DI_hardware: {DI_hardware}")
-            # returnStatus = self.digital_input_hardware.findItems(value, Qt.MatchCaseSensitive)
-            # self.logger.debug(f"returnStatus: {returnStatus.text()}")
 
             self.logger.debug("searching for DI hardware")
             # detect DI hardware
@@ -1015,22 +918,6 @@ class LinkerWindow(DesignerDisplay, QWidget):
                         QAbstractItemView.NoSelection
                     )
 
-            # if axis_di_idx == 0:
-            #     self.store_di_selection[0] = [
-            #         self.digital_input_hardware.currentRow(),
-            #         self.digital_input_channels.currentRow(),
-            #     ]
-            # elif axis_di_idx == 1:
-            #     self.store_di_selection[1] = [
-            #         self.digital_input_hardware.currentRow(),
-            #         self.digital_input_channels.currentRow(),
-            #     ]
-            # elif axis_di_idx == 2:
-            #     self.store_di_selection[2] = [
-            #         self.digital_input_hardware.currentRow(),
-            #         self.digital_input_channels.currentRow(),
-            #     ]
-
     def load_di_channel(self):
         self.logger.debug("load di_channel")
         self.digital_input_main_channels.clear()
@@ -1082,7 +969,7 @@ class LinkerWindow(DesignerDisplay, QWidget):
 
         replaced_items = []
         for item in self.drives_linker[1:]:
-            print(f"drives: {item}")
+            self.logger.debug(f"drives: {item}")
             replaced_items.append(item.replace("WCIB_RBV", "Id_RBV"))
 
             # publish drive
@@ -1098,25 +985,17 @@ class LinkerWindow(DesignerDisplay, QWidget):
         # if not self.user_input_widget.display_drives_ui.isEnabled():
         #     self.user_input_widget.display_drives_ui.setEnabled(True)
 
-        # print(self.drive_selection)
+        # self.logger.debug(self.drive_selection)
 
     def load_encoders(self):
         # update enum with drives pulled from .db file
         self.logger.info(f"in load enc")
         self.encoders_list.clear()
-        # self.encoders_list.addItem("None")
-        # self.user_input_widget.display_encoders_ui.clear()
-        # self.user_input_widget.display_encoders_ui.addItem("None")
-        # self.enocder_type = identify_enc(self.pvList, self.axis_list.currentItem().text())
         replaced_items = []
         # self.logger.debug(f"encoder list size: {len(self.encoders)}")
         for item in self.encoders_linker[1:]:
             replaced_items.append(item.replace("WCIB_RBV", "Id_RBV"))
-
-            # publish encoders
-            # self.encoders_list.addItem(val)
-            # self.user_input_widget.display_encoders_ui.addItem(val)
-        # self.encoders_list.setCurrentRow(0)
+        self.logger.debug(f"len replaced_items: {len(replaced_items)}")
 
         val = epics.caget_many(replaced_items, as_string=True)
         self.encoders_linker[1:] = val[0:]
@@ -1126,7 +1005,7 @@ class LinkerWindow(DesignerDisplay, QWidget):
             self.encoders_list.setEnabled(True)
         # if not self.user_input_widget.display_encoders_ui.isEnabled():
         #     self.user_input_widget.display_encoders_ui.setEnabled(True)
-        # print(self.encoder_selection)
+        # self.logger.debug(self.encoder_selection)
 
     def caput_async(self, pv_name, value):
         worker = CaputWorker(pv_name, value)
@@ -1138,53 +1017,6 @@ class LinkerWindow(DesignerDisplay, QWidget):
         thread.finished.connect(thread.deleteLater)
         worker.finished.connect(worker.deleteLater)
         thread.start()
-
-    # def update_links(self):
-    #     self.logger.info(f"in update links")
-    #     # caput staged changes to axis
-
-    #     # For each staged_mapping ("DI") entry that has changes
-    #     for axis in self.staged_mapping:
-    #         for di in axis:
-    #             if len(di) > 1:
-    #                 try:
-    #                     axis_idx = self.axis_list_linker.currentRow() + 1
-    #                     prefix = f"{self.prefixName}0{axis_idx}"
-
-    #                     di_idx = di[0]
-    #                     # DI hardware (eg "EL7047_2")
-    #                     di_hardware = di[1] if len(di) > 1 else None
-    #                     di_channel = di[2] if len(di) > 2 else None
-
-    #                     di_hardware_pv = f"{prefix}:SelG:DI:{di_idx}:ID"
-    #                     di_channel_pv  = f"{prefix}:SelG:DI:{di_idx}:HardChNum"
-
-    #                     if di_hardware:
-    #                         self.caput_async(di_hardware_pv, di_hardware)
-    #                     if di_channel:
-    #                         self.caput_async(di_channel_pv, di_channel)
-
-    #                 except Exception as e:
-    #                     self.logger.error(f"Error processing DI {di}: {e}")
-
-    #     # For each staged_de ("DRV"/"ENC") entry that has changes
-    #     for item in self.staged_de:
-    #         try:
-    #             axis_idx = self.axis_list_linker.currentRow() + 1
-    #             prefix = f"{self.prefixName}0{axis_idx}"
-
-    #             drv = item[0][0] if item[0] and item[0][0] != "None" else None
-    #             enc = item[1][0] if item[1] and item[1][0] != "None" else None
-
-    #             drv_pv = f"{prefix}:SelG:DRV:Id"
-    #             enc_pv = f"{prefix}:SelG:ENC:Id"
-
-    #             if drv:
-    #                 self.caput_async(drv_pv, drv)
-    #             if enc:
-    #                 self.caput_async(enc_pv, enc)
-    #         except Exception as e:
-    #             self.logger.error(f"Error processing DRV/ENC {item}: {e}")
 
     # Standard handler for all async results
     def handle_caput_result(self, pv_name, success, new_value):
@@ -1344,7 +1176,7 @@ class LinkerWindow(DesignerDisplay, QWidget):
 
         #  drives and encoders
         for item in self.staged_de:
-            print(f"item: {item}")
+            self.logger.debug(f"item: {item}")
             if len(item[0]) > 1:
                 # TST:UM:LinkSel:SelG:DRV:Id
                 stringDrvHardware = f"{self.prefixName}:LinkSel:SelG:DRV:Id"
