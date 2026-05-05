@@ -313,7 +313,7 @@ def discover_pvs(
             unique_pvs = []
             for path in all_plc_db_paths:
                 if os.path.exists(path):
-                    pvs = _extract_pvs_from_file(path)
+                    pvs = _extract_pvs_from_file(path, find_makefile=find_makefile)
                     for pv in pvs:
                         if pv not in seen:
                             seen.add(pv)
@@ -321,4 +321,4 @@ def discover_pvs(
             return unique_pvs
 
     # Flags are not set, grep for PVs using matches
-    return grep_pvs(all_matches, False, find_makefile)
+    return grep_pvs(all_matches, plc_flag, usr_db_path, find_makefile)

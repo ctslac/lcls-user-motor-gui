@@ -24,7 +24,7 @@ include_package_data = true
 
 [tool.setuptools.packages.find]
 where = [ ".",]
-include = [ "lcls-user-motor-gui*",]
+include = [ "lcls_user_motor_gui*",]
 namespaces = false
 
 [[project.authors]]
@@ -34,7 +34,8 @@ name = "SLAC National Accelerator Laboratory"
 file = "LICENSE"
 
 [project.scripts]
-"lcls-user-motor-gui" = "lcls-user-motor-gui.bin.main:main"
+"lcls-user-motor-gui" = "lcls_user_motor_gui.bin.main:main"
+"lcls_user_motor_gui" = "lcls_user_motor_gui.bin.main:main"
 
 [tool.setuptools_scm]
 write_to = "lcls-user-motor-gui/_version.py"

@@ -465,7 +465,12 @@ class MainWindow(DesignerDisplay, QWidget):
         iocpath = integration_box_test
 
         # hard code ioc path
-        self.pvList = discover_pvs("", usr_db_path=iocpath, find_makefile=True)
+        # self.pvList = discover_pvs("", usr_db_path=iocpath, find_makefile=True)
+
+        # find using ioc name
+        self.pvList = discover_pvs(
+            "ioc-lcls-plc-template-user-motors", plc_flag=True, find_makefile=True
+        )
 
         # for testing only
         # Save self.pvList to a file

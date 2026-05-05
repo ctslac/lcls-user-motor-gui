@@ -1,7 +1,3 @@
-# from
+from .lcls_user_motor_gui.bin.main import main
 
-# if __name__ == "__main__":
-#     app = QApplication([])
-#     gui = MyDisplay()
-#     gui.show()
-#     sys.exit(app.exec_())
+main()

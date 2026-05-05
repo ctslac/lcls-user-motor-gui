@@ -11,7 +11,7 @@ import importlib
 import logging
 from inspect import iscoroutinefunction
 
-import lcls-user-motor-gui
+import lcls_user_motor_gui
 
 DESCRIPTION = __doc__
 
@@ -21,7 +21,7 @@ MODULES = ("help", )
 
 def _try_import(module):
     relative_module = f'.{module}'
-    return importlib.import_module(relative_module, 'lcls-user-motor-gui.bin')
+    return importlib.import_module(relative_module, 'lcls_user_motor_gui.bin')
 
 
 def _build_commands():
@@ -36,14 +36,14 @@ def _build_commands():
             unavailable.append((module, ex))
         else:
             result[module] = (mod.build_arg_parser, mod.main)
-            DESCRIPTION += f'\n    $ lcls-user-motor-gui {module} --help'
+            DESCRIPTION += f'\n    $ lcls_user_motor_gui {module} --help'
 
     if unavailable:
         DESCRIPTION += '\n\n'
 
         for module, ex in unavailable:
             DESCRIPTION += (
-                f'\nWARNING: "lcls-user-motor-gui {module}" is unavailable due to:'
+                f'\nWARNING: "lcls_user_motor_gui {module}" is unavailable due to:'
                 f'\n\t{ex.__class__.__name__}: {ex}'
             )
 
@@ -55,7 +55,7 @@ COMMANDS = _build_commands()
 
 def main():
     top_parser = argparse.ArgumentParser(
-        prog='lcls-user-motor-gui',
+        prog='lcls_user_motor_gui',
         description=DESCRIPTION,
         formatter_class=argparse.RawTextHelpFormatter
     )
@@ -63,8 +63,8 @@ def main():
     top_parser.add_argument(
         '--version', '-V',
         action='version',
-        version=lcls-user-motor-gui.__version__,
-        help="Show the lcls-user-motor-gui version number and exit."
+        version=lcls_user_motor_gui.__version__,
+        help="Show the lcls_user_motor_gui version number and exit."
     )
 
     top_parser.add_argument(
@@ -84,7 +84,7 @@ def main():
     kwargs = vars(args)
     log_level = kwargs.pop('log_level')
 
-    logger = logging.getLogger('lcls-user-motor-gui')
+    logger = logging.getLogger('lcls_user_motor_gui')
     logger.setLevel(log_level)
     logging.basicConfig()
 
