@@ -16,7 +16,7 @@ import lcls_user_motor_gui
 DESCRIPTION = __doc__
 
 
-MODULES = ("help", )
+MODULES = ("gui", "help")
 
 
 def _try_import(module):
