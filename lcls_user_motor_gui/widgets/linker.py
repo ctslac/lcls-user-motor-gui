@@ -168,17 +168,11 @@ class LinkerWindow(DesignerDisplay, QWidget):
         self.main_window = main_window
         self.prefixName = ""
         self.axis = []
-        # self.drives = []
         self.pvDict = {}
-        self.store_di_selection = [[-1, -1], [-1, -1], [-1, -1]]
-        self.loaded_unique_di = []
         self.drives_linker = ["None"]
         self.encoders_linker = ["None"]
-        self.di_size = 0
         self.digital_inputs_linker = ["None"]
-        self.digital_inputs_hardware_linker = ["None"]
         self.loaded_di_channels_linker = []
-        # self.staged_mapping = []
         self.staged_mapping = []
         self.staged_channels = []
         self.staged_de = []
@@ -186,6 +180,7 @@ class LinkerWindow(DesignerDisplay, QWidget):
         self.duplicate_drv_cb_flag = False
         self.duplicate_enc_cb_flag = False
         self.qCurrAxis = 0
+        self.msg = QMessageBox()
 
     def isStagedMappingSet(self):
         """
@@ -205,25 +200,20 @@ class LinkerWindow(DesignerDisplay, QWidget):
         # Check if there are any staged mappings
         temp_flag = False
         self.isMsgActive = True
-        # self.axis_list.isEnabled(False)
-        # temp = self.axis_list.currentRow()
         self.logger.debug(f"curr axis index: {self.qCurrAxis}")
         if not self.status_staged_mappings():
             self.logger.debug("There is nothing staged")
             self.select_axis()
         else:
             self.logger.debug("There are some staged values")
-            # self.configMappingWarningBox()
 
-            self.main_window.msg.setIcon(QMessageBox.Warning)
-            self.main_window.msg.setText(
-                "You have unsaved staged changes! Discard changes?"
-            )
-            self.main_window.msg.setWindowTitle("Warning")
-            self.main_window.msg.setStandardButtons(
+            self.msg.setIcon(QMessageBox.Warning)
+            self.msg.setText("You have unsaved staged changes! Discard changes?")
+            self.msg.setWindowTitle("Warning")
+            self.msg.setStandardButtons(
                 QMessageBox.Yes | QMessageBox.No
             )  # Adjusted buttons
-            result = self.main_window.msg.exec_()
+            result = self.msg.exec_()
 
             self.logger.debug(f"current axis: {self.qCurrAxis}")
             self.logger.debug(f"Message box result: {result}")
@@ -232,7 +222,6 @@ class LinkerWindow(DesignerDisplay, QWidget):
                 self.clear_stage()
                 self.select_axis()
             elif result == QMessageBox.No:
-                # QMessageBox.information(self, "Continue", "You can continue")
                 temp_flag = True
         if temp_flag:
             self.logger.debug("attempting to reset axis")
@@ -266,7 +255,6 @@ class LinkerWindow(DesignerDisplay, QWidget):
                         containsDI = True  # Found a non-empty sublist
         for axis in self.staged_de:
             if isinstance(axis, list):  # Ensure we're working with a list
-                # [logger.debug(f"items: {item}" for item in axis)]
                 [self.logger.debug(f"item: {item}") for item in axis]
                 self.logger.debug(
                     f"any: {any([(item != ['None'] and item != [''] and item != []) for item in axis])}"
@@ -402,7 +390,6 @@ class LinkerWindow(DesignerDisplay, QWidget):
         # Loop through each main list in data
         for axis in self.staged_de:
             # Loop through each sublist in the main list
-            # for sublist in axis:
             # Ensure the sublist is a list and has at least 1 element
             if isinstance(axis, list) and len(axis) > 0:
                 # Get the first element value
@@ -496,14 +483,6 @@ class LinkerWindow(DesignerDisplay, QWidget):
         self.logger.info(f"in see_stage")
         mapping_window = MappingWindow(self)
         mapping_window.staged_mappings_list.clear()
-        # for stage in range(0,len(self.staged_mapping)):
-        #     if self.staged_mapping[stage]:
-        #         for di in range(0,len(self.staged_mapping[stage])):
-        #             logger.debug(f"axis num: {stage}, di: {di}, di array: {len(self.staged_mapping[stage][di])}")
-        #             for item in range(0, len(self.staged_mapping[stage][di])):
-        #                 mapping_window.staged_mappings_list.addItem(f"{self.staged_mapping[stage][di][item]}, {self.staged_mapping[stage][di][item]}, {self.staged_mapping[stage][di][item]}")
-        #     else:
-        #         logger.debug(f"stage was empty")
 
         for stage in range(len(self.staged_mapping)):
             if self.staged_mapping[stage]:  # Check if stage is not empty
@@ -556,12 +535,9 @@ class LinkerWindow(DesignerDisplay, QWidget):
         # setup holder for stagged mapping
         numStages = self.axis_list_linker.count()
         self.logger.debug(f"numStages count: {numStages}")
-        # self.staged_mapping= [[] for _ in range(numStages)]
 
         # saving DI components
-        # currAxis = self.axis_list.currentRow()
         self.qCurrAxis = self.axis_list_linker.currentRow()
-        currAxis = self.qCurrAxis
         self.logger.debug(f"currAxis: {self.qCurrAxis}")
         currAxisDi = self.digital_input_axis.currentRow() + 1
         self.logger.debug(f"currAxisDi: {currAxisDi}")
@@ -636,18 +612,6 @@ class LinkerWindow(DesignerDisplay, QWidget):
             currEncHardwareChan = ""
         self.logger.debug(f"currEncHardwareChan: {currEncHardwareChan}")
 
-        # if (currDiHardware != None and currDiHardware != "None") and (
-        #     self.digital_input_channels.currentItem() == None
-        # ):
-        #     msg = QMessageBox()
-        #     msg.setIcon(QMessageBox.Warning)
-        #     msg.setText("Please Select DI Hardware Channel")
-        #     msg.setInformativeText(f"No DI Hardware Channel Found!")
-        #     msg.setWindowTitle("Warning")
-        #     msg.setStandardButtons(QMessageBox.Ok)
-
-        #     msg.exec_()
-
         if len(self.staged_mapping[0]) and currAxisDi == 1:
             self.staged_mapping[0][0].clear()
         elif len(self.staged_mapping[0]) and currAxisDi == 2:
@@ -704,9 +668,6 @@ class LinkerWindow(DesignerDisplay, QWidget):
         self.check_duplicate_di()
         self.check_duplicate_drv()
         self.check_duplicate_enc()
-        # self.staged_mapping[currAxis].append('0'+str(currAxisDi))
-        # self.staged_mapping[currAxis].append(currDiHardware)
-        # self.staged_mapping[currAxis].append(currDiHardwareChan)
 
         # show mapping
         self.logger.debug(f"staged mapping: {self.staged_mapping}")
@@ -721,13 +682,6 @@ class LinkerWindow(DesignerDisplay, QWidget):
         and resets the staged mapping structures to their initial empty state.
         """
         self.logger.info(f"in clear_stage")
-        # try:
-        # for sublist in self.staged_mapping:
-        #     # Loop through and remove the element if it exists in any of the inner lists
-        #     for inner_list in range(1,sublist):
-        #         # if element in inner_list:
-        #             inner_list.remove(1)
-        #             inner_list.remove(2)
 
         for sublist in self.staged_mapping:
             for inner_list in sublist:
@@ -752,7 +706,6 @@ class LinkerWindow(DesignerDisplay, QWidget):
         """
         self.logger.info(f"in detect_linked_drv")
         currAxis = self.axis_list_linker.currentRow()
-        # currAxis = val_to_key(self.axis[currAxisIdx], self.pvDict)
         self.logger.debug(f"currAxis: {currAxis}")
 
         detectableDRV = (
@@ -917,10 +870,6 @@ class LinkerWindow(DesignerDisplay, QWidget):
         # update enum with axis pulled from .db file
         self.logger.info(f"in populate axis")
         self.axis_list_linker.clear()
-
-        # for item in self.axis:
-        #     self.axis_list.addItem(item)
-
         self.axis_list_linker.addItems(self.axis)
 
         if not self.axis_list_linker.isEnabled():
@@ -975,7 +924,6 @@ class LinkerWindow(DesignerDisplay, QWidget):
         main channel, and sub-channel, then updates the UI to display these selections.
         """
         self.logger.info(f" select_di_channel:")
-        # self.check_duplicate_di
 
         DI_hardware_Channel = 0
         DI_Hardware_Channel_Main = 0
@@ -1001,14 +949,15 @@ class LinkerWindow(DesignerDisplay, QWidget):
 
             for i in range(0, self.digital_input_hardware.count()):
                 if DI_hardware == self.digital_input_hardware.item(i).text():
-                    # self.logger.debug(f"currItem: {self.digital_input_hardware.item(i).text()}")
+                    self.logger.debug(
+                        f"currItem: {self.digital_input_hardware.item(i).text()}"
+                    )
                     self.logger.debug(
                         f"found hardware main: {self.digital_input_hardware.item(i).text()}"
                     )
                     self.digital_input_hardware.setCurrentRow(i)
                 elif DI_hardware == "0":
                     self.logger.debug("no hardware detected")
-                    # self.digital_input_hardware.setCurrentRow(0)
                     self.logger.debug("something went wrong/thinking")
                     self.digital_input_hardware.selectionMode(
                         QAbstractItemView.NoSelection
@@ -1090,8 +1039,6 @@ class LinkerWindow(DesignerDisplay, QWidget):
         currAxis = self.prefixName + ":AXIS:0" + str(currAxisIdx + 1)
 
         if currDI.startswith("EL7062"):
-            # di_chan = currAxis + ":SelG:DI:" + ("0" + str(int(axis_di_idx) + 1)) + ':SUB_RBV'
-            # self.di_size = epics.caget(di_chan)
             for i in range(0, int(2)):
                 self.digital_input_main_channels.addItem(str(i + 1))
             for i in range(0, int(2)):
@@ -1118,29 +1065,18 @@ class LinkerWindow(DesignerDisplay, QWidget):
         # update enum with drives pulled from .db file
         self.logger.info(f"in load drives")
         self.drives_list.clear()
-        # self.drives_list.addItem("None")
-
-        # self.drives = identify_drive(self.pvList, self.axis_list.currentItem().text())
 
         replaced_items = []
         for item in self.drives_linker[1:]:
             self.logger.debug(f"drives: {item}")
             replaced_items.append(item.replace("WCIB_RBV", "Id_RBV"))
 
-            # publish drive
-            # self.drives_list.addItem(val)
-            # self.user_input_widget.display_drives_ui.addItem(val)
         val = epics.caget_many(replaced_items, as_string=True)
         self.drives_linker[1:] = val[0:]
         self.drives_list.addItems(self.drives_linker)
-        # self.drives_list.setCurrentRow(0)
 
         if not self.drives_list.isEnabled():
             self.drives_list.setEnabled(True)
-        # if not self.user_input_widget.display_drives_ui.isEnabled():
-        #     self.user_input_widget.display_drives_ui.setEnabled(True)
-
-        # self.logger.debug(self.drive_selection)
 
     def load_encoders(self):
         """
@@ -1153,7 +1089,7 @@ class LinkerWindow(DesignerDisplay, QWidget):
         self.logger.info(f"in load enc")
         self.encoders_list.clear()
         replaced_items = []
-        # self.logger.debug(f"encoder list size: {len(self.encoders)}")
+        self.logger.debug(f"encoder list size: {len(self.encoders_list)}")
         for item in self.encoders_linker[1:]:
             replaced_items.append(item.replace("WCIB_RBV", "Id_RBV"))
         self.logger.debug(f"len replaced_items: {len(replaced_items)}")
@@ -1164,9 +1100,6 @@ class LinkerWindow(DesignerDisplay, QWidget):
 
         if not self.encoders_list.isEnabled():
             self.encoders_list.setEnabled(True)
-        # if not self.user_input_widget.display_encoders_ui.isEnabled():
-        #     self.user_input_widget.display_encoders_ui.setEnabled(True)
-        # self.logger.debug(self.encoder_selection)
 
     def caput_async(self, pv_name, value):
         """
@@ -1206,9 +1139,6 @@ class LinkerWindow(DesignerDisplay, QWidget):
             self.logger.info(f"caput {pv_name} succeeded, new value: {new_value}")
         else:
             self.logger.warning(f"caput {pv_name} failed, attempted set to {new_value}")
-
-    # Optional: display in GUI
-    # self.status_label.setText(...)
 
     def update_links(self):
         """
@@ -1253,7 +1183,6 @@ class LinkerWindow(DesignerDisplay, QWidget):
                 self.logger.debug(f"caReadBack_view_to_true: {caReadBack_view_to_true}")
 
                 # step 3
-                # for i in range(0,3):
                 # digital inputs
                 self.logger.debug(f"di_1: {axis[0]}")
                 if len(axis[0]) > 2:
