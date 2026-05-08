@@ -4,6 +4,7 @@
 
 import argparse
 import sys
+import pydm
 from qtpy.QtWidgets import QApplication
 
 from lcls_user_motor_gui.user_motor_gui import MainWindow
@@ -18,14 +19,18 @@ def build_arg_parser(argparser=None):
     argparser.description = DESCRIPTION
     argparser.formatter_class = argparse.RawTextHelpFormatter
 
-    # Add any GUI-specific args here if needed
-    # argparser.add_argument("--config", type=str, help="Configuration file.")
+    argparser.add_argument(
+        '--ioc-name', '--ioc', dest='ioc_name',
+        type=str,
+        default=None,
+        help='IOC name to load (for example: ioc-lcls-plc-template-user-motors).'
+    )
 
     return argparser
 
 
 def main(**kwargs):
     app = QApplication(sys.argv)
-    gui = MainWindow()
+    gui = MainWindow(ioc_name=kwargs.get('ioc_name'))
     gui.show()
     sys.exit(app.exec_())

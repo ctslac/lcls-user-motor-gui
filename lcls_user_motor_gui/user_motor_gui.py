@@ -147,9 +147,11 @@ class MainWindow(DesignerDisplay, QWidget):
     def __init__(
         self,
         parent: QWidget | None = None,
+        ioc_name=None,
     ):
-        # Pass ONLY parent to super().__init__()
+        # Pass ONLY parent to super().__init__
         super().__init__(parent)
+        self.ioc_name = ioc_name
         # Store macros yourself
         # self.macros = macros
 
@@ -468,9 +470,7 @@ class MainWindow(DesignerDisplay, QWidget):
         # self.pvList = discover_pvs("", usr_db_path=iocpath, find_makefile=True)
 
         # find using ioc name
-        self.pvList = discover_pvs(
-            "ioc-lcls-plc-template-user-motors", plc_flag=True, find_makefile=True
-        )
+        self.pvList = discover_pvs(self.ioc_name, plc_flag=True, find_makefile=True)
 
         # for testing only
         # Save self.pvList to a file
