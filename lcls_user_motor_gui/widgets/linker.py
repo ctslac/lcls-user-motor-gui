@@ -61,11 +61,24 @@ class CaputWorker(QObject):
     finished = pyqtSignal()
 
     def __init__(self, pv_name, value):
+        """
+        Initialize a caput worker for asynchronous EPICS PV writes.
+
+        Parameters:
+            pv_name (str): Name of the process variable to write to
+            value: Value to write to the PV
+        """
         super().__init__()
         self.pv_name = pv_name
         self.value = value
 
     def do_caput(self):
+        """
+        Execute an asynchronous caput operation and emit results.
+
+        Performs a caput write to the specified PV with the given value,
+        reads back the new value, and emits result and finished signals.
+        """
         # Perform caput operation
         success = epics.caput(self.pv_name, self.value, wait=True, timeout=2)
         # Optionally read back the value
@@ -84,6 +97,14 @@ class SettingsWindow(DesignerDisplay, QWidget):
     settings_duplicate_enc_warning: QCheckBox
 
     def __init__(self, main_window, parent=None, logger=None):
+        """
+        Initialize the Settings window widget.
+
+        Parameters:
+            main_window: Reference to the main application window
+            parent: Parent widget (default: None)
+            logger: Logger instance for debug/info messages (default: None)
+        """
         # Properly call the superclass __init__!
         super().__init__(parent)
         self.logger = logger
@@ -91,6 +112,13 @@ class SettingsWindow(DesignerDisplay, QWidget):
 
 
 class MappingWindow(DesignerDisplay, QDialog):
+    """
+    Dialog window for viewing staged axis-hardware mappings.
+
+    Displays the configured mappings for digital inputs, drives, and encoders
+    for the currently selected axis.
+    """
+
     filename = "mapping_window.ui"
     ui_dir = Path(__file__).parent / "./../ui"
 
@@ -122,6 +150,18 @@ class LinkerWindow(DesignerDisplay, QWidget):
     status_indicators: QLabel
 
     def __init__(self, main_window, parent=None, logger=None):
+        """
+        Initialize the Linker window widget.
+
+        Sets up the UI for managing axis-to-hardware linkage configurations including
+        digital inputs, drives, and encoders. Initializes data structures for tracking
+        staged changes and duplicate detection flags.
+
+        Parameters:
+            main_window: Reference to the main application window
+            parent: Parent widget (default: None)
+            logger: Logger instance for debug/info messages (default: None)
+        """
         # Properly call the superclass __init__!
         super().__init__(parent)
         self.logger = logger
@@ -148,6 +188,12 @@ class LinkerWindow(DesignerDisplay, QWidget):
         self.qCurrAxis = 0
 
     def isStagedMappingSet(self):
+        """
+        Check if there are unsaved staged mappings and prompt user if needed.
+
+        Displays a warning dialog if staged changes exist when switching axes,
+        allowing the user to discard or keep the changes.
+        """
         self.logger.info(f"inStateMapptingSet")
         for stage in range(len(self.staged_mapping)):
             for di in range(len(self.staged_mapping[stage])):
@@ -197,6 +243,12 @@ class LinkerWindow(DesignerDisplay, QWidget):
             self.axis_list_linker.blockSignals(False)
 
     def status_staged_mappings(self):
+        """
+        Check if any staged digital input or drive/encoder changes exist.
+
+        Returns:
+            bool: True if there are unsaved changes, False otherwise
+        """
         self.logger.info(
             f"in status_staged_mapping: checking if there is a staged mapping"
         )
@@ -233,6 +285,12 @@ class LinkerWindow(DesignerDisplay, QWidget):
             return False
 
     def check_duplicate_di_flag(self):
+        """
+        Update the duplicate digital input warning flag from settings.
+
+        Reads the checkbox state from the settings window to determine if
+        duplicate digital input warnings should be displayed.
+        """
         self.logger.info(f"in check dup di")
 
         self.duplicate_di_cb_flag = (
@@ -242,6 +300,12 @@ class LinkerWindow(DesignerDisplay, QWidget):
         self.logger.debug(f"isDuplicateDIWarning: {self.duplicate_di_cb_flag}")
 
     def check_duplicate_drv_flag(self):
+        """
+        Update the duplicate drive warning flag from settings.
+
+        Reads the checkbox state from the settings window to determine if
+        duplicate drive warnings should be displayed.
+        """
         self.logger.info(f"in check dup drv")
 
         self.duplicate_drv_cb_flag = self.duplicate_drv_cb.isChecked()
@@ -249,6 +313,12 @@ class LinkerWindow(DesignerDisplay, QWidget):
         self.logger.debug(f"isDuplicateDIWarning: {self.duplicate_drv_cb_flag}")
 
     def check_duplicate_enc_flag(self):
+        """
+        Update the duplicate encoder warning flag from settings.
+
+        Reads the checkbox state from the settings window to determine if
+        duplicate encoder warnings should be displayed.
+        """
         self.logger.info(f"in check dup enc")
 
         self.duplicate_enc_cb_flag = self.duplicate_enc_cb.isChecked()
@@ -256,6 +326,13 @@ class LinkerWindow(DesignerDisplay, QWidget):
         self.logger.debug(f"isDuplicateDIWarning: {self.duplicate_enc_cb_flag}")
 
     def check_duplicate_di(self):
+        """
+        Detect and warn about duplicate digital input assignments.
+
+        Scans through staged digital input mappings to find duplicate hardware
+        or channel assignments and displays warning dialogs if duplicates are found
+        and the warning flag is enabled.
+        """
         self.logger.info(f"in check for duplicate di")
         # To hold values for duplicate checking
         second_index_values = set()
@@ -410,6 +487,12 @@ class LinkerWindow(DesignerDisplay, QWidget):
         self.logger.debug(f"Duplicates: {duplicates}")
 
     def see_stage(self):
+        """
+        Display a dialog showing all currently staged mappings.
+
+        Creates a modal window that lists the staged digital input, drive, and
+        encoder configurations for the selected axis in a readable format.
+        """
         self.logger.info(f"in see_stage")
         mapping_window = MappingWindow(self)
         mapping_window.staged_mappings_list.clear()
@@ -461,6 +544,13 @@ class LinkerWindow(DesignerDisplay, QWidget):
         mapping_window.exec_()
 
     def save_stage(self):
+        """
+        Save currently selected hardware mappings to staged buffer.
+
+        Collects selections from the UI (digital input hardware, channels, drives,
+        and encoders) and stores them in staged structures. Also validates selections
+        and checks for duplicate assignments.
+        """
         self.logger.info(f"in save_stage")
 
         # setup holder for stagged mapping
@@ -624,6 +714,12 @@ class LinkerWindow(DesignerDisplay, QWidget):
         self.logger.debug(f"staged de: {self.staged_de}")
 
     def clear_stage(self):
+        """
+        Clear all staged mappings and reset to default empty state.
+
+        Removes all staged changes for digital inputs, drives, and encoders,
+        and resets the staged mapping structures to their initial empty state.
+        """
         self.logger.info(f"in clear_stage")
         # try:
         # for sublist in self.staged_mapping:
@@ -648,6 +744,12 @@ class LinkerWindow(DesignerDisplay, QWidget):
         self.logger.debug(f"staged de: {self.staged_de}")
 
     def detect_linked_drv(self):
+        """
+        Detect and display the currently linked drive for the selected axis.
+
+        Reads the EPICS PV to determine which drive hardware is currently linked
+        to the selected axis and updates the UI to highlight that selection.
+        """
         self.logger.info(f"in detect_linked_drv")
         currAxis = self.axis_list_linker.currentRow()
         # currAxis = val_to_key(self.axis[currAxisIdx], self.pvDict)
@@ -693,6 +795,12 @@ class LinkerWindow(DesignerDisplay, QWidget):
             self.drives_list.setCurrentRow(0)
 
     def detect_linked_enc(self):
+        """
+        Detect and display the currently linked encoder for the selected axis.
+
+        Reads the EPICS PV to determine which encoder hardware is currently linked
+        to the selected axis and updates the UI to highlight that selection.
+        """
         self.logger.info(f"in detect_linked_enc")
         currAxis = self.axis_list_linker.currentRow()
         self.logger.debug(f"currAxis: {currAxis}")
@@ -736,6 +844,12 @@ class LinkerWindow(DesignerDisplay, QWidget):
             self.encoders_channel_list.setCurrentRow(0)
 
     def load_drives_channel(self):
+        """
+        Populate available drive hardware channels for the selected drive.
+
+        Clears the drives channel list and adds available channels based on
+        the currently selected drive hardware model.
+        """
         self.logger.info(f"in load_drives_channel")
         self.drives_channel_list.clear()
 
@@ -745,6 +859,12 @@ class LinkerWindow(DesignerDisplay, QWidget):
                 self.drives_channel_list.addItem(str(i + 1))
 
     def load_encoders_channel(self):
+        """
+        Populate available encoder hardware channels for the selected encoder.
+
+        Clears the encoders channel list and adds available channels based on
+        the currently selected encoder hardware model.
+        """
         self.logger.info(f"in load_encoders_channel_ui")
         self.encoders_channel_list.clear()
 
@@ -757,6 +877,12 @@ class LinkerWindow(DesignerDisplay, QWidget):
                 self.encoders_channel_list.addItem(str(i + 1))
 
     def publish_axis_di(self):
+        """
+        Populate digital input slots for the selected axis.
+
+        Clears and populates the digital input axis list with available DI slots
+        (01, 02, 03) and initializes the digital input channel selector.
+        """
         self.logger.info(f"in publish_axis_di")
         # if self.axis_di_init:
         self.digital_input_axis.clear()
@@ -770,6 +896,12 @@ class LinkerWindow(DesignerDisplay, QWidget):
         self.select_di_channel()
 
     def select_axis(self):
+        """
+        Initialize and display configuration for the newly selected axis.
+
+        Called when user selects a different axis. Detects current linked
+        drives and encoders, and populates available digital inputs for the axis.
+        """
         self.logger.info(f"in select_axis")
         self.detect_linked_enc()
         self.detect_linked_drv()
@@ -777,9 +909,10 @@ class LinkerWindow(DesignerDisplay, QWidget):
 
     def publish_axis(self):
         """
-        Called from load_axis
-        ---
+        Populate available axis options and initialize staging data structures.
 
+        Clears and fills the axis list from the loaded axis data, enables the
+        axis selector UI if needed, and resets all staged mapping structures.
         """
         # update enum with axis pulled from .db file
         self.logger.info(f"in populate axis")
@@ -799,8 +932,11 @@ class LinkerWindow(DesignerDisplay, QWidget):
 
     def load_di(self):
         """
-        comes from WCIB
-        needs to publish, and call discover_di_channel
+        Populate available digital input hardware options for the selected axis.
+
+        Clears the digital input hardware list and queries EPICS PVs to get all
+        available digital input hardware identifiers, then displays them in the UI.
+        Also initiates discovery of digital input channels.
         """
         self.logger.info(f"in load_di")
         self.digital_input_hardware.clear()
@@ -820,9 +956,10 @@ class LinkerWindow(DesignerDisplay, QWidget):
 
     def discover_di_channel(self):
         """
-        comes from load_di
-        ---
-        find out number of DIs
+        Discover and store digital input channel PVs from the IOC database.
+
+        Searches through the loaded PV dictionary to find all NUMDI_RBV PVs
+        which indicate the number of channels for each digital input module.
         """
         self.logger.info(f"in load_di channel")
         for pv in self.pvDict:
@@ -831,6 +968,12 @@ class LinkerWindow(DesignerDisplay, QWidget):
                 self.loaded_di_channels_linker.append(pv)
 
     def select_di_channel(self):
+        """
+        Detect and display currently configured digital input channels for the selected DI.
+
+        Queries the EPICS PVs to find the currently linked digital input hardware,
+        main channel, and sub-channel, then updates the UI to display these selections.
+        """
         self.logger.info(f" select_di_channel:")
         # self.check_duplicate_di
 
@@ -919,6 +1062,12 @@ class LinkerWindow(DesignerDisplay, QWidget):
                     )
 
     def load_di_channel(self):
+        """
+        Populate available digital input hardware channels for the selected DI module.
+
+        Clears the DI channel lists and adds available main and sub-channels based on
+        the currently selected digital input hardware module type (EL7062, EL1429, etc).
+        """
         self.logger.debug("load di_channel")
         self.digital_input_main_channels.clear()
         self.digital_input_sub_channels.clear()
@@ -960,6 +1109,12 @@ class LinkerWindow(DesignerDisplay, QWidget):
             self.logger.debug("Slice Unknown")
 
     def load_drives(self):
+        """
+        Populate available drive hardware options for the selected axis.
+
+        Clears the drives list and queries EPICS PVs to get all available
+        drive hardware identifiers, then displays them in the UI.
+        """
         # update enum with drives pulled from .db file
         self.logger.info(f"in load drives")
         self.drives_list.clear()
@@ -988,6 +1143,12 @@ class LinkerWindow(DesignerDisplay, QWidget):
         # self.logger.debug(self.drive_selection)
 
     def load_encoders(self):
+        """
+        Populate available encoder hardware options for the selected axis.
+
+        Clears the encoders list and queries EPICS PVs to get all available
+        encoder hardware identifiers, then displays them in the UI.
+        """
         # update enum with drives pulled from .db file
         self.logger.info(f"in load enc")
         self.encoders_list.clear()
@@ -1008,6 +1169,16 @@ class LinkerWindow(DesignerDisplay, QWidget):
         # self.logger.debug(self.encoder_selection)
 
     def caput_async(self, pv_name, value):
+        """
+        Perform an asynchronous EPICS PV write operation.
+
+        Starts a worker thread to write the given value to the specified PV
+        without blocking the UI. Results are emitted via signals.
+
+        Parameters:
+            pv_name (str): Name of the process variable to write to
+            value: Value to write to the PV
+        """
         worker = CaputWorker(pv_name, value)
         thread = QThread()
         worker.moveToThread(thread)
@@ -1020,6 +1191,17 @@ class LinkerWindow(DesignerDisplay, QWidget):
 
     # Standard handler for all async results
     def handle_caput_result(self, pv_name, success, new_value):
+        """
+        Handle the result of an asynchronous caput operation.
+
+        Logs the success or failure of the PV write and can update the UI
+        with the result status.
+
+        Parameters:
+            pv_name (str): Name of the process variable that was written to
+            success (bool): Whether the caput operation succeeded
+            new_value: The value that was successfully written
+        """
         if success:
             self.logger.info(f"caput {pv_name} succeeded, new value: {new_value}")
         else:
@@ -1029,25 +1211,25 @@ class LinkerWindow(DesignerDisplay, QWidget):
     # self.status_label.setText(...)
 
     def update_links(self):
-        self.logger.info(f"in update links")
         """
-                # Construct the Process Variable (PV) strings
-                # TST:UM:LinkSel:SelG:DI:01:Id
-                # TST:UM:LinkSel:SelG:AXIS:Id
-                # TST:UM:LinkSel:SelG:DRV:Id
-                # TST:UM:LinkSel:SelG:ENC:Id
+        # Construct the Process Variable (PV) strings
+        # TST:UM:LinkSel:SelG:DI:01:Id
+        # TST:UM:LinkSel:SelG:AXIS:Id
+        # TST:UM:LinkSel:SelG:DRV:Id
+        # TST:UM:LinkSel:SelG:ENC:Id
 
-                # Update link process
-                # 1. in link selector caput axis id of interest
-                #     - TST:UM:LinkSel:SelG:AXIS:Id
-                # 2. view set to true -> gives you all of current config
-                #     - TST:UM:LinkSel:View
-                # 3. change all link defs you want to change
-                #     - TST:UM:LinkSel:DI:[number]:[channel]
-                # 4. link selector update command
-                #     - TST:UM:LinkSel:Update
+        # Update link process
+        # 1. in link selector caput axis id of interest
+        #     - TST:UM:LinkSel:SelG:AXIS:Id
+        # 2. view set to true -> gives you all of current config
+        #     - TST:UM:LinkSel:View
+        # 3. change all link defs you want to change
+        #     - TST:UM:LinkSel:DI:[number]:[channel]
+        # 4. link selector update command
+        #     - TST:UM:LinkSel:Update
 
-                """
+        """
+        self.logger.info(f"in update links")
         # caput staged changes to axis
         for axis_i, axis in enumerate(self.staged_mapping):
             if len(axis) > 0:
