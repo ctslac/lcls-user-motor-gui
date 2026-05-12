@@ -16,7 +16,7 @@ description = "User motor gui for PLCs"
 dynamic = [ "version", "readme", "dependencies", "optional-dependencies",]
 keywords = []
 name = "lcls-user-motor-gui"
-requires-python = ">=3.9"
+requires-python = ">=3.12"
 
 [options]
 zip_safe = false
