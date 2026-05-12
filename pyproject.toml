@@ -38,7 +38,7 @@ file = "LICENSE"
 "lcls_user_motor_gui" = "lcls_user_motor_gui.bin.main:main"
 
 [tool.setuptools_scm]
-write_to = "lcls-user-motor-gui/_version.py"
+write_to = "lcls_user_motor_gui/_version.py"
 
 [tool.setuptools.dynamic.readme]
 file = "README.rst"
@@ -64,3 +64,6 @@ select = ["C", "E", "F", "W", "B"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
+
+[tool.uv]
+exclude-newer = "7 days"
