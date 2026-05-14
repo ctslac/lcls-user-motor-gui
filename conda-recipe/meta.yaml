@@ -1,5 +1,5 @@
-{% set package_name = "lcls-user-motor-gui" %}
-{% set import_name = "lcls-user-motor-gui" %}
+{% set package_name = "lcls_user_motor_gui" %}
+{% set import_name = "lcls_user_motor_gui" %}
 {% set version = load_file_regex(load_file=os.path.join(import_name, "_version.py"), regex_pattern=".*version = '(\S+)'").group(1) %}
 
 package:
