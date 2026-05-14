@@ -5,6 +5,9 @@ cache/*
 ./test_output*
 ./test_epics_many/*
 .vscode/
+.test*
+.pvlist*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.pyc
