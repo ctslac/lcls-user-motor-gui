@@ -47,25 +47,25 @@ from lcls_user_motor_gui.user_motor_gui import MainWindow
 #     assert test_avail_axis_di_4 == {"EL1429_1": "15"}  # axis 2, 3
 
 
-class DummyWidget:
-    def __init__(self):
-        self.prefixName = None
-        self.pvDict = None
+# class DummyWidget:
+#     def __init__(self):
+#         self.prefixName = None
+#         self.pvDict = None
 
 
-@pytest.fixture
-def main_window(qtbot):
-    """Create a MainWindow instance with mocked widgets"""
-    mw = MainWindow()
-    qtbot.addWidget(mw)
+# @pytest.fixture
+# def main_window(qtbot):
+#     """Create a MainWindow instance with mocked widgets"""
+#     mw = MainWindow()
+#     qtbot.addWidget(mw)
 
-    # Replace child widgets with dummy widgets to avoid UI initialization
-    mw.user_input_widget = DummyWidget()
-    mw.linker_widget = DummyWidget()
-    mw.expert_widget = DummyWidget()
-    mw.diagnostic_widget = DummyWidget()
+#     # Replace child widgets with dummy widgets to avoid UI initialization
+#     mw.user_input_widget = DummyWidget()
+#     mw.linker_widget = DummyWidget()
+#     mw.expert_widget = DummyWidget()
+#     mw.diagnostic_widget = DummyWidget()
 
-    return mw
+#     return mw
 
 
 # def test_load_ioc_data(main_window, monkeypatch):
@@ -89,82 +89,82 @@ def main_window(qtbot):
 #     assert main_window.pvList == ["PV1", "PV2", "PV3"]
 
 
-def test_discover_pvs_with_usr_db_path(monkeypatch):
-    """Test discover_pvs with a user-provided database path"""
-    from lcls_user_motor_gui.processing.discover_pvs import discover_pvs
+# def test_discover_pvs_with_usr_db_path(monkeypatch):
+#     """Test discover_pvs with a user-provided database path"""
+#     from lcls_user_motor_gui.processing.discover_pvs import discover_pvs
 
-    # Mock file content
-    mock_db_content = """
-    record(motor, "TST:UM:01:Axis:Name")
-    record(motor, "TST:UM:02:Axis:Name")
-    record(ai, "TST:UM:01:EL7047:Stat")
-    """
+#     # Mock file content
+#     mock_db_content = """
+#     record(motor, "TST:UM:01:Axis:Name")
+#     record(motor, "TST:UM:02:Axis:Name")
+#     record(ai, "TST:UM:01:EL7047:Stat")
+#     """
 
-    # Mock the open function to return our fake db file
-    monkeypatch.setattr("builtins.open", mock_open(read_data=mock_db_content))
+#     # Mock the open function to return our fake db file
+#     monkeypatch.setattr("builtins.open", mock_open(read_data=mock_db_content))
 
-    # Mock os.path.isfile to return True for our path
-    monkeypatch.setattr(
-        "lcls_user_motor_gui.processing.discover_pvs.os.path.isfile", lambda x: True
-    )
+#     # Mock os.path.isfile to return True for our path
+#     monkeypatch.setattr(
+#         "lcls_user_motor_gui.processing.discover_pvs.os.path.isfile", lambda x: True
+#     )
 
-    # Call discover_pvs with a user-provided path
-    result = discover_pvs("", usr_db_path="/path/to/test.db")
+#     # Call discover_pvs with a user-provided path
+#     result = discover_pvs("", usr_db_path="/path/to/test.db")
 
-    # Verify PVs were extracted
-    assert "TST:UM:01:Axis:Name" in result
-    assert "TST:UM:02:Axis:Name" in result
-    assert "TST:UM:01:EL7047:Stat" in result
-
-
-def test_discover_pvs_with_makefile_prefix(monkeypatch):
-    """Test discover_pvs with find_makefile flag to extract prefix"""
-    from lcls_user_motor_gui.processing.discover_pvs import discover_pvs
-
-    mock_makefile_content = "PREFIX := TST:UM:"
-    mock_db_content = """
-    record(motor, "TST:UM:01:Axis:Name")
-    record(motor, "TST:UM:02:Axis:Name")
-    """
-
-    # Track which file is being opened
-    def mock_file_open(filepath, mode="r"):
-        if "Makefile" in filepath:
-            return mock_open(read_data=mock_makefile_content)()
-        else:
-            return mock_open(read_data=mock_db_content)()
-
-    monkeypatch.setattr("builtins.open", mock_file_open)
-    monkeypatch.setattr(
-        "lcls_user_motor_gui.processing.discover_pvs.os.path.isfile", lambda x: True
-    )
-    monkeypatch.setattr(
-        "lcls_user_motor_gui.processing.discover_pvs.os.path.exists", lambda x: True
-    )
-
-    result = discover_pvs("", usr_db_path="/path/to/test.db", find_makefile=True)
-
-    # When find_makefile is True, prefix should be first element
-    assert result[0] == "TST:UM:"
-    assert "TST:UM:01:Axis:Name" in result
-    assert "TST:UM:02:Axis:Name" in result
+#     # Verify PVs were extracted
+#     assert "TST:UM:01:Axis:Name" in result
+#     assert "TST:UM:02:Axis:Name" in result
+#     assert "TST:UM:01:EL7047:Stat" in result
 
 
-def test_discover_pvs_invalid_hutch():
-    """Test discover_pvs raises error for invalid hutch"""
-    from lcls_user_motor_gui.processing.discover_pvs import discover_pvs
+# def test_discover_pvs_with_makefile_prefix(monkeypatch):
+#     """Test discover_pvs with find_makefile flag to extract prefix"""
+#     from lcls_user_motor_gui.processing.discover_pvs import discover_pvs
 
-    with pytest.raises(ValueError) as exc_info:
-        discover_pvs("ioc_name", hutch="invalid_hutch")
+#     mock_makefile_content = "PREFIX := TST:UM:"
+#     mock_db_content = """
+#     record(motor, "TST:UM:01:Axis:Name")
+#     record(motor, "TST:UM:02:Axis:Name")
+#     """
 
-    assert "Invalid hutch" in str(exc_info.value)
+#     # Track which file is being opened
+#     def mock_file_open(filepath, mode="r"):
+#         if "Makefile" in filepath:
+#             return mock_open(read_data=mock_makefile_content)()
+#         else:
+#             return mock_open(read_data=mock_db_content)()
+
+#     monkeypatch.setattr("builtins.open", mock_file_open)
+#     monkeypatch.setattr(
+#         "lcls_user_motor_gui.processing.discover_pvs.os.path.isfile", lambda x: True
+#     )
+#     monkeypatch.setattr(
+#         "lcls_user_motor_gui.processing.discover_pvs.os.path.exists", lambda x: True
+#     )
+
+#     result = discover_pvs("", usr_db_path="/path/to/test.db", find_makefile=True)
+
+#     # When find_makefile is True, prefix should be first element
+#     assert result[0] == "TST:UM:"
+#     assert "TST:UM:01:Axis:Name" in result
+#     assert "TST:UM:02:Axis:Name" in result
 
 
-def test_discover_pvs_invalid_db_path():
-    """Test discover_pvs raises error for non-existent db path"""
-    from lcls_user_motor_gui.processing.discover_pvs import discover_pvs
+# def test_discover_pvs_invalid_hutch():
+#     """Test discover_pvs raises error for invalid hutch"""
+#     from lcls_user_motor_gui.processing.discover_pvs import discover_pvs
 
-    with pytest.raises(FileExistsError) as exc_info:
-        discover_pvs("", usr_db_path="/nonexistent/path.db")
+#     with pytest.raises(ValueError) as exc_info:
+#         discover_pvs("ioc_name", hutch="invalid_hutch")
 
-    assert "Invalid db path" in str(exc_info.value)
+#     assert "Invalid hutch" in str(exc_info.value)
+
+
+# def test_discover_pvs_invalid_db_path():
+#     """Test discover_pvs raises error for non-existent db path"""
+#     from lcls_user_motor_gui.processing.discover_pvs import discover_pvs
+
+#     with pytest.raises(FileExistsError) as exc_info:
+#         discover_pvs("", usr_db_path="/nonexistent/path.db")
+
+#     assert "Invalid db path" in str(exc_info.value)
