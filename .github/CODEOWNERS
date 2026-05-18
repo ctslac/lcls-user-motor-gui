@@ -1,5 +1,5 @@
 # default group
-* @pcdshub/software-admin
+* @pcdshub/motion-sme
 
 # github folder holds administrative files
 .github/** @pcdshub/software-admin
