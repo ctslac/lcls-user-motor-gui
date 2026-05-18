@@ -15,8 +15,8 @@ classifiers = [
 description = "User motor gui for PLCs"
 dynamic = [ "version", "readme", "dependencies", "optional-dependencies",]
 keywords = []
-name = "lcls-user-motor-gui"
-requires-python = ">=3.9"
+name = "lcls_user_motor_gui"
+requires-python = ">=3.12"
 
 [options]
 zip_safe = false
@@ -24,7 +24,7 @@ include_package_data = true
 
 [tool.setuptools.packages.find]
 where = [ ".",]
-include = [ "lcls-user-motor-gui*",]
+include = [ "lcls_user_motor_gui*",]
 namespaces = false
 
 [[project.authors]]
@@ -34,10 +34,11 @@ name = "SLAC National Accelerator Laboratory"
 file = "LICENSE"
 
 [project.scripts]
-"lcls-user-motor-gui" = "lcls-user-motor-gui.bin.main:main"
+"lcls-user-motor-gui" = "lcls_user_motor_gui.bin.main:main"
+"lcls_user_motor_gui" = "lcls_user_motor_gui.bin.main:main"
 
 [tool.setuptools_scm]
-write_to = "lcls-user-motor-gui/_version.py"
+write_to = "lcls_user_motor_gui/_version.py"
 
 [tool.setuptools.dynamic.readme]
 file = "README.rst"
@@ -56,10 +57,13 @@ addopts = "--cov=."
 
 [tool.ruff]
 line-length = 88
-exclude = [".git", "__pycache__", "build", "dist", "lcls-user-motor-gui/_version.py"]
+exclude = [".git", "__pycache__", "build", "dist", "lcls_user_motor_gui/_version.py"]
 
 [tool.ruff.lint]
 select = ["C", "E", "F", "W", "B"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
+
+[tool.uv]
+exclude-newer = "7 days"

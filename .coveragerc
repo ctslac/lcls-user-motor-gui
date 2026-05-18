@@ -1,6 +1,6 @@
 [run]
 source =
-    lcls-user-motor-gui
+    lcls_user_motor_gui
 [report]
 omit =
     #versioning
@@ -8,4 +8,4 @@ omit =
     *_version.py
     #tests
     *test*
-    lcls-user-motor-gui/tests/*
+    lcls_user_motor_gui/tests/*
