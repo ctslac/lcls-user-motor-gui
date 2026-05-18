@@ -1,4 +1,4 @@
-import discover_pvs
+from lcls_user_motor_gui.processing.discover_pvs import discover_pvs
 
 if __name__ == "__main__":
     pvlist = discover_pvs.discover_pvs(

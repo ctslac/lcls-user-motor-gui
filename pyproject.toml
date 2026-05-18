@@ -15,7 +15,7 @@ classifiers = [
 description = "User motor gui for PLCs"
 dynamic = [ "version", "readme", "dependencies", "optional-dependencies",]
 keywords = []
-name = "lcls-user-motor-gui"
+name = "lcls_user_motor_gui"
 requires-python = ">=3.12"
 
 [options]
@@ -57,7 +57,7 @@ addopts = "--cov=."
 
 [tool.ruff]
 line-length = 88
-exclude = [".git", "__pycache__", "build", "dist", "lcls-user-motor-gui/_version.py"]
+exclude = [".git", "__pycache__", "build", "dist", "lcls_user_motor_gui/_version.py"]
 
 [tool.ruff.lint]
 select = ["C", "E", "F", "W", "B"]
