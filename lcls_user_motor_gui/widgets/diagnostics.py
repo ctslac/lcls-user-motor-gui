@@ -79,6 +79,18 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
         self.diagnostic_param_filter = FilteredListWidget(self.diagnostic_groupbox)
         self.diagnostic_groupbox.layout().addWidget(self.diagnostic_param_filter)
 
+        # Setting up widget signals
+        self.diagnostic_hardware_selection.currentRowChanged.connect(
+            self.populate_diagnostic_coe
+        )
+
+        self.diagnostic_param_filter.currentIndexChanged.connect(
+            self.populate_diagnostic_widget
+        )
+        self.diagnostic_axis_selection.currentIndexChanged.connect(
+            self.populate_diagnostic_hardware
+        )
+
     def publish_axis_diagnostic(self):
         """
         Populate the diagnostic axis selection combo box with available axes.

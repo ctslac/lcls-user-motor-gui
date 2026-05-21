@@ -97,6 +97,19 @@ class UserInputWindow(DesignerDisplay, QWidget):
         self.digital_inputs_hardware_ui = ["None"]
         self.loaded_di_channels_ui = []
 
+        # Setting up widget signals
+        self.display_axis_ui.currentRowChanged.connect(self.select_axis_ui)
+        self.digital_input_axis_ui.currentRowChanged.connect(self.select_di_channel_ui)
+        self.digital_input_hardware_ui.currentRowChanged.connect(
+            self.load_di_channel_ui
+        )
+        self.display_drives_ui.currentRowChanged.connect(self.load_drives_channel_ui)
+        self.display_encoders_ui.currentRowChanged.connect(
+            self.load_encoders_channel_ui
+        )
+        # self.user_input_widget.stage_load.clicked.connect(self.user_input_widget.load_stage_settings)
+        # self.stage_settings.clicked.connect(self.open_stage_settings)
+
     def select_axis_ui(self):
         """
         Publish axis selection and detect linked encoders and drives.

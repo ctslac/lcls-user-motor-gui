@@ -82,6 +82,22 @@ class ExpertWindow(DesignerDisplay, QWidget):
         self.expert_encoder_widget = FilteredListWidget(self.expert_encoder_filter)
         self.expert_encoder_filter.layout().addWidget(self.expert_encoder_widget)
 
+        # Setting up widget signals
+        for slot in [
+            self.expert_update_nc,
+            self.expert_update_drive,
+            self.expert_update_encoder,
+        ]:
+            self.expert_axis.currentIndexChanged.connect(slot)
+
+        self.expert_nc_widget.currentIndexChanged.connect(self.highlight_nc_param)
+        self.expert_drive_widget.currentIndexChanged.connect(
+            self.highlight_coe_drive_param
+        )
+        self.expert_encoder_widget.currentIndexChanged.connect(
+            self.highlight_coe_encoder_param
+        )
+
     def filter_expert_nc_filter(self, text):
         """
         Filter items in the expert NC filter list based on the provided text.
