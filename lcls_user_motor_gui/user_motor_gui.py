@@ -78,39 +78,6 @@ class MappingWindow(QDialog):
         # for stages in MainWindow(self.staged_mapping):
 
 
-class StageSettings(QDialog):
-    def __init__(self, user_input_widget, parent=None):
-        super(StageSettings, self).__init__(parent)
-        ui_path = Path(__file__).resolve().parent / "ui" / "stage-config.ui"
-        loadUi(str(ui_path), self)  # Load the UI from the .ui file
-        self.egu_rev = self.findChild(PyDMLineEdit, "egu_rev")
-        self.step_rev = self.findChild(PyDMLineEdit, "step_rev")
-        self.run_current = self.findChild(PyDMLineEdit, "run_current")
-        self.encoder_scaling = self.findChild(PyDMLineEdit, "encoder_scaling")
-        self.backlash = self.findChild(PyDMLineEdit, "backlash")
-        self.generate_params = self.findChild(QPushButton, "generate_params")
-        self.save_collection = self.findChild(QPushButton, "save_collection")
-
-        self.save_collection.clicked.connect(self.save_to_collection)
-
-        self.generate_params.clicked.connect(self.calculate_params)
-
-    def save_to_collection(self):
-        print(f"in save_to_collection")
-
-    def calculate_params(self):
-        egu_rev = self.egu_rev.text()
-        step_rev = self.step_rev.text()
-        run_current = self.run_current.text()
-        encoder_scaling = self.encoder_scaling.text()
-        backlash = self.backlash.text()
-        generate_params = self.generate_params.text()
-
-        logger.debug(
-            egu_rev, step_rev, run_current, encoder_scaling, backlash, generate_params
-        )
-
-
 class SettingsWindow(DesignerDisplay, QWidget):
     filename = "settings_tab.ui"
     ui_dir = Path(__file__).parent / "ui"
@@ -245,10 +212,6 @@ class MainWindow(DesignerDisplay, QWidget):
             self._workers = []
         self._workers.append(worker)
         worker.start()
-
-    def open_stage_settings(self):
-        stageSettings = StageSettings(self)
-        stageSettings.exec_()
 
     # def ui_filename(self):
     #     filename = "traj.ui"

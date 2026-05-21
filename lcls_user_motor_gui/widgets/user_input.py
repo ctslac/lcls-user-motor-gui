@@ -3,6 +3,8 @@ from pathlib import Path
 
 import epics
 from pcdsutils.qt.designer_display import DesignerDisplay
+from pydm.widgets.label import PyDMLabel
+from pydm.widgets.line_edit import PyDMLineEdit
 from PyQt5 import QtCore
 from PyQt5.QtGui import QColor
 from qtpy.QtWidgets import (
@@ -28,6 +30,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from qtpy.uic import loadUi
 from superscore.client import Client
 
 from ..processing.parse_pvs import (
@@ -52,6 +55,69 @@ from ..utils.dict_tools import (
     strip_axis_id,
     val_to_key,
 )
+
+
+class StageSettings(QDialog):
+    def __init__(self, user_input_widget, parent=None, logger=None):
+        super(StageSettings, self).__init__(parent)
+        self.logger = logger
+        ui_path = Path(__file__).resolve().parent / "./../ui" / "stage-config.ui"
+        # ui_path = Path(__file__).resolve().parent
+        print(ui_path)
+        loadUi(str(ui_path), self)  # Load the UI from the .ui file
+        self.egu_rev = self.findChild(PyDMLineEdit, "egu_rev")
+        self.step_rev = self.findChild(PyDMLineEdit, "step_rev")
+        self.run_current = self.findChild(PyDMLineEdit, "run_current")
+        self.encoder_scaling = self.findChild(PyDMLineEdit, "encoder_scaling")
+        self.backlash = self.findChild(PyDMLineEdit, "backlash")
+        self.generate_params = self.findChild(QPushButton, "generate_params")
+        self.save_collection = self.findChild(QPushButton, "save_collection")
+        self.user_input_widget = user_input_widget
+
+        self.save_collection.clicked.connect(self.save_to_collection)
+
+        self.generate_params.clicked.connect(self.calculate_params)
+        # self.user_input_widget.stage_load.clicked.connect(self.user_input_widget.load_stage_settings)
+
+    def save_to_collection(self):
+        print(f"in save_to_collection")
+        axis_item = self.user_input_widget.display_axis_ui.currentRow()
+        currAxis = f"{self.user_input_widget.prefixName}:MMS:{axis_item+1:02}"
+        print("Saving settings for axis: %s", currAxis)
+        cfg_path = Path(__file__).resolve().parent / "./../.." / "superscore.cfg"
+        print(f"cfg path: {cfg_path}")
+        superscore_client = Client.from_config(cfg_path)
+        print(superscore_client)
+        # currAxis = self.digital_inputs_ui.currentRow() + 1
+        # axisString = f"{self.prefixName}:MMS:{currAxis:02}:"
+        # print(f"axisString: {axisString}")
+
+        # pvPrefix = self.user_input_widget.prefixName
+        # # Create a collection with PVs and their values
+        # collection_data = {
+        #     "name": "my_stage_settings",  # Collection name
+        #     "description": "Motor stage configuration",  # Optional
+        #     "pvs": {
+        #         "Encoder Mode": {"value": pvPrefix},
+        #         "pv_name_2": {"value": value2},
+        #         # ... more PVs
+        #     },
+        # }
+
+        # # Create the collection
+        # collection = superscore_client.create_collection(collection_data)
+
+    def calculate_params(self):
+        egu_rev = self.egu_rev.text()
+        step_rev = self.step_rev.text()
+        run_current = self.run_current.text()
+        encoder_scaling = self.encoder_scaling.text()
+        backlash = self.backlash.text()
+        generate_params = self.generate_params.text()
+
+        self.logger.debug(
+            egu_rev, step_rev, run_current, encoder_scaling, backlash, generate_params
+        )
 
 
 class UserInputWindow(DesignerDisplay, QWidget):
@@ -96,6 +162,7 @@ class UserInputWindow(DesignerDisplay, QWidget):
         self.digital_inputs_ui = ["None"]
         self.digital_inputs_hardware_ui = ["None"]
         self.loaded_di_channels_ui = []
+        self.msg = QMessageBox()
 
         # Setting up widget signals
         self.display_axis_ui.currentRowChanged.connect(self.select_axis_ui)
@@ -107,8 +174,8 @@ class UserInputWindow(DesignerDisplay, QWidget):
         self.display_encoders_ui.currentRowChanged.connect(
             self.load_encoders_channel_ui
         )
-        # self.user_input_widget.stage_load.clicked.connect(self.user_input_widget.load_stage_settings)
-        # self.stage_settings.clicked.connect(self.open_stage_settings)
+
+        self.stage_settings.clicked.connect(self.open_stage_settings)
 
     def select_axis_ui(self):
         """
@@ -484,23 +551,16 @@ class UserInputWindow(DesignerDisplay, QWidget):
         if self.display_encoders_ui.isEnabled():
             self.display_encoders_ui.setEnabled(False)
 
-    def load_stage_settings(self):
-        self.logger.info(f"in load_stage_settings")
-        superscore_client = Client.from_config("./configs")
-        currAxis = self.digital_inputs_ui.currentRow() + 1
-        axisString = f"{self.prefixName}:MMS:{currAxis:02}:"
-        print(f"axisString: {axisString}")
-
-        # Create a collection with PVs and their values
-        collection_data = {
-            "name": "my_stage_settings",  # Collection name
-            "description": "Motor stage configuration",  # Optional
-            "pvs": {
-                "pv_name_1": {"value": value1},
-                "pv_name_2": {"value": value2},
-                # ... more PVs
-            },
-        }
-
-        # Create the collection
-        collection = superscore_client.create_collection(collection_data)
+    def open_stage_settings(self):
+        axis_item = self.display_axis_ui.currentRow()
+        print(f"axis item: {axis_item}, {type(axis_item)}")
+        if axis_item == -1:
+            self.msg.setIcon(QMessageBox.Warning)
+            self.msg.setText("Please select an axis!")
+            self.msg.setWindowTitle("Warning")
+            self.msg.exec_()
+        else:
+            stageSettings = StageSettings(
+                user_input_widget=self, parent=self, logger=self.logger
+            )
+            stageSettings.exec_()
