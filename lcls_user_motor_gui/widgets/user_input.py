@@ -28,6 +28,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from superscore.client import Client
 
 from ..processing.parse_pvs import (
     fake_caget,
@@ -469,3 +470,24 @@ class UserInputWindow(DesignerDisplay, QWidget):
         self.display_encoders_ui.addItems(self.encoders_ui)
         if self.display_encoders_ui.isEnabled():
             self.display_encoders_ui.setEnabled(False)
+
+    def load_stage_settings(self):
+        self.logger.info(f"in load_stage_settings")
+        superscore_client = Client.from_config("./configs")
+        currAxis = self.digital_inputs_ui.currentRow() + 1
+        axisString = f"{self.prefixName}:MMS:{currAxis:02}:"
+        print(f"axisString: {axisString}")
+
+        # Create a collection with PVs and their values
+        collection_data = {
+            "name": "my_stage_settings",  # Collection name
+            "description": "Motor stage configuration",  # Optional
+            "pvs": {
+                "pv_name_1": {"value": value1},
+                "pv_name_2": {"value": value2},
+                # ... more PVs
+            },
+        }
+
+        # Create the collection
+        collection = superscore_client.create_collection(collection_data)

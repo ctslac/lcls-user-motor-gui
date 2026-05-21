@@ -79,17 +79,24 @@ class MappingWindow(QDialog):
 
 
 class StageSettings(QDialog):
-    def __init__(self, parent=None):
+    def __init__(self, user_input_widget, parent=None):
         super(StageSettings, self).__init__(parent)
-        loadUi("stage-config.ui", self)  # Load the UI from the .ui file
+        ui_path = Path(__file__).resolve().parent / "ui" / "stage-config.ui"
+        loadUi(str(ui_path), self)  # Load the UI from the .ui file
         self.egu_rev = self.findChild(PyDMLineEdit, "egu_rev")
         self.step_rev = self.findChild(PyDMLineEdit, "step_rev")
         self.run_current = self.findChild(PyDMLineEdit, "run_current")
         self.encoder_scaling = self.findChild(PyDMLineEdit, "encoder_scaling")
         self.backlash = self.findChild(PyDMLineEdit, "backlash")
         self.generate_params = self.findChild(QPushButton, "generate_params")
+        self.save_collection = self.findChild(QPushButton, "save_collection")
+
+        self.save_collection.clicked.connect(self.save_to_collection)
 
         self.generate_params.clicked.connect(self.calculate_params)
+
+    def save_to_collection(self):
+        print(f"in save_to_collection")
 
     def calculate_params(self):
         egu_rev = self.egu_rev.text()
@@ -245,6 +252,8 @@ class MainWindow(DesignerDisplay, QWidget):
         self.user_input_widget.display_encoders_ui.currentRowChanged.connect(
             self.user_input_widget.load_encoders_channel_ui
         )
+        # self.user_input_widget.stage_load.clicked.connect(self.user_input_widget.load_stage_settings)
+        self.user_input_widget.stage_settings.clicked.connect(self.open_stage_settings)
 
         """
         Diagnostic
@@ -295,7 +304,6 @@ class MainWindow(DesignerDisplay, QWidget):
         """
         Linking Buttons
         """
-        self.user_input_widget.stage_settings.clicked.connect(self.open_stage_settings)
         self.linker_widget.confirm_mapping.clicked.connect(
             self.linker_widget.update_links
         )
