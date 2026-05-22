@@ -78,10 +78,10 @@ class StageSettings(QDialog):
         self.save_collection = self.findChild(QPushButton, "save_collection")
         self.user_input_widget = user_input_widget
         self.ncList = user_input_widget.ncList
-        self.cfg_path = Path(__file__).resolve().parent / "./../.." / "superscore.cfg"
+        self.cfg_path = user_input_widget.cfg_path
         self.save_collection.clicked.connect(self.save_to_collection)
         self.generate_params.clicked.connect(self.calculate_params)
-        self.populate_collections()
+        self.user_input_widget.populate_collections()
         # self.user_input_widget.stage_load.clicked.connect(self.user_input_widget.load_stage_settings)
 
     def save_to_collection(self):
@@ -118,14 +118,14 @@ class StageSettings(QDialog):
         print("Saved collection UUID:", coll.uuid)
         self.populate_collections()
 
-    def populate_collections(self):
-        # search by title (or tags/uuid/etc.)
-        self.user_input_widget.stage_configs_widget.clear_items()
-        client = Client.from_config(self.cfg_path)
-        coll = next(client.search(SearchTerm("title", "eq", "User Motors")))
-        self.user_input_widget.stage_configs_widget.add_item(coll.title)
-        self.user_input_widget.stage_configs_widget.setEnabled(True)
-        print(coll.uuid, coll.title)
+    # def populate_collections(self):
+    #     # search by title (or tags/uuid/etc.)
+    #     self.user_input_widget.stage_configs_widget.clear_items()
+    #     client = Client.from_config(self.cfg_path)
+    #     coll = next(client.search(SearchTerm("title", "eq", "User Motors")))
+    #     self.user_input_widget.stage_configs_widget.add_item(coll.title)
+    #     self.user_input_widget.stage_configs_widget.setEnabled(True)
+    #     print(coll.uuid, coll.title)
 
     def calculate_params(self):
         egu_rev = self.egu_rev.text()
@@ -184,6 +184,7 @@ class UserInputWindow(DesignerDisplay, QWidget):
         self.digital_inputs_hardware_ui = ["None"]
         self.loaded_di_channels_ui = []
         self.msg = QMessageBox()
+        self.cfg_path = Path(__file__).resolve().parent / "./../.." / "superscore.cfg"
         self.ncList = []
         self.stage_configs_widget = FilteredListWidget(self.stage_configs)
         self.stage_configs.layout().addWidget(self.stage_configs_widget)
@@ -200,6 +201,15 @@ class UserInputWindow(DesignerDisplay, QWidget):
         )
 
         self.stage_settings.clicked.connect(self.open_stage_settings)
+
+    def populate_collections(self):
+        # search by title (or tags/uuid/etc.)
+        self.stage_configs_widget.clear_items()
+        client = Client.from_config(self.cfg_path)
+        coll = next(client.search(SearchTerm("title", "eq", "User Motors")))
+        self.stage_configs_widget.add_item(coll.title)
+        self.stage_configs_widget.setEnabled(True)
+        print(coll.uuid, coll.title)
 
     def select_axis_ui(self):
         """
