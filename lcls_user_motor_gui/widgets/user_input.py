@@ -1,4 +1,5 @@
 import logging
+import re
 from pathlib import Path
 
 import epics
@@ -32,6 +33,7 @@ from qtpy.QtWidgets import (
 )
 from qtpy.uic import loadUi
 from superscore.client import Client
+from superscore.model import Collection, Parameter
 
 from ..processing.parse_pvs import (
     fake_caget,
@@ -73,6 +75,7 @@ class StageSettings(QDialog):
         self.generate_params = self.findChild(QPushButton, "generate_params")
         self.save_collection = self.findChild(QPushButton, "save_collection")
         self.user_input_widget = user_input_widget
+        self.ncList = user_input_widget.ncList
 
         self.save_collection.clicked.connect(self.save_to_collection)
 
@@ -88,6 +91,42 @@ class StageSettings(QDialog):
         print(f"cfg path: {cfg_path}")
         superscore_client = Client.from_config(cfg_path)
         print(superscore_client)
+        str_currAxis = f"^{currAxis}:NC:[^:]+:Goal_RBV$"
+        list_ncRBV = []
+        for pv in self.ncList:
+            if re.search(str_currAxis, pv):
+                list_ncRBV.append(pv)
+        print(f"len list_ncRbv: {len(list_ncRBV)}")
+
+        coll = Collection(
+            title="User Motors",
+            tags=["demo"],
+        )
+
+        coll.children = [
+            Parameter(
+                pv_name=pv,
+                description="",
+                read_only=False,  # these are Goal setpoints; keep writable
+            )
+            for pv in list_ncRBV
+        ]
+
+        superscore_client.save(coll)
+        print("Saved collection UUID:", coll.uuid)
+
+        # coll.children.append(
+        #     Parameter(
+        #         pv_name="MY:PV:NAME",
+        #         description="Example PV",
+        #         read_only=False,        # False => will become a Setpoint when snapped
+        #         rel_tolerance=0.0,
+        #         abs_tolerance=0.0,
+        #     )
+        # )
+
+        # superscore_client.save(coll)  # writes to backend (if valid)
+        # print(coll.uuid)
         # currAxis = self.digital_inputs_ui.currentRow() + 1
         # axisString = f"{self.prefixName}:MMS:{currAxis:02}:"
         # print(f"axisString: {axisString}")
@@ -163,6 +202,7 @@ class UserInputWindow(DesignerDisplay, QWidget):
         self.digital_inputs_hardware_ui = ["None"]
         self.loaded_di_channels_ui = []
         self.msg = QMessageBox()
+        self.ncList = []
 
         # Setting up widget signals
         self.display_axis_ui.currentRowChanged.connect(self.select_axis_ui)

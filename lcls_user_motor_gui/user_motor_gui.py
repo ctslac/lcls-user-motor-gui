@@ -265,7 +265,6 @@ class MainWindow(DesignerDisplay, QWidget):
         ca_coe_list = epics.caget_many(self.coeList, as_string=True)
         # put pvs and cagets into a dictionary
         # self.pvDict = dict(zip(self.pvList, pv_caget_list))
-
         self.ncDict = dict(zip(self.ncList, ca_nc_list))
         self.coeDict = dict(zip(self.coeList, ca_coe_list))
         self.wcibDict = dict(zip(self.wcibList, ca_wcib_list))
@@ -273,6 +272,7 @@ class MainWindow(DesignerDisplay, QWidget):
         self.expert_widget.nc_list = self.ncList.copy()
         self.expert_widget.coe_drive_list = self.coeList.copy()
         self.expert_widget.coe_encoder_list = self.coeList.copy()
+        self.user_input_widget.ncList = self.ncList.copy()
         self.user_input_widget.pvDict = self.pvDict
         self.linker_widget.pvDict = self.pvDict
         self.expert_widget.pvDict = self.pvDict
