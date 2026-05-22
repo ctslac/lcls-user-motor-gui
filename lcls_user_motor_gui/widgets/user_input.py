@@ -32,6 +32,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from qtpy.uic import loadUi
+from superscore.backends.core import SearchTerm
 from superscore.client import Client
 from superscore.model import Collection, Parameter
 
@@ -57,6 +58,7 @@ from ..utils.dict_tools import (
     strip_axis_id,
     val_to_key,
 )
+from .filtered_list import FilteredListWidget
 
 
 class StageSettings(QDialog):
@@ -76,10 +78,10 @@ class StageSettings(QDialog):
         self.save_collection = self.findChild(QPushButton, "save_collection")
         self.user_input_widget = user_input_widget
         self.ncList = user_input_widget.ncList
-
+        self.cfg_path = Path(__file__).resolve().parent / "./../.." / "superscore.cfg"
         self.save_collection.clicked.connect(self.save_to_collection)
-
         self.generate_params.clicked.connect(self.calculate_params)
+        self.populate_collections()
         # self.user_input_widget.stage_load.clicked.connect(self.user_input_widget.load_stage_settings)
 
     def save_to_collection(self):
@@ -87,9 +89,9 @@ class StageSettings(QDialog):
         axis_item = self.user_input_widget.display_axis_ui.currentRow()
         currAxis = f"{self.user_input_widget.prefixName}:MMS:{axis_item+1:02}"
         print("Saving settings for axis: %s", currAxis)
-        cfg_path = Path(__file__).resolve().parent / "./../.." / "superscore.cfg"
-        print(f"cfg path: {cfg_path}")
-        superscore_client = Client.from_config(cfg_path)
+        # cfg_path = Path(__file__).resolve().parent / "./../.." / "superscore.cfg"
+        print(f"cfg path: {self.cfg_path}")
+        superscore_client = Client.from_config(self.cfg_path)
         print(superscore_client)
         str_currAxis = f"^{currAxis}:NC:[^:]+:Goal_RBV$"
         list_ncRBV = []
@@ -114,37 +116,16 @@ class StageSettings(QDialog):
 
         superscore_client.save(coll)
         print("Saved collection UUID:", coll.uuid)
+        self.populate_collections()
 
-        # coll.children.append(
-        #     Parameter(
-        #         pv_name="MY:PV:NAME",
-        #         description="Example PV",
-        #         read_only=False,        # False => will become a Setpoint when snapped
-        #         rel_tolerance=0.0,
-        #         abs_tolerance=0.0,
-        #     )
-        # )
-
-        # superscore_client.save(coll)  # writes to backend (if valid)
-        # print(coll.uuid)
-        # currAxis = self.digital_inputs_ui.currentRow() + 1
-        # axisString = f"{self.prefixName}:MMS:{currAxis:02}:"
-        # print(f"axisString: {axisString}")
-
-        # pvPrefix = self.user_input_widget.prefixName
-        # # Create a collection with PVs and their values
-        # collection_data = {
-        #     "name": "my_stage_settings",  # Collection name
-        #     "description": "Motor stage configuration",  # Optional
-        #     "pvs": {
-        #         "Encoder Mode": {"value": pvPrefix},
-        #         "pv_name_2": {"value": value2},
-        #         # ... more PVs
-        #     },
-        # }
-
-        # # Create the collection
-        # collection = superscore_client.create_collection(collection_data)
+    def populate_collections(self):
+        # search by title (or tags/uuid/etc.)
+        self.user_input_widget.stage_configs_widget.clear_items()
+        client = Client.from_config(self.cfg_path)
+        coll = next(client.search(SearchTerm("title", "eq", "User Motors")))
+        self.user_input_widget.stage_configs_widget.add_item(coll.title)
+        self.user_input_widget.stage_configs_widget.setEnabled(True)
+        print(coll.uuid, coll.title)
 
     def calculate_params(self):
         egu_rev = self.egu_rev.text()
@@ -174,6 +155,7 @@ class UserInputWindow(DesignerDisplay, QWidget):
     digital_input_channels_ui: QListWidget
     digital_input_channel_slot_ui: QListWidget
     stage_settings: QPushButton
+    stage_configs: QGroupBox
 
     def __init__(self, main_window, parent=None, logger=None):
         """
@@ -203,6 +185,8 @@ class UserInputWindow(DesignerDisplay, QWidget):
         self.loaded_di_channels_ui = []
         self.msg = QMessageBox()
         self.ncList = []
+        self.stage_configs_widget = FilteredListWidget(self.stage_configs)
+        self.stage_configs.layout().addWidget(self.stage_configs_widget)
 
         # Setting up widget signals
         self.display_axis_ui.currentRowChanged.connect(self.select_axis_ui)

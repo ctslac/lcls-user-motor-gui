@@ -45,6 +45,19 @@ class FilteredListWidget(QWidget):
         self._all_items.extend(items)
         self.filter_items(self.line_edit.text())
 
+    def add_item(self, item, *, allow_duplicates=True):
+        """Add a single item and update the visible list respecting the filter."""
+        if not allow_duplicates and item in self._all_items:
+            return False
+
+        self._all_items.append(item)
+
+        # Only add to the visible list if it matches the current filter
+        text = self.line_edit.text()
+        if text.lower() in item.lower():
+            self.list_widget.addItem(item)
+        return True
+
     def filter_items(self, text):
         self.list_widget.clear()
         filtered = [item for item in self._all_items if text.lower() in item.lower()]
