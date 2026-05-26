@@ -103,6 +103,10 @@ class MainWindow(DesignerDisplay, QWidget):
         # Store macros yourself
         # self.macros = macros
 
+        # Set up logging to status_logger
+        handler = QPlainTextEditLoggerHandler(self.status_logger)
+        logger.addHandler(handler)
+
         # user input
         self.user_input_widget = UserInputWindow(self, logger=logger)
         self.main_tabs.addTab(self.user_input_widget, "User Input")

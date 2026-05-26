@@ -5,6 +5,7 @@ from pathlib import Path
 
 import epics
 from pcdsutils.qt.designer_display import DesignerDisplay
+from pydm.widgets.display_format import DisplayFormat
 from pydm.widgets.label import PyDMLabel
 from pydm.widgets.line_edit import PyDMLineEdit
 from qtpy import QtCore, uic
@@ -290,32 +291,88 @@ class ExpertWindow(DesignerDisplay, QWidget):
         # # Dynamically add param widgets
         self.add_param_widgets(stripped_coe, self.expert_coe_encoder_filter_list)
 
-    def configure_param_widgets(self, widget: QWidget, nc_pv):
-        """
-        Configure a parameter widget with EPICS channel connections.
+    def configure_param_widgets(self, widget: QWidget, nc_pv: str):
+        self.logger.debug(f"in configure_param_widgets for {nc_pv}")
 
-        Sets up the channels for the name, goal, readback value, and units labels/edits
-        in the given widget based on the provided PV name.
+        pv_map = {
+            "pv_name": f"{nc_pv}:Name_RBV",
+            "pv_goal": f"{nc_pv}:Goal",
+            "pv_rbv": f"{nc_pv}:Val_RBV",
+            "pv_units": f"{nc_pv}:EU_RBV",
+        }
 
-        Args:
-            widget (QWidget): The parameter widget to configure.
-            nc_pv (str): The base PV name for the parameter.
-        """
-        self.logger.info("in configure_param_widgets")
-        vals = ["", "", "", ""]
-        vals[0] = nc_pv + ":Name_RBV"
-        vals[1] = nc_pv + ":Goal"
-        vals[2] = nc_pv + ":Val_RBV"
-        vals[3] = nc_pv + ":EU_RBV"
+        def configure_channel(pvname: str, pydm_widget, timeout: float = 1.0) -> str:
+            try:
+                pv = epics.PV(pvname, auto_monitor=False)
+                # self.logger.debug(f"Created PV object for {pvname}")
 
-        name = widget.findChild(PyDMLabel, "pv_name")
-        name.set_channel("ca:// " + vals[0])
-        goal = widget.findChild(PyDMLineEdit, "pv_goal")
-        goal.set_channel("ca://" + vals[1])
-        rbv = widget.findChild(PyDMLineEdit, "pv_rbv")
-        rbv.set_channel("ca://" + vals[2])
-        units = widget.findChild(PyDMLabel, "pv_units")
-        units.set_channel("ca://" + vals[3])
+                if pv.wait_for_connection(timeout=timeout):
+                    pvt = (pv.type or "").lower()
+                    self.logger.debug(f"PV {pvname} type: {pvt}")
+                    if ("enum" in pvt) or ("char" in pvt):
+                        pydm_widget.displayFormat = DisplayFormat.String
+                        self.logger.debug(f"Set displayFormat to String for {pvname}")
+                else:
+                    self.logger.warning(f"PV connection timeout for {pvname}")
+            except Exception as e:
+                self.logger.error(f"Error configuring channel for {pvname}: {e}")
+
+            return f"ca://{pvname}"
+
+        def is_fixed_readonly(pvname: str, timeout: float = 10.0) -> bool:
+            try:
+                self.logger.debug(f"checking access of the pv: {pvname}")
+                pv = epics.PV(pvname, auto_monitor=False)
+                if pv.wait_for_connection(timeout=timeout):
+                    self.logger.info(
+                        f"connected to pv, {pv.get(as_string=True)}{pvname}"
+                    )
+                    return pv.get(as_string=True) == "FIXED_READONLY"
+            except Exception as e:
+                self.logger.error(f"Error checking access for {pvname}: {e}")
+            # safest default: treat as not fixed-read-only
+            self.logger.info(f"{pvname} did not connect")
+            return False
+
+        # Access PyDM widgets directly from ParamWidget attributes
+        name = widget.pv_name
+        goal = widget.pv_goal
+        goal_label = widget.findChild(QLabel, "label")
+        rbv = widget.pv_rbv
+        units = widget.pv_units
+
+        # Set channels using the channel property
+        channel_str = configure_channel(pv_map["pv_name"], name)
+        name.channel = channel_str
+        # self.logger.debug(f"Set pv_name channel to {channel_str}")
+
+        fixed_readonly = is_fixed_readonly(f"{nc_pv}:Acc_RBV")
+
+        widget.goal_visible = not fixed_readonly
+
+        if fixed_readonly:
+            self.logger.debug(
+                f"pv ({nc_pv}) goal is fixed-read-only; hiding goal field"
+            )
+            if goal_label is not None:
+                goal_label.setVisible(False)
+            goal.setVisible(False)
+        else:
+            self.logger.debug(f"pv goal is not fixed-read-only; showing goal field")
+            if goal_label is not None:
+                goal_label.setVisible(True)
+            goal.setVisible(True)
+            channel_str = configure_channel(pv_map["pv_goal"], goal)
+            goal.channel = channel_str
+            self.logger.debug(f"Set pv_goal channel to {channel_str}")
+
+        channel_str = configure_channel(pv_map["pv_rbv"], rbv)
+        rbv.channel = channel_str
+        # self.logger.debug(f"Set pv_rbv channel to {channel_str}")
+
+        channel_str = configure_channel(pv_map["pv_units"], units)
+        units.channel = channel_str
+        # self.logger.debug(f"Set pv_units channel to {channel_str}")
 
     def add_param_widgets(self, param, widget: QListWidget):
         """
@@ -342,9 +399,11 @@ class ExpertWindow(DesignerDisplay, QWidget):
             self.logger.debug(f"pv: {pv_clean}")
             self.configure_param_widgets(param_widget, pv_clean)
 
-            # --- Find the PyDMLineEdit and connect its signals ---
+            # --- Find the PyDMLineEdit and connect its signals only if goal is visible ---
             pydm_line_edit = param_widget.findChild(PyDMLineEdit, "pv_goal")
-            if pydm_line_edit is not None:
+            if pydm_line_edit is not None and getattr(
+                param_widget, "goal_visible", False
+            ):
                 pydm_line_edit.editingFinished.connect(partial(self.check_caput, pv))
                 self.param_connections.append(pydm_line_edit)
 
