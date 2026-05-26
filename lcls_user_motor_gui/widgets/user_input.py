@@ -206,10 +206,15 @@ class UserInputWindow(DesignerDisplay, QWidget):
         # search by title (or tags/uuid/etc.)
         self.stage_configs_widget.clear_items()
         client = Client.from_config(self.cfg_path)
-        coll = next(client.search(SearchTerm("title", "eq", "User Motors")))
-        self.stage_configs_widget.add_item(coll.title)
-        self.stage_configs_widget.setEnabled(True)
-        print(coll.uuid, coll.title)
+        results = list(client.search(SearchTerm("title", "eq", "User Motors")))
+        if results:
+            coll = results[0]
+            self.stage_configs_widget.add_item(coll.title)
+            self.stage_configs_widget.setEnabled(True)
+            print(coll.uuid, coll.title)
+        else:
+            print("No collection with title 'User Motors' found.")
+            self.stage_configs_widget.setEnabled(False)
 
     def select_axis_ui(self):
         """
