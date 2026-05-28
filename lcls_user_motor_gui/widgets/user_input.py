@@ -136,7 +136,14 @@ class StageSettings(QDialog):
         generate_params = self.generate_params.text()
 
         self.logger.debug(
-            egu_rev, step_rev, run_current, encoder_scaling, backlash, generate_params
+            "calculate_params inputs: egu_rev=%s, step_rev=%s, run_current=%s, "
+            "encoder_scaling=%s, backlash=%s, generate_params=%s",
+            egu_rev,
+            step_rev,
+            run_current,
+            encoder_scaling,
+            backlash,
+            generate_params,
         )
 
 
