@@ -1,6 +1,7 @@
 # List requirements here.
 ipython==8.4.0
 pcdsutils
+numpy
 pydm
 qtpy
 PyQt5
