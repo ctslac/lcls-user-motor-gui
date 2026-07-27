@@ -6,6 +6,7 @@ from pathlib import Path
 import epics
 from pcdsutils.qt.designer_display import DesignerDisplay
 from pydm.widgets.display_format import DisplayFormat
+from pydm.widgets.enum_combo_box import PyDMEnumComboBox
 from pydm.widgets.label import PyDMLabel
 from pydm.widgets.line_edit import PyDMLineEdit
 from qtpy import QtCore, uic
@@ -312,22 +313,42 @@ class ExpertWindow(DesignerDisplay, QWidget):
             "pv_units": f"{nc_pv}:EU_RBV",
         }
 
-        def configure_channel(pvname: str, pydm_widget, timeout: float = 1.0) -> str:
+        def configure_channel(
+            pvname: str, pydm_widget, timeout: float = 1.0
+        ) -> tuple[str, str]:
             """Return a PyDM CA channel and set string display for enum/char PVs."""
+            pvt = ""
             try:
                 pv = epics.PV(pvname, auto_monitor=False)
                 # self.logger.debug(f"Created PV object for {pvname}")
 
                 if pv.wait_for_connection(timeout=timeout):
                     pvt = (pv.type or "").lower()
-                    if ("enum" in pvt) or ("char" in pvt):
+                    self.logger.debug(f"PV {pvname} type: {pvt}")
+                    if (("enum" in pvt) or ("char" in pvt)) and hasattr(
+                        pydm_widget, "displayFormat"
+                    ):
                         pydm_widget.displayFormat = DisplayFormat.String
                 else:
                     self.logger.warning(f"PV connection timeout for {pvname}")
             except Exception as e:
                 self.logger.error(f"Error configuring channel for {pvname}: {e}")
 
-            return f"ca://{pvname}"
+            return f"ca://{pvname}", pvt
+
+        def replace_goal_with_enum_combo(goal_widget):
+            parent = goal_widget.parentWidget()
+            layout = parent.layout()
+            enum_combo = PyDMEnumComboBox(parent)
+            enum_combo.setObjectName(goal_widget.objectName())
+            enum_combo.setSizePolicy(goal_widget.sizePolicy())
+            enum_combo.setMinimumSize(goal_widget.minimumSize())
+            enum_combo.setToolTip(goal_widget.toolTip())
+            layout.replaceWidget(goal_widget, enum_combo)
+            goal_widget.setParent(None)
+            goal_widget.deleteLater()
+            widget.pv_goal = enum_combo
+            return enum_combo
 
         def is_fixed_readonly(pvname: str, timeout: float = 10.0) -> bool:
             """Return True when an access PV reports FIXED_READONLY."""
@@ -349,7 +370,7 @@ class ExpertWindow(DesignerDisplay, QWidget):
         units = widget.pv_units
 
         # Set channels using the channel property
-        channel_str = configure_channel(pv_map["pv_name"], name)
+        channel_str, _ = configure_channel(pv_map["pv_name"], name)
         name.channel = channel_str
         # self.logger.debug(f"Set pv_name channel to {channel_str}")
 
@@ -365,14 +386,16 @@ class ExpertWindow(DesignerDisplay, QWidget):
             if goal_label is not None:
                 goal_label.setVisible(True)
             goal.setVisible(True)
-            channel_str = configure_channel(pv_map["pv_goal"], goal)
+            channel_str, goal_type = configure_channel(pv_map["pv_goal"], goal)
+            if "enum" in goal_type:
+                goal = replace_goal_with_enum_combo(goal)
             goal.channel = channel_str
 
-        channel_str = configure_channel(pv_map["pv_rbv"], rbv)
+        channel_str, _ = configure_channel(pv_map["pv_rbv"], rbv)
         rbv.channel = channel_str
         # self.logger.debug(f"Set pv_rbv channel to {channel_str}")
 
-        channel_str = configure_channel(pv_map["pv_units"], units)
+        channel_str, _ = configure_channel(pv_map["pv_units"], units)
         units.channel = channel_str
         # self.logger.debug(f"Set pv_units channel to {channel_str}")
 
