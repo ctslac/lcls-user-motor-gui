@@ -43,12 +43,6 @@ from .normalize import (
 )
 
 
-class ReadOnlyPyDMEnumComboBox(PyDMEnumComboBox):
-    def check_enable_state(self):
-        super().check_enable_state()
-        self.setEnabled(False)
-
-
 class ExpertWindow(DesignerDisplay, QWidget):
     filename = "expert_tab.ui"
     ui_dir = Path(__file__).parent / "./../ui"
@@ -342,18 +336,26 @@ class ExpertWindow(DesignerDisplay, QWidget):
 
             return f"ca://{pvname}", pvt
 
-        def replace_with_enum_combo(pydm_widget, combo_cls=PyDMEnumComboBox):
+        def replace_pydm_widget(pydm_widget, widget_cls):
             parent = pydm_widget.parentWidget()
             layout = parent.layout()
-            enum_combo = combo_cls(parent)
-            enum_combo.setObjectName(pydm_widget.objectName())
-            enum_combo.setSizePolicy(pydm_widget.sizePolicy())
-            enum_combo.setMinimumSize(pydm_widget.minimumSize())
-            enum_combo.setToolTip(pydm_widget.toolTip())
-            layout.replaceWidget(pydm_widget, enum_combo)
+            replacement = widget_cls(parent)
+            replacement.setObjectName(pydm_widget.objectName())
+            replacement.setSizePolicy(pydm_widget.sizePolicy())
+            replacement.setMinimumSize(pydm_widget.minimumSize())
+            replacement.setToolTip(pydm_widget.toolTip())
+            layout.replaceWidget(pydm_widget, replacement)
             pydm_widget.setParent(None)
             pydm_widget.deleteLater()
-            return enum_combo
+            return replacement
+
+        def replace_with_enum_combo(pydm_widget):
+            return replace_pydm_widget(pydm_widget, PyDMEnumComboBox)
+
+        def replace_with_label(pydm_widget):
+            label = replace_pydm_widget(pydm_widget, PyDMLabel)
+            label.displayFormat = DisplayFormat.String
+            return label
 
         def is_fixed_readonly(pvname: str, timeout: float = 10.0) -> bool:
             """Return True when an access PV reports FIXED_READONLY."""
@@ -399,7 +401,7 @@ class ExpertWindow(DesignerDisplay, QWidget):
 
         channel_str, rbv_type = configure_channel(pv_map["pv_rbv"], rbv)
         if "enum" in rbv_type:
-            rbv = replace_with_enum_combo(rbv, ReadOnlyPyDMEnumComboBox)
+            rbv = replace_with_label(rbv)
             widget.pv_rbv = rbv
         rbv.channel = channel_str
         # self.logger.debug(f"Set pv_rbv channel to {channel_str}")
