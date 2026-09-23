@@ -122,6 +122,20 @@ class UserInputWindow(DesignerDisplay, QWidget):
 
         self.stage_settings.clicked.connect(self.open_stage_settings)
 
+    def is_fixed_readonly(self, pvname: str, timeout: float = 10.0) -> bool:
+        """Return True when the access PV reports FIXED_READONLY."""
+        try:
+            self.logger.debug(f"checking access of the pv: {pvname}")
+            pv = epics.PV(pvname, auto_monitor=False)
+            if pv.wait_for_connection(timeout=timeout):
+                value = pv.get(as_string=True)
+                self.logger.debug(f"connected to pv, {value}{pvname}")
+                return value == "FIXED_READONLY"
+        except Exception as e:
+            self.logger.error(f"Error checking access for {pvname}: {e}")
+        self.logger.info(f"{pvname} did not connect")
+        return False
+
     def load_configs(self):
         """Load available stage config TOML files into the config selector."""
         self.logger.info(f"in load_configs")
