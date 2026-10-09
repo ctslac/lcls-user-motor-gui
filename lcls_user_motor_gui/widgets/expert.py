@@ -44,19 +44,43 @@ from .normalize import (
 
 class ReadOnlyEnumLineEdit(PyDMLineEdit):
     def __init__(self, parent=None, init_channel=None):
+        """Initialize a read-only enum line edit.
+
+        Parameters
+        ----------
+        parent : QWidget, optional
+            Parent widget.
+        init_channel : str, optional
+            Initial PyDM channel.
+        """
         super().__init__(parent=parent, init_channel=init_channel)
         self.displayFormat = DisplayFormat.String
         self.setReadOnly(True)
 
     def enum_strings_changed(self, new_enum_strings):
+        """Update stored enum strings and refresh the displayed value.
+
+        Parameters
+        ----------
+        new_enum_strings : tuple[str, ...]
+            Enum strings from the connected channel.
+        """
         super().enum_strings_changed(new_enum_strings)
         self._display_enum_string()
 
     def value_changed(self, new_val):
+        """Update the line edit when the channel value changes.
+
+        Parameters
+        ----------
+        new_val : object
+            New value from the connected channel.
+        """
         super().value_changed(new_val)
         self._display_enum_string()
 
     def _display_enum_string(self):
+        """Display the enum string for the current enum index value."""
         if self.value is None or not self.enum_strings:
             return
 
@@ -90,13 +114,16 @@ class ExpertWindow(DesignerDisplay, QWidget):
     # nc_groupbox: QGroupBox
 
     def __init__(self, main_window, parent=None, logger=None):
-        """
-        Initialize the ExpertWindow.
+        """Initialize the expert tab.
 
-        Args:
-            main_window: The main window instance.
-            parent: Parent widget, defaults to None.
-            logger: Logger instance for logging, defaults to None.
+        Parameters
+        ----------
+        main_window : QWidget
+            Main window instance.
+        parent : QWidget, optional
+            Parent widget.
+        logger : logging.Logger, optional
+            Logger instance.
         """
         super().__init__(parent)
         self.logger = logger
@@ -137,14 +164,15 @@ class ExpertWindow(DesignerDisplay, QWidget):
         )
 
     def filter_expert_nc_filter(self, text):
-        """
-        Filter items in the expert NC filter list based on the provided text.
+        """Filter items in the expert NC filter list.
 
         This method iterates through all items in the expert_nc_filter widget and hides
         those that do not contain the filter text (case-insensitive).
 
-        Args:
-            text (str): The filter text to search for in item texts.
+        Parameters
+        ----------
+        text : str
+            Filter text to search for in item text.
         """
         self.logger.info("in filter_expert_nc_filter")
         for i in range(self.expert_nc_filter.count()):
@@ -207,15 +235,16 @@ class ExpertWindow(DesignerDisplay, QWidget):
         self.add_param_widgets(stripped_nc, self.expert_nc_filter_list)
 
     def expert_update_drive(self, axis):
-        """
-        Update the expert drive filter with parameters for the currently selected axis.
+        """Update the expert drive filter for the selected axis.
 
         Retrieves the hardware ID for the selected axis, filters COE drive parameters,
         fetches their values with caget, and populates the drive filter widget.
         Also adds parameter widgets for each drive parameter.
 
-        Args:
-            axis: Unused parameter (function uses self.expert_axis.currentIndex() instead).
+        Parameters
+        ----------
+        axis : int
+            Unused signal argument. The current axis is read from ``expert_axis``.
         """
         self.logger.info(f"in expert_update_drive")
 
@@ -270,16 +299,17 @@ class ExpertWindow(DesignerDisplay, QWidget):
         self.add_param_widgets(stripped_coe, self.expert_coe_drive_filter_list)
 
     def expert_update_encoder(self, axis):
-        """
-        Update the expert encoder filter with parameters for the currently selected slice hardware.
+        """Update the expert encoder filter for the selected axis.
 
         1. Retrieves the hardware ID for the selected axis
         2. Filters COE encoder parameters,
         3. populates the encoder filter widget.
         Also adds parameter widgets for each encoder parameter.
 
-        Args:
-            axis: Unused parameter (function uses self.expert_axis.currentIndex() instead).
+        Parameters
+        ----------
+        axis : int
+            Unused signal argument. The current axis is read from ``expert_axis``.
         """
         self.logger.info(f"in expert_update_encoder")
 
@@ -335,7 +365,15 @@ class ExpertWindow(DesignerDisplay, QWidget):
         self.add_param_widgets(stripped_coe, self.expert_coe_encoder_filter_list)
 
     def configure_param_widgets(self, widget: QWidget, nc_pv: str):
-        """Configure a parameter widget with PyDM channels for a base PV."""
+        """Configure a parameter widget with PyDM channels for a base PV.
+
+        Parameters
+        ----------
+        widget : QWidget
+            Parameter UI widget loaded from ``param.ui``.
+        nc_pv : str
+            Base NC parameter PV without a field suffix.
+        """
         pv_map = {
             "pv_name": f"{nc_pv}:Name_RBV",
             "pv_goal": f"{nc_pv}:Goal",
@@ -346,7 +384,24 @@ class ExpertWindow(DesignerDisplay, QWidget):
         def configure_channel(
             pvname: str, pydm_widget, timeout: float = 1.0
         ) -> tuple[str, str]:
-            """Return a PyDM CA channel and set string display for enum/char PVs."""
+            """Return a PyDM CA channel and configure string display.
+
+            Parameters
+            ----------
+            pvname : str
+                EPICS PV name without the ``ca://`` prefix.
+            pydm_widget : QWidget
+                PyDM widget to configure.
+            timeout : float, optional
+                Maximum connection wait time in seconds.
+
+            Returns
+            -------
+            channel : str
+                PyDM Channel Access channel string.
+            pv_type : str
+                Lowercase EPICS PV type string, if available.
+            """
             pvt = ""
             try:
                 pv = epics.PV(pvname, auto_monitor=False)
@@ -367,6 +422,20 @@ class ExpertWindow(DesignerDisplay, QWidget):
             return f"ca://{pvname}", pvt
 
         def replace_pydm_widget(pydm_widget, widget_cls):
+            """Replace a PyDM widget with another widget class.
+
+            Parameters
+            ----------
+            pydm_widget : QWidget
+                Existing widget to replace in its parent layout.
+            widget_cls : type[QWidget]
+                Replacement widget class.
+
+            Returns
+            -------
+            QWidget
+                Replacement widget instance.
+            """
             parent = pydm_widget.parentWidget()
             layout = parent.layout()
             replacement = widget_cls(parent)
@@ -380,13 +449,50 @@ class ExpertWindow(DesignerDisplay, QWidget):
             return replacement
 
         def replace_with_enum_combo(pydm_widget):
+            """Replace a PyDM widget with an enum combo box.
+
+            Parameters
+            ----------
+            pydm_widget : QWidget
+                Existing widget to replace.
+
+            Returns
+            -------
+            PyDMEnumComboBox
+                Replacement enum combo box.
+            """
             return replace_pydm_widget(pydm_widget, PyDMEnumComboBox)
 
         def replace_with_read_only_line_edit(pydm_widget):
+            """Replace a PyDM widget with a read-only enum line edit.
+
+            Parameters
+            ----------
+            pydm_widget : QWidget
+                Existing widget to replace.
+
+            Returns
+            -------
+            ReadOnlyEnumLineEdit
+                Replacement read-only enum line edit.
+            """
             return replace_pydm_widget(pydm_widget, ReadOnlyEnumLineEdit)
 
         def is_fixed_readonly(pvname: str, timeout: float = 10.0) -> bool:
-            """Return True when an access PV reports FIXED_READONLY."""
+            """Return whether an access PV reports FIXED_READONLY.
+
+            Parameters
+            ----------
+            pvname : str
+                Access PV name.
+            timeout : float, optional
+                Maximum connection wait time in seconds.
+
+            Returns
+            -------
+            bool
+                True if the access PV is connected and reports FIXED_READONLY.
+            """
             try:
                 pv = epics.PV(pvname, auto_monitor=False)
                 if pv.wait_for_connection(timeout=timeout):
@@ -429,7 +535,7 @@ class ExpertWindow(DesignerDisplay, QWidget):
 
         channel_str, rbv_type = configure_channel(pv_map["pv_rbv"], rbv)
         if "enum" in rbv_type:
-            rbv = replace_with_read_only_line_edit(rbv)
+            rbv = replace_pydm_widget(rbv, ReadOnlyEnumLineEdit)
             widget.pv_rbv = rbv
         rbv.channel = channel_str
         # self.logger.debug(f"Set pv_rbv channel to {channel_str}")
@@ -439,15 +545,17 @@ class ExpertWindow(DesignerDisplay, QWidget):
         # self.logger.debug(f"Set pv_units channel to {channel_str}")
 
     def add_param_widgets(self, param, widget: QListWidget):
-        """
-        Dynamically add parameter widgets to a QListWidget.
+        """Add parameter widgets to a list widget.
 
         For each parameter in the list, loads a param.ui widget, configures it with
         EPICS channels, connects editing signals, and adds it as an item to the widget.
 
-        Args:
-            param (list): List of parameter PV names.
-            widget (QListWidget): The list widget to add items to.
+        Parameters
+        ----------
+        param : list[str]
+            Parameter PV names.
+        widget : QListWidget
+            List widget that receives the parameter widgets.
         """
         self.logger.info("in add_param_widgets")
         widget.clear()
@@ -596,37 +704,3 @@ class ExpertWindow(DesignerDisplay, QWidget):
                 self.logger.debug(
                     "Current filter text not found in ca_coe_encoder_list!"
                 )
-
-    def check_caput(self, pv):
-        """
-        Check if the goal value matches the readback value for a PV.
-
-        This function was intended to verify successful EPICS caput operations,
-        but currently has a bug: goal_value and rbv_value are assigned tuples
-        instead of calling epics.caget().
-
-        Args:
-            pv (str): The base PV name.
-
-        Returns:
-            bool: True if goal and readback match, False otherwise.
-        """
-        self.logger.info("in check_caput")
-
-        """
-        this function was meant to start an async thread that confirms
-        the caput has been successful. in the integration test I was
-        relying on the wait=true part of the caput
-        """
-        pv = remove_name_rbv(pv)
-
-        # Run blocking calls in a thread
-        goal_value = epics.caget(pv + ":Goal")
-        rbv_value = epics.caget(pv + ":Val_RBV")
-
-        if goal_value == rbv_value:
-            self.logger.debug(f"goal and rbv match: {goal_value}, {rbv_value}")
-            return True
-        else:
-            self.logger.debug(f"goal and rbv DO NOT match: {goal_value}, {rbv_value}")
-            return False
