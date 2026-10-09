@@ -386,7 +386,7 @@ class ExpertWindow(DesignerDisplay, QWidget):
             return replace_pydm_widget(pydm_widget, ReadOnlyEnumLineEdit)
 
         def is_fixed_readonly(pvname: str, timeout: float = 10.0) -> bool:
-            """Retejhkcbtgcfijdhccfrlddcghtjrurn True when an access PV reports FIXED_READONLY."""
+            """Return True when an access PV reports FIXED_READONLY."""
             try:
                 pv = epics.PV(pvname, auto_monitor=False)
                 if pv.wait_for_connection(timeout=timeout):
