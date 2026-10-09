@@ -216,6 +216,9 @@ class StageSettings(DesignerDisplay, QDialog):
             metadata={
                 "axis": axis_name,
                 "axis_index": axis_index + 1,
+                "ioc_prefix": self.get_ioc_template_prefix(),
+                "nc_prefix": self.get_nc_prefix(axis_index),
+                **{key: value.rstrip(":") for key, value in coe_prefixes.items()},
             },
             data=data,
         )
@@ -228,12 +231,17 @@ class StageSettings(DesignerDisplay, QDialog):
         """Return the axis-specific prefix used to expand ${PREFIX}."""
         return f"{self.get_ioc_template_prefix()}:MMS:{axis_index + 1:02}"
 
+    def get_nc_prefix(self, axis_index: int) -> str:
+        """Return the NC macro prefix for one axis."""
+        return f"{self.get_ioc_template_prefix()}:MMS:{axis_index + 1:02}"
+
     def get_template_macros(self, axis_index: int) -> dict[str, str]:
         """Return macro values for applying a template to one target axis."""
-        axis_prefix = f"{self.get_template_prefix(axis_index)}:NC:"
+        nc_prefix = self.get_nc_prefix(axis_index)
+        axis_prefix = f"{nc_prefix}:NC:"
         macros = {
-            self.template_prefix_macro: self.get_template_prefix(axis_index),
-            "NC_PREFIX": self.get_template_prefix(axis_index),
+            self.template_prefix_macro: nc_prefix,
+            "NC_PREFIX": nc_prefix,
             self.template_ioc_prefix_macro: self.get_ioc_template_prefix(),
             self.template_axis_macro: f"{axis_index + 1:02}",
             "axis_prefix": axis_prefix,
@@ -267,8 +275,12 @@ class StageSettings(DesignerDisplay, QDialog):
         if "axis_prefix" in macros:
             config = config.apply_macros(self.get_template_macros(axis_index))
 
-        drive_coe_prefix = config.metadata.get("drive_coe_prefix")
-        encoder_coe_prefix = config.metadata.get("encoder_coe_prefix")
+        drive_coe_prefix = self.normalize_coe_prefix_metadata(
+            config.metadata.get("drive_coe_prefix")
+        )
+        encoder_coe_prefix = self.normalize_coe_prefix_metadata(
+            config.metadata.get("encoder_coe_prefix")
+        )
 
         new_data = []
         for row in config.data:
@@ -312,6 +324,12 @@ class StageSettings(DesignerDisplay, QDialog):
             data=new_data,
         )
         return new_config
+
+    def normalize_coe_prefix_metadata(self, prefix: str | None) -> str | None:
+        """Return a COE prefix with a trailing separator for PV replacement."""
+        if not prefix:
+            return None
+        return f"{prefix.rstrip(':')}:"
 
     def normalize_template_coe_suffix(self, suffix: str) -> str:
         """Convert legacy COE ParamChN suffixes to NN:Param canonical form."""
@@ -659,6 +677,7 @@ class StageSettings(DesignerDisplay, QDialog):
         config = self.drop_unreadable_config_values(config)
         if config is None:
             return
+        config = self.configure_template_macros(config, axis_index)
         config_to_file(filename, config)
         self.user_input_widget.load_configs()
         self.load_configs_from_user_input()
