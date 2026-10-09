@@ -7,7 +7,6 @@ import epics
 from pcdsutils.qt.designer_display import DesignerDisplay
 from pydm.widgets.display_format import DisplayFormat
 from pydm.widgets.enum_combo_box import PyDMEnumComboBox
-from pydm.widgets.label import PyDMLabel
 from pydm.widgets.line_edit import PyDMLineEdit
 from qtpy import QtCore, uic
 from qtpy.QtWidgets import (
@@ -41,6 +40,37 @@ from .normalize import (
     normalize_hardware_id,
     remove_name_rbv,
 )
+
+
+class ReadOnlyEnumLineEdit(PyDMLineEdit):
+    def __init__(self, parent=None, init_channel=None):
+        super().__init__(parent=parent, init_channel=init_channel)
+        self.displayFormat = DisplayFormat.String
+        self.setReadOnly(True)
+
+    def enum_strings_changed(self, new_enum_strings):
+        super().enum_strings_changed(new_enum_strings)
+        self._display_enum_string()
+
+    def value_changed(self, new_val):
+        super().value_changed(new_val)
+        self._display_enum_string()
+
+    def _display_enum_string(self):
+        if self.value is None or not self.enum_strings:
+            return
+
+        if isinstance(self.value, int) and not isinstance(self.value, bool):
+            if 0 <= self.value < len(self.enum_strings):
+                value = self.enum_strings[self.value]
+            else:
+                return
+        else:
+            value = self.value
+
+        self._has_displayed_value_yet = True
+        self._display = str(value)
+        self.setText(self._display)
 
 
 class ExpertWindow(DesignerDisplay, QWidget):
@@ -352,13 +382,11 @@ class ExpertWindow(DesignerDisplay, QWidget):
         def replace_with_enum_combo(pydm_widget):
             return replace_pydm_widget(pydm_widget, PyDMEnumComboBox)
 
-        def replace_with_label(pydm_widget):
-            label = replace_pydm_widget(pydm_widget, PyDMLabel)
-            label.displayFormat = DisplayFormat.String
-            return label
+        def replace_with_read_only_line_edit(pydm_widget):
+            return replace_pydm_widget(pydm_widget, ReadOnlyEnumLineEdit)
 
         def is_fixed_readonly(pvname: str, timeout: float = 10.0) -> bool:
-            """Return True when an access PV reports FIXED_READONLY."""
+            """Retejhkcbtgcfijdhccfrlddcghtjrurn True when an access PV reports FIXED_READONLY."""
             try:
                 pv = epics.PV(pvname, auto_monitor=False)
                 if pv.wait_for_connection(timeout=timeout):
@@ -401,7 +429,7 @@ class ExpertWindow(DesignerDisplay, QWidget):
 
         channel_str, rbv_type = configure_channel(pv_map["pv_rbv"], rbv)
         if "enum" in rbv_type:
-            rbv = replace_with_label(rbv)
+            rbv = replace_with_read_only_line_edit(rbv)
             widget.pv_rbv = rbv
         rbv.channel = channel_str
         # self.logger.debug(f"Set pv_rbv channel to {channel_str}")
