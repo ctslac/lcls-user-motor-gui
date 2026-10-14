@@ -65,13 +65,16 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
     diagnostic_params_groupbox: QGroupBox
 
     def __init__(self, main_window, parent=None, logger=None):
-        """
-        Initialize the DiagnosticsWindow.
+        """Initialize the DiagnosticsWindow.
 
-        Args:
-            main_window: The main window instance.
-            parent: Parent widget, defaults to None.
-            logger: Logger instance for logging, defaults to None.
+        Parameters
+        ----------
+        main_window : QWidget
+            Main window instance.
+        parent : QWidget, optional
+            Parent widget.
+        logger : logging.Logger, optional
+            Logger instance.
         """
         super().__init__(parent)
         self.logger = logger
@@ -219,7 +222,7 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
         """
         Populate the diagnostic parameters group box with a widget for the selected parameter.
 
-        Finds the selected parameter in the ca_coe_list, loads a diagnostics UI widget,
+        Finds the selected parameter in the filtered DG list, loads a diagnostics UI widget,
         configures it with the parameter data, and adds it to the group box.
         """
         self.logger.info(f"in populate_diagnostic_widget")
@@ -243,7 +246,13 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
         self.diagnostic_params_groupbox.layout().addWidget(param_widget)
 
     def clear_layout(self, layout):
-        """Remove all items from a layout immediately."""
+        """Remove all items from a layout immediately.
+
+        Parameters
+        ----------
+        layout : QLayout
+            Layout to clear.
+        """
         if layout is None:
             return
 
@@ -261,14 +270,16 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
                 child_widget.deleteLater()
 
     def configure_diagnostic_widgets(self, widget: QWidget, nc_pv):
-        """
-        Configure a diagnostics widget with with caget channel values.
+        """Configure a diagnostics widget with caget channel values.
 
         Fetches diagnostic values for the given PV and sets them in the widget's labels.
 
-        Args:
-            widget (QWidget): The diagnostics widget to configure.
-            nc_pv (str): The base PV name for the diagnostic parameter.
+        Parameters
+        ----------
+        widget : QWidget
+            Diagnostics widget to configure.
+        nc_pv : str
+            Base PV name for the diagnostic parameter.
         """
         vals = [
             nc_pv + ":Goal_RBV",
