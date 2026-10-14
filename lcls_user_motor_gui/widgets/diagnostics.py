@@ -81,6 +81,8 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
         self.axis = []
         self.dg_list = []
         self.ca_coe_list = []
+        self.ca_dg_list = []
+        self.diagnostic_dg_pvs = []
 
         self.diagnostic_param_filter = FilteredListWidget(self.diagnostic_groupbox)
         self.diagnostic_groupbox.layout().addWidget(self.diagnostic_param_filter)
@@ -158,7 +160,13 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
         axis_w_enc = hardware_prefix_for_coe(
             self.prefixName, hardwareEncId, hardwareEncChannel
         )
-        self.diagnostic_hardware_selection.addItems([axis_w_drv, axis_w_enc])
+        for hardware_prefix, hardware_channel in [
+            (axis_w_drv, hardwareDrvChannel),
+            (axis_w_enc, hardwareEncChannel),
+        ]:
+            item = QListWidgetItem(hardware_prefix)
+            item.setData(QtCore.Qt.UserRole, hardware_channel)
+            self.diagnostic_hardware_selection.addItem(item)
 
     def populate_diagnostic_coe(self):
         """
@@ -168,28 +176,41 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
         from with caget, and populates the diagnostic parameter filter widget.
         """
         self.logger.info(f"in populate_diagnostic_coe")
-        currHardware = self.diagnostic_hardware_selection.currentItem().text()
-        dgPrefix = currHardware + ":COE:DG:"
-        string_drive_regex = f"{dgPrefix}[^:]+:Name_RBV"
-        self.logger.debug(f"string_drive_regex: {string_drive_regex}")
-        stripped_dg = []
-        self.logger.debug(f"coe len: {len(self.dg_list)}")
-        for pv in self.dg_list:
-            # self.logger.debug(f"pv: {pv}")
-            if re.search(string_drive_regex, pv):
-                stripped_dg.append(pv.strip())
+        current_hardware_item = self.diagnostic_hardware_selection.currentItem()
+        if current_hardware_item is None:
+            self.diagnostic_param_filter.clear_items()
+            self.ca_dg_list = []
+            self.diagnostic_dg_pvs = []
+            return
 
+        currHardware = current_hardware_item.text()
+        hardware_channel = current_hardware_item.data(QtCore.Qt.UserRole)
+        dg_regex = f"{re.escape(currHardware)}:COE:DG:[^:]+:Name_RBV"
+        self.logger.debug(f"dg_regex: {dg_regex}")
+        stripped_dg = [pv.strip() for pv in self.dg_list if re.search(dg_regex, pv)]
+
+        if not stripped_dg and hardware_channel:
+            coe_regex = (
+                f"{re.escape(currHardware)}:COE:"
+                f"{re.escape(hardware_channel)}:[^:]+:Name_RBV"
+            )
+            self.logger.debug(f"coe_regex: {coe_regex}")
+            stripped_dg = [
+                pv.strip() for pv in self.dg_list if re.search(coe_regex, pv)
+            ]
+
+        self.logger.debug(f"coe len: {len(self.dg_list)}")
         self.logger.debug(f"dg list size: {len(stripped_dg)}")
 
         # Clear previous items
         self.diagnostic_param_filter.clear_items()
-        self.dg_list.clear()
 
-        self.ca_dg_list = epics.caget_many(stripped_dg, as_string=True)
+        ca_dg_list = epics.caget_many(stripped_dg, as_string=True)
+        dg_pairs = [(pv, value) for pv, value in zip(stripped_dg, ca_dg_list) if value]
+        self.diagnostic_dg_pvs = [pv for pv, value in dg_pairs]
+        self.ca_dg_list = [value for pv, value in dg_pairs]
 
-        # Add items (filter out None just in case)
-        items = [item for item in self.ca_dg_list if item]
-        self.diagnostic_param_filter.add_items(items)
+        self.diagnostic_param_filter.add_items(self.ca_dg_list)
 
         # Enable widget if needed
         self.diagnostic_param_filter.setEnabled(True)
@@ -206,19 +227,20 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
         self.clear_layout(self.diagnostic_params_groupbox.layout())
 
         current_text = self.diagnostic_param_filter.currentText()
-        for index, (key, value) in enumerate(self.ca_coe_list.items()):
-            if current_text == value:
-                pv_index = index
-                self.logger.debug(f"current pv: {pv_index} ({current_text})")
-                thing = key
-                self.logger.debug(f"item: {thing}")
-                name = remove_name_rbv(thing)
-                param_widget = uic.loadUi(
-                    str(Path(__file__).parent / "./../ui" / "diagnostics.ui")
-                )
-                self.configure_diagnostic_widgets(param_widget, name)
-                self.diagnostic_params_groupbox.layout().addWidget(param_widget)
-                break
+        if current_text not in self.ca_dg_list:
+            self.logger.debug("Current filter text not found in ca_dg_list!")
+            return
+
+        pv_index = self.ca_dg_list.index(current_text)
+        self.logger.debug(f"current pv: {pv_index} ({current_text})")
+        thing = self.diagnostic_dg_pvs[pv_index]
+        self.logger.debug(f"item: {thing}")
+        name = remove_name_rbv(thing)
+        param_widget = uic.loadUi(
+            str(Path(__file__).parent / "./../ui" / "diagnostics.ui")
+        )
+        self.configure_diagnostic_widgets(param_widget, name)
+        self.diagnostic_params_groupbox.layout().addWidget(param_widget)
 
     def clear_layout(self, layout):
         """Remove all items from a layout immediately."""
@@ -250,7 +272,7 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
         """
         vals = [
             nc_pv + ":Goal_RBV",
-            nc_pv + ":Goal",
+            nc_pv + ":Val_RBV",
             nc_pv + ":Acc_RBV",
             nc_pv + ":Desc_RBV",
             nc_pv + ":TLastUp_RBV",
