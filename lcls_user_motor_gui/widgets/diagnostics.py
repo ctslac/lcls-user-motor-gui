@@ -65,13 +65,16 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
     diagnostic_params_groupbox: QGroupBox
 
     def __init__(self, main_window, parent=None, logger=None):
-        """
-        Initialize the DiagnosticsWindow.
+        """Initialize the DiagnosticsWindow.
 
-        Args:
-            main_window: The main window instance.
-            parent: Parent widget, defaults to None.
-            logger: Logger instance for logging, defaults to None.
+        Parameters
+        ----------
+        main_window : QWidget
+            Main window instance.
+        parent : QWidget, optional
+            Parent widget.
+        logger : logging.Logger, optional
+            Logger instance.
         """
         super().__init__(parent)
         self.logger = logger
@@ -81,6 +84,8 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
         self.axis = []
         self.dg_list = []
         self.ca_coe_list = []
+        self.ca_dg_list = []
+        self.diagnostic_dg_pvs = []
 
         self.diagnostic_param_filter = FilteredListWidget(self.diagnostic_groupbox)
         self.diagnostic_groupbox.layout().addWidget(self.diagnostic_param_filter)
@@ -98,8 +103,7 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
         )
 
     def publish_axis_diagnostic(self):
-        """
-        Populate the diagnostic axis selection combo box with available axes.
+        """Populate the diagnostic axis selection combo box with available axes.
 
         Clears the current items and adds all axes from self.axis, then enables the widget.
         """
@@ -112,8 +116,7 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
         self.logger.debug(f"caput to: self.axis_selection")
 
     def populate_diagnostic_hardware(self):
-        """
-        Populate the diagnostic hardware selection list with drive and encoder hardware IDs.
+        """Populate the diagnostic hardware selection list with drive and encoder hardware IDs.
 
         Retrieves the hardware IDs for the currently selected axis from with caget,
         processes them, and adds the formatted hardware strings to the list widget.
@@ -161,14 +164,17 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
         self.diagnostic_hardware_selection.addItems([axis_w_drv, axis_w_enc])
 
     def populate_diagnostic_coe(self):
-        """
-        Populate the diagnostic parameter filter with COE DG parameters for the selected hardware.
+        """Populate the diagnostic parameter filter for the selected hardware.
 
         Filters DG parameters matching the current hardware selection, fetches their values
         from with caget, and populates the diagnostic parameter filter widget.
         """
         self.logger.info(f"in populate_diagnostic_coe")
-        currHardware = self.diagnostic_hardware_selection.currentItem().text()
+        current_hardware_item = self.diagnostic_hardware_selection.currentItem()
+        if current_hardware_item is None:
+            return
+
+        currHardware = current_hardware_item.text()
         dgPrefix = currHardware + ":COE:DG:"
         string_drive_regex = f"{dgPrefix}[^:]+:Name_RBV"
         self.logger.debug(f"string_drive_regex: {string_drive_regex}")
@@ -183,22 +189,21 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
 
         # Clear previous items
         self.diagnostic_param_filter.clear_items()
-        self.dg_list.clear()
 
-        self.ca_dg_list = epics.caget_many(stripped_dg, as_string=True)
+        ca_dg_list = epics.caget_many(stripped_dg, as_string=True)
+        dg_pairs = [(pv, value) for pv, value in zip(stripped_dg, ca_dg_list) if value]
+        self.diagnostic_dg_pvs = [pv for pv, value in dg_pairs]
+        self.ca_dg_list = [value for pv, value in dg_pairs]
 
-        # Add items (filter out None just in case)
-        items = [item for item in self.ca_dg_list if item]
-        self.diagnostic_param_filter.add_items(items)
+        self.diagnostic_param_filter.add_items(self.ca_dg_list)
 
         # Enable widget if needed
         self.diagnostic_param_filter.setEnabled(True)
 
     def populate_diagnostic_widget(self):
-        """
-        Populate the diagnostic parameters group box with a widget for the selected parameter.
+        """Populate the diagnostic group box for the selected parameter.
 
-        Finds the selected parameter in the ca_coe_list, loads a diagnostics UI widget,
+        Finds the selected parameter in the filtered DG list, loads a diagnostics UI widget,
         configures it with the parameter data, and adds it to the group box.
         """
         self.logger.info(f"in populate_diagnostic_widget")
@@ -206,22 +211,29 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
         self.clear_layout(self.diagnostic_params_groupbox.layout())
 
         current_text = self.diagnostic_param_filter.currentText()
-        for index, (key, value) in enumerate(self.ca_coe_list.items()):
-            if current_text == value:
-                pv_index = index
-                self.logger.debug(f"current pv: {pv_index} ({current_text})")
-                thing = key
-                self.logger.debug(f"item: {thing}")
-                name = remove_name_rbv(thing)
-                param_widget = uic.loadUi(
-                    str(Path(__file__).parent / "./../ui" / "diagnostics.ui")
-                )
-                self.configure_diagnostic_widgets(param_widget, name)
-                self.diagnostic_params_groupbox.layout().addWidget(param_widget)
-                break
+        if current_text not in self.ca_dg_list:
+            self.logger.debug("Current filter text not found in ca_dg_list!")
+            return
+
+        pv_index = self.ca_dg_list.index(current_text)
+        self.logger.debug(f"current pv: {pv_index} ({current_text})")
+        thing = self.diagnostic_dg_pvs[pv_index]
+        self.logger.debug(f"item: {thing}")
+        name = remove_name_rbv(thing)
+        param_widget = uic.loadUi(
+            str(Path(__file__).parent / "./../ui" / "diagnostics.ui")
+        )
+        self.configure_diagnostic_widgets(param_widget, name)
+        self.diagnostic_params_groupbox.layout().addWidget(param_widget)
 
     def clear_layout(self, layout):
-        """Remove all items from a layout immediately."""
+        """Remove all items from a layout immediately.
+
+        Parameters
+        ----------
+        layout : QLayout
+            Layout to clear.
+        """
         if layout is None:
             return
 
@@ -239,14 +251,16 @@ class DiagnosticsWindow(DesignerDisplay, QWidget):
                 child_widget.deleteLater()
 
     def configure_diagnostic_widgets(self, widget: QWidget, nc_pv):
-        """
-        Configure a diagnostics widget with with caget channel values.
+        """Configure a diagnostics widget with caget channel values.
 
         Fetches diagnostic values for the given PV and sets them in the widget's labels.
 
-        Args:
-            widget (QWidget): The diagnostics widget to configure.
-            nc_pv (str): The base PV name for the diagnostic parameter.
+        Parameters
+        ----------
+        widget : QWidget
+            Diagnostics widget to configure.
+        nc_pv : str
+            Base PV name for the diagnostic parameter.
         """
         vals = [
             nc_pv + ":Goal_RBV",
