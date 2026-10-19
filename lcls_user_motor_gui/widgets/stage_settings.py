@@ -101,6 +101,8 @@ class StageSettings(DesignerDisplay, QDialog):
                     self.get_template_macros(source_axis_index)
                 )
                 config = self.resolve_template_coe_pvs(config, source_axis_index)
+                if config is None:
+                    return
                 config = self.configure_template_macros(config, source_axis_index)
             template_name = f"{config.name} Template"
             template_desc = config.desc
@@ -342,7 +344,7 @@ class StageSettings(DesignerDisplay, QDialog):
     def drop_unreadable_config_values(self, config: ValueConfig) -> ValueConfig | None:
         """Drop rows with unreadable live values before writing TOML."""
         readable_data = [
-            row for row in config.data if len(row) < 3 or row[2] is not None
+            row for row in config.data if len(row) == 3 and row[2] is not None
         ]
         skipped = len(config.data) - len(readable_data)
         if skipped == 0:
@@ -568,6 +570,8 @@ class StageSettings(DesignerDisplay, QDialog):
         applied_config = self.resolve_template_coe_pvs(
             applied_config, target_axis_index
         )
+        if applied_config is None:
+            return
         for setpoint, readback, value in applied_config.data:
             self.logger.debug(
                 f"applying config pv: setpoint={setpoint}, readback={readback}, value={value}"
@@ -579,8 +583,26 @@ class StageSettings(DesignerDisplay, QDialog):
 
     def resolve_template_coe_pvs(
         self, config: ValueConfig, axis_index: int
-    ) -> ValueConfig:
-        """Rewrite expanded template COE rows to linked hardware COE PVs."""
+    ) -> ValueConfig | None:
+        """Rewrite template COE PVs, or return None when resolution fails."""
+        template_prefix = self.get_template_prefix(axis_index)
+        template_coe_prefix = f"{template_prefix}:COE:"
+        template_coe_macros = (
+            f"${{{self.template_drive_coe_prefix_macro}}}:",
+            f"${{{self.template_encoder_coe_prefix_macro}}}:",
+        )
+        has_template_coe_pvs = any(
+            isinstance(elem, str)
+            and (
+                elem.startswith(template_coe_prefix)
+                or elem.startswith(template_coe_macros)
+            )
+            for row in config.data
+            for elem in row
+        )
+        if not has_template_coe_pvs:
+            return config
+
         coe_prefixes = [
             prefix
             for prefix in (
@@ -590,12 +612,16 @@ class StageSettings(DesignerDisplay, QDialog):
             if prefix is not None
         ]
         if not coe_prefixes:
-            return config
+            message = (
+                "Template contains COE PVs, but no linked drive or encoder "
+                "COE hardware was found for the target axis."
+            )
+            self.logger.warning(message)
+            QMessageBox.warning(self, "COE hardware unavailable", message)
+            return None
 
         coe_prefixes = list(dict.fromkeys(coe_prefixes))
         coe_list = set(self.get_coe_list())
-        template_prefix = self.get_template_prefix(axis_index)
-        template_coe_prefix = f"{template_prefix}:COE:"
 
         new_data = []
         for row in config.data:
@@ -606,6 +632,16 @@ class StageSettings(DesignerDisplay, QDialog):
                     elem = self.resolve_template_coe_pv(suffix, coe_prefixes, coe_list)
                 new_row.append(elem)
             new_data.append(tuple(new_row))
+
+        if any(
+            isinstance(elem, str) and elem.startswith(template_coe_macros)
+            for row in new_data
+            for elem in row
+        ):
+            message = "Could not resolve all template COE PVs for the target axis."
+            self.logger.warning(message)
+            QMessageBox.warning(self, "COE PV resolution failed", message)
+            return None
 
         return ValueConfig(
             name=config.name,
