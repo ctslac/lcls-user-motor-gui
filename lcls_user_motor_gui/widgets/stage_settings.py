@@ -102,6 +102,10 @@ class StageSettings(DesignerDisplay, QDialog):
                 )
                 config = self.resolve_template_coe_pvs(config, source_axis_index)
                 if config is None:
+                    self.logger.warning(
+                        f"Template conversion aborted for {config_name}: "
+                        f"could not resolve COE PVs for source axis {source_axis_index + 1}"
+                    )
                     return
                 config = self.configure_template_macros(config, source_axis_index)
             template_name = f"{config.name} Template"
@@ -191,17 +195,12 @@ class StageSettings(DesignerDisplay, QDialog):
         coe_name_pvs, coe_prefixes = self.get_axis_coe_name_pvs(axis_index)
 
         data = []
-        seen_pvs = set()
-        for name_pv in [*nc_name_pvs, *coe_name_pvs]:
+        for name_pv in dict.fromkeys([*nc_name_pvs, *coe_name_pvs]):
             param_pv = name_pv.removesuffix(":Name_RBV")
             if self.is_fixed_readonly(f"{param_pv}:Acc_RBV"):
                 continue
 
-            row = (f"{param_pv}:Goal", f"{param_pv}:Val_RBV")
-            if row in seen_pvs:
-                continue
-            seen_pvs.add(row)
-            data.append(row)
+            data.append((f"{param_pv}:Goal", f"{param_pv}:Val_RBV"))
 
         if not data:
             QMessageBox.warning(
@@ -342,7 +341,7 @@ class StageSettings(DesignerDisplay, QDialog):
         return f"{channel}:{match.group('param')}:{match.group('tail')}"
 
     def drop_unreadable_config_values(self, config: ValueConfig) -> ValueConfig | None:
-        """Drop rows with unreadable live values before writing TOML."""
+        """Ask before saving a config with unreadable or malformed rows omitted."""
         readable_data = [
             row for row in config.data if len(row) == 3 and row[2] is not None
         ]
@@ -358,11 +357,21 @@ class StageSettings(DesignerDisplay, QDialog):
             )
             return None
 
-        QMessageBox.warning(
-            self,
-            "Skipped unreadable PVs",
-            f"Skipped {skipped} PVs whose readbacks did not return values.",
+        dialog = QMessageBox(self)
+        dialog.setIcon(QMessageBox.Warning)
+        dialog.setWindowTitle("Incomplete config")
+        dialog.setText(
+            f"{skipped} of {len(config.data)} rows are malformed or have no "
+            "readback value.\n\nSave only the readable values?"
         )
+        save_button = dialog.addButton("Save readable values", QMessageBox.AcceptRole)
+        cancel_button = dialog.addButton(QMessageBox.Cancel)
+        dialog.setDefaultButton(cancel_button)
+        dialog.setEscapeButton(cancel_button)
+        dialog.exec_()
+        if dialog.clickedButton() != save_button:
+            return None
+
         return ValueConfig(
             name=config.name,
             desc=config.desc,
